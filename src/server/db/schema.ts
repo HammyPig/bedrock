@@ -25,10 +25,7 @@ export const posts = createTable(
       .notNull(),
     updatedAt: d.timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
   }),
-  (t) => [
-    index("created_by_idx").on(t.createdById),
-    index("name_idx").on(t.name),
-  ],
+  (t) => [index("created_by_idx").on(t.createdById), index("name_idx").on(t.name)],
 );
 
 export const users = createTable("user", (d) => ({
