@@ -64,5 +64,8 @@
   "packageManager": "npm@11.16.0",
   "ct3aMetadata": {
     "initVersion": "7.40.0"
-  }
+  },
+  "trustedDependencies": [
+    "unrs-resolver"
+  ]
 }
