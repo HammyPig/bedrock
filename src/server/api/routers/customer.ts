@@ -6,7 +6,7 @@ import { type BillTo, type Customer } from "~/app/invoices/_lib/types";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { customers } from "~/server/db/schema";
 
-const addressInput = z.object({
+export const addressInput = z.object({
   line1: z.string().max(255),
   line2: z.string().max(255),
   suburb: z.string().max(255),
