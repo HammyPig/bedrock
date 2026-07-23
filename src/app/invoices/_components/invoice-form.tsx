@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useReducer, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { BackLink } from "~/components/back-link";
 import { Label } from "~/components/ui/label";
 import { Textarea } from "~/components/ui/textarea";
 import { todayIsoDate } from "~/lib/dates";
+import { cn } from "~/lib/utils";
 import { api } from "~/trpc/react";
 import { emptyBillTo, makeLineItem, validateDraft } from "../_lib/invoice";
 import { computeTotals } from "../_lib/money";
@@ -133,6 +135,10 @@ export function InvoiceForm({ initialDraft, invoiceId, suggestedInvoiceNumber }:
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
+      {/* On the edit page the (editor) sidebar already shows this link at xl and up. */}
+      <div className={cn("mb-4", initialDraft && "xl:hidden")}>
+        <BackLink href="/invoices">All invoices</BackLink>
+      </div>
       <h1 className="mb-6 text-2xl font-semibold tracking-tight">
         {initialDraft ? `Edit ${initialDraft.invoiceNumber}` : "New invoice"}
       </h1>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { BackLink } from "~/components/back-link";
 import { Input } from "~/components/ui/input";
 import { matchesAllTokens, tokenize } from "~/lib/search";
 import { api } from "~/trpc/react";
@@ -83,7 +84,9 @@ export function ItemsManager() {
     // Surface errors on rows that were never blurred before blocking the save.
     setUntouchedIds(new Set());
     if (errors.size > 0) return;
-    saveItems.mutate(rows.map(({ id, sku, name, unitPriceCents }) => ({ id, sku, name, unitPriceCents })));
+    saveItems.mutate(
+      rows.map(({ id, sku, name, unitPriceCents }) => ({ id, sku, name, unitPriceCents })),
+    );
   };
 
   const countLabel =
@@ -93,6 +96,9 @@ export function ItemsManager() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
+      <div className="mb-4">
+        <BackLink href="/">Home</BackLink>
+      </div>
       <h1 className="mb-1 text-2xl font-semibold tracking-tight">Items</h1>
       <p className="text-muted-foreground mb-6 text-sm">
         The products and services you add to invoices.

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PlusIcon } from "lucide-react";
 
+import { BackLink } from "~/components/back-link";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import {
@@ -75,6 +76,9 @@ export function InvoicesList() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
+      <div className="mb-4">
+        <BackLink href="/">Home</BackLink>
+      </div>
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
           <h1 className="mb-1 text-2xl font-semibold tracking-tight">Invoices</h1>
