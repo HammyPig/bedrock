@@ -5,32 +5,17 @@ import { CheckIcon } from "lucide-react";
 import { Button } from "~/components/ui/button";
 
 interface SaveBarProps {
-  editedCount: number;
-  addedCount: number;
-  deletedCount: number;
+  /** Description of the unsaved changes; null when there are none (disables Save). */
+  summary: string | null;
   justSaved: boolean;
   saving: boolean;
   saveError?: string;
   onSave: () => void;
 }
 
-export function SaveBar({
-  editedCount,
-  addedCount,
-  deletedCount,
-  justSaved,
-  saving,
-  saveError,
-  onSave,
-}: SaveBarProps) {
-  const dirty = editedCount + addedCount + deletedCount > 0;
-  const summary = [
-    editedCount > 0 && `${editedCount} edited`,
-    addedCount > 0 && `${addedCount} added`,
-    deletedCount > 0 && `${deletedCount} deleted`,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+/** Sticky footer for card-style editor pages: change summary, save state, Save button. */
+export function SaveBar({ summary, justSaved, saving, saveError, onSave }: SaveBarProps) {
+  const dirty = summary !== null;
 
   return (
     <div className="bg-card/95 sticky bottom-0 flex items-center justify-between gap-4 rounded-b-xl border-t px-8 py-4 backdrop-blur sm:px-10">

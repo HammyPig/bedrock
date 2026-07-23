@@ -3,13 +3,13 @@
 import { useEffect, useState } from "react";
 
 import { BackLink } from "~/components/back-link";
+import { SaveBar } from "~/components/save-bar";
 import { Input } from "~/components/ui/input";
 import { matchesAllTokens, tokenize } from "~/lib/search";
 import { api } from "~/trpc/react";
 import { diffRows, summarizeErrors, validateItems } from "../_lib/items";
 import { type ItemRow, type ItemsErrors } from "../_lib/types";
 import { ItemsGrid } from "./items-grid";
-import { SaveBar } from "./save-bar";
 
 export function ItemsManager() {
   const [initialRows] = api.item.list.useSuspenseQuery();
@@ -39,6 +39,16 @@ export function ItemsManager() {
   const shownErrors: ItemsErrors = new Map([...errors].filter(([id]) => !untouchedIds.has(id)));
   const messages = summarizeErrors(shownErrors);
   const { changes, editedCount, addedCount, deletedCount } = diffRows(rows, savedRows);
+  const changeSummary =
+    editedCount + addedCount + deletedCount > 0
+      ? [
+          editedCount > 0 && `${editedCount} edited`,
+          addedCount > 0 && `${addedCount} added`,
+          deletedCount > 0 && `${deletedCount} deleted`,
+        ]
+          .filter(Boolean)
+          .join(" · ")
+      : null;
 
   const markTouched = (id: string) =>
     setUntouchedIds((prev) => {
@@ -129,9 +139,7 @@ export function ItemsManager() {
           />
         </div>
         <SaveBar
-          editedCount={editedCount}
-          addedCount={addedCount}
-          deletedCount={deletedCount}
+          summary={changeSummary}
           justSaved={justSaved}
           saving={saveItems.isPending}
           saveError={saveItems.error?.message}
