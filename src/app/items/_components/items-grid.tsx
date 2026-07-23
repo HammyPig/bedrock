@@ -9,7 +9,7 @@ import { Input } from "~/components/ui/input";
 import { Textarea } from "~/components/ui/textarea";
 import { cn } from "~/lib/utils";
 import { makeItemRow } from "../_lib/items";
-import { type ItemRow, type ItemsErrors } from "../_lib/types";
+import { type ItemRow, type ItemsChanges, type ItemsErrors } from "../_lib/types";
 
 type CellField = "sku" | "name" | "unitPrice";
 
@@ -18,12 +18,16 @@ type CellElement = HTMLInputElement | HTMLTextAreaElement;
 
 const GRID_COLS = "grid grid-cols-[6.5rem_minmax(0,1fr)_6.5rem_2rem] items-center gap-2";
 
+/** Unsaved-edit tint; distinct from the red invalid ring and the focus ring. */
+const CHANGED_CELL = "border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40";
+
 interface ItemsGridProps {
   /** Rows currently visible (already filtered), in display order. */
   rows: ItemRow[];
   /** Unfiltered catalog size, to tell "no items yet" from "nothing matches". */
   totalCount: number;
   errors: ItemsErrors;
+  changes: ItemsChanges;
   messages: string[];
   onUpdate: (id: string, patch: Partial<Omit<ItemRow, "id">>) => void;
   onAppend: (row: ItemRow) => void;
@@ -36,6 +40,7 @@ export function ItemsGrid({
   rows,
   totalCount,
   errors,
+  changes,
   messages,
   onUpdate,
   onAppend,
@@ -124,6 +129,7 @@ export function ItemsGrid({
           <div className="space-y-2">
             {rows.map((row, index) => {
               const rowErrors = errors.get(row.id);
+              const rowChanges = changes.get(row.id);
 
               return (
                 <div
@@ -136,7 +142,7 @@ export function ItemsGrid({
                 >
                   <Input
                     ref={registerCell(row.id, "sku")}
-                    className="px-1.5"
+                    className={cn("px-1.5", rowChanges?.sku && CHANGED_CELL)}
                     value={row.sku}
                     placeholder="SKU"
                     aria-label={`Item ${index + 1} SKU`}
@@ -149,7 +155,10 @@ export function ItemsGrid({
                   <Textarea
                     ref={registerCell(row.id, "name")}
                     rows={1}
-                    className="min-h-8 resize-none py-[5px] leading-5"
+                    className={cn(
+                      "min-h-8 resize-none py-[5px] leading-5",
+                      rowChanges?.name && CHANGED_CELL,
+                    )}
                     value={row.name}
                     placeholder="Item name"
                     aria-label={`Item ${index + 1} name`}
@@ -161,6 +170,7 @@ export function ItemsGrid({
                   />
                   <MoneyInput
                     ref={registerCell(row.id, "unitPrice")}
+                    className={cn(rowChanges?.unitPriceCents && CHANGED_CELL)}
                     valueCents={row.unitPriceCents}
                     aria-label={`Item ${index + 1} unit price`}
                     onValueCentsChange={(unitPriceCents) => onUpdate(row.id, { unitPriceCents })}

@@ -1,22 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Input } from "~/components/ui/input";
 import { mockSavedItems } from "~/lib/items";
 import { matchesAllTokens, tokenize } from "~/lib/search";
-import { makeItemRow, summarizeErrors, validateItems } from "../_lib/items";
+import { diffRows, makeItemRow, summarizeErrors, validateItems } from "../_lib/items";
 import { type ItemRow, type ItemsErrors } from "../_lib/types";
 import { ItemsGrid } from "./items-grid";
+import { SaveBar } from "./save-bar";
 
 export function ItemsManager() {
   const [rows, setRows] = useState<ItemRow[]>(() =>
     mockSavedItems.map((item) => makeItemRow(item)),
   );
+  /** Last-saved snapshot; nothing is persisted in this scaffold. */
+  const [savedRows, setSavedRows] = useState<ItemRow[]>(rows);
+  const [justSaved, setJustSaved] = useState(false);
   const [query, setQuery] = useState("");
   /** Rows that haven't been blurred yet — their validation errors stay hidden. */
   const [untouchedIds, setUntouchedIds] = useState<ReadonlySet<string>>(new Set());
   const [focusedRowId, setFocusedRowId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!justSaved) return;
+    const timeout = setTimeout(() => setJustSaved(false), 1500);
+    return () => clearTimeout(timeout);
+  }, [justSaved]);
 
   const tokens = tokenize(query);
   // A focused row stays visible even when an edit stops it matching the filter,
@@ -28,6 +38,7 @@ export function ItemsManager() {
   const errors = validateItems(rows);
   const shownErrors: ItemsErrors = new Map([...errors].filter(([id]) => !untouchedIds.has(id)));
   const messages = summarizeErrors(shownErrors);
+  const { changes, editedCount, addedCount, deletedCount } = diffRows(rows, savedRows);
 
   const markTouched = (id: string) =>
     setUntouchedIds((prev) => {
@@ -58,6 +69,14 @@ export function ItemsManager() {
     setFocusedRowId((prev) => (prev === id ? null : prev));
   };
 
+  const handleSave = () => {
+    // Surface errors on rows that were never blurred before blocking the save.
+    setUntouchedIds(new Set());
+    if (errors.size > 0) return;
+    setSavedRows(rows);
+    setJustSaved(true);
+  };
+
   const countLabel =
     visibleRows.length === rows.length
       ? `${rows.length} item${rows.length === 1 ? "" : "s"}`
@@ -69,27 +88,37 @@ export function ItemsManager() {
       <p className="text-muted-foreground mb-6 text-sm">
         The products and services you add to invoices.
       </p>
-      <div className="bg-card rounded-xl border p-8 shadow-sm sm:p-10">
-        <div className="mb-6 flex items-center justify-between gap-4">
-          <Input
-            className="max-w-xs"
-            value={query}
-            placeholder="Search by SKU or name..."
-            aria-label="Search items"
-            onChange={(e) => setQuery(e.currentTarget.value)}
+      <div className="bg-card rounded-xl border shadow-sm">
+        <div className="p-8 sm:p-10">
+          <div className="mb-6 flex items-center justify-between gap-4">
+            <Input
+              className="max-w-xs"
+              value={query}
+              placeholder="Search by SKU or name..."
+              aria-label="Search items"
+              onChange={(e) => setQuery(e.currentTarget.value)}
+            />
+            <span className="text-muted-foreground text-sm tabular-nums">{countLabel}</span>
+          </div>
+          <ItemsGrid
+            rows={visibleRows}
+            totalCount={rows.length}
+            errors={shownErrors}
+            changes={changes}
+            messages={messages}
+            onUpdate={handleUpdate}
+            onAppend={handleAppend}
+            onRemove={handleRemove}
+            onRowFocus={setFocusedRowId}
+            onRowBlur={handleRowBlur}
           />
-          <span className="text-muted-foreground text-sm tabular-nums">{countLabel}</span>
         </div>
-        <ItemsGrid
-          rows={visibleRows}
-          totalCount={rows.length}
-          errors={shownErrors}
-          messages={messages}
-          onUpdate={handleUpdate}
-          onAppend={handleAppend}
-          onRemove={handleRemove}
-          onRowFocus={setFocusedRowId}
-          onRowBlur={handleRowBlur}
+        <SaveBar
+          editedCount={editedCount}
+          addedCount={addedCount}
+          deletedCount={deletedCount}
+          justSaved={justSaved}
+          onSave={handleSave}
         />
       </div>
     </div>
