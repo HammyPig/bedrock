@@ -12,6 +12,7 @@ import superjson from "superjson";
 import { ZodError } from "zod";
 
 import { auth } from "~/server/auth";
+import { resolveBusinessId } from "~/server/business";
 import { db } from "~/server/db";
 
 /**
@@ -127,4 +128,20 @@ export const protectedProcedure = t.procedure.use(timingMiddleware).use(({ ctx, 
       session: { ...ctx.session, user: ctx.session.user },
     },
   });
+});
+
+/**
+ * Business-scoped procedure
+ *
+ * For everything that reads or writes business data — invoices, items,
+ * customers, settings. Requires the signed-in user to belong to a business
+ * (claiming a pending email invite if one matches) and provides
+ * `ctx.businessId` to scope every query.
+ */
+export const businessProcedure = protectedProcedure.use(async ({ ctx, next }) => {
+  const businessId = await resolveBusinessId(ctx.session.user);
+  if (!businessId) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Create a business first." });
+  }
+  return next({ ctx: { businessId } });
 });
