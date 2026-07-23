@@ -191,6 +191,35 @@ export const invoices = createTable(
   ],
 );
 
+/**
+ * One row per user: the business identity printed on invoices plus invoice
+ * numbering preferences. nextInvoiceNumber is the zero-padded sequence the
+ * next invoice should use ("000213") — its length sets the padding width, and
+ * it's a floor, not a counter: invoice numbers already used push past it.
+ */
+export const businessSettings = createTable("business_settings", (d) => ({
+  userId: d
+    .varchar({ length: 255 })
+    .notNull()
+    .primaryKey()
+    .references(() => users.id),
+  businessName: d.varchar({ length: 255 }).notNull(),
+  taxId: d.varchar({ length: 64 }).notNull(),
+  address: d.jsonb().$type<Address>().notNull(),
+  website: d.varchar({ length: 255 }).notNull(),
+  email: d.varchar({ length: 255 }).notNull(),
+  phone: d.varchar({ length: 64 }).notNull(),
+  paymentDetails: d.text().notNull(),
+  termsAndConditions: d.text().notNull(),
+  invoiceNumberPrefix: d.varchar({ length: 16 }).notNull(),
+  nextInvoiceNumber: d.varchar({ length: 20 }).notNull(),
+  createdAt: d
+    .timestamp({ withTimezone: true })
+    .$defaultFn(() => new Date())
+    .notNull(),
+  updatedAt: d.timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
+}));
+
 /** Denormalized snapshot of a catalog item at invoice time — no FK to items. */
 export const invoiceLineItems = createTable(
   "invoice_line_item",
