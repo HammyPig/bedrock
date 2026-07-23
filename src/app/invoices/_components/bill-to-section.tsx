@@ -31,13 +31,13 @@ import {
   SelectValue,
 } from "~/components/ui/select";
 import { fieldMatchesAnyToken, matchesAllTokens, tokenize } from "~/lib/search";
+import { api } from "~/trpc/react";
 import {
   billToHasContent,
   billToMatchesCustomer,
   CUSTOMER_TIER_OPTIONS,
   customerDisplayName,
 } from "../_lib/invoice";
-import { mockCustomers } from "../_lib/mock-data";
 import { type BillTo, type Customer, type CustomerTier, type InvoiceAction } from "../_lib/types";
 import { AddressField } from "./address-field";
 import { Highlight } from "./highlight";
@@ -72,7 +72,8 @@ export function BillToSection({
   error,
   dispatch,
 }: BillToSectionProps) {
-  const [customers, setCustomers] = useState<Customer[]>(mockCustomers);
+  const [customers] = api.customer.list.useSuspenseQuery();
+  const utils = api.useUtils();
   const source = customers.find((customer) => customer.id === sourceCustomerId);
   const diverged = source !== undefined && !billToMatchesCustomer(billTo, source);
   const unsaved = source === undefined && billToHasContent(billTo);
@@ -84,21 +85,26 @@ export function BillToSection({
     return () => clearTimeout(timeout);
   }, [flash]);
 
+  const createCustomer = api.customer.create.useMutation({
+    onSuccess: async ({ id }) => {
+      await utils.customer.list.invalidate();
+      dispatch({ type: "patch", patch: { sourceCustomerId: id } });
+      setFlash("Saved");
+    },
+  });
+  const updateCustomer = api.customer.update.useMutation({
+    onSuccess: async () => {
+      await utils.customer.list.invalidate();
+      setFlash("Updated");
+    },
+  });
+
   const handleUpdateSavedCustomer = () => {
-    setCustomers((prev) =>
-      prev.map((customer) =>
-        customer.id === sourceCustomerId ? { ...customer, ...billTo } : customer,
-      ),
-    );
-    setFlash("Updated");
+    if (sourceCustomerId === null) return;
+    updateCustomer.mutate({ id: sourceCustomerId, details: billTo });
   };
 
-  const handleSaveAsNewCustomer = () => {
-    const customer: Customer = { id: crypto.randomUUID(), ...billTo };
-    setCustomers((prev) => [...prev, customer]);
-    dispatch({ type: "patch", patch: { sourceCustomerId: customer.id } });
-    setFlash("Saved");
-  };
+  const handleSaveAsNewCustomer = () => createCustomer.mutate(billTo);
 
   const setField = (field: "name" | "company" | "phone" | "email", value: string) =>
     dispatch({ type: "patchBillTo", patch: { [field]: value } });

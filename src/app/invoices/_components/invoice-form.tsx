@@ -1,13 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useReducer, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { Label } from "~/components/ui/label";
 import { Textarea } from "~/components/ui/textarea";
 import { todayIsoDate } from "~/lib/dates";
-import { mockSavedItems } from "~/lib/items";
+import { api } from "~/trpc/react";
 import { emptyBillTo, makeLineItem, validateDraft } from "../_lib/invoice";
-import { SUGGESTED_INVOICE_NUMBER } from "../_lib/mock-data";
 import { computeTotals } from "../_lib/money";
 import { type InvoiceAction, type InvoiceDraft } from "../_lib/types";
 import { BillToSection } from "./bill-to-section";
@@ -16,9 +16,9 @@ import { LineItemsGrid } from "./line-items-grid";
 import { StickyActionBar } from "./sticky-action-bar";
 import { TotalsPanel } from "./totals-panel";
 
-function createInitialDraft(): InvoiceDraft {
+function createInitialDraft(invoiceNumber: string): InvoiceDraft {
   return {
-    invoiceNumber: SUGGESTED_INVOICE_NUMBER,
+    invoiceNumber,
     billTo: emptyBillTo(),
     sourceCustomerId: null,
     delivery: false,
@@ -60,47 +60,52 @@ function invoiceReducer(draft: InvoiceDraft, action: InvoiceAction): InvoiceDraf
   }
 }
 
-/**
- * Cosmetic autosave: cycles "saving" -> "saved" on draft edits (debounced).
- * Nothing is persisted in this scaffold.
- */
-function useAutosave(draft: InvoiceDraft) {
-  const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isFirstRun = useRef(true);
-
-  const saveNow = useCallback(() => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    setStatus("saving");
-    timeoutRef.current = setTimeout(() => setStatus("saved"), 800);
-  }, []);
-
-  useEffect(() => {
-    if (isFirstRun.current) {
-      isFirstRun.current = false;
-      return;
-    }
-    saveNow();
-  }, [draft, saveNow]);
-
-  return { status, saveNow };
-}
-
 interface InvoiceFormProps {
   /** Existing invoice being edited; omitted on the create page. */
   initialDraft?: InvoiceDraft;
+  /** Database id of the invoice being edited; omitted on the create page. */
+  invoiceId?: string;
+  /** Next free invoice number, pre-filled on the create page. */
+  suggestedInvoiceNumber?: string;
 }
 
-export function InvoiceForm({ initialDraft }: InvoiceFormProps) {
-  const [draft, dispatch] = useReducer(
+export function InvoiceForm({ initialDraft, invoiceId, suggestedInvoiceNumber }: InvoiceFormProps) {
+  const router = useRouter();
+  const utils = api.useUtils();
+  const [savedItems] = api.item.list.useSuspenseQuery();
+
+  const [draft, rawDispatch] = useReducer(
     invoiceReducer,
     initialDraft,
-    (existing) => existing ?? createInitialDraft(),
+    (existing) => existing ?? createInitialDraft(suggestedInvoiceNumber ?? "INV-0001"),
   );
   const [showErrors, setShowErrors] = useState(false);
   const [justSent, setJustSent] = useState(false);
+  // An existing invoice starts in sync with the database; any edit marks it dirty.
+  const [saved, setSaved] = useState(initialDraft !== undefined);
 
-  const { status: autosaveStatus, saveNow } = useAutosave(draft);
+  const dispatch = useCallback((action: InvoiceAction) => {
+    setSaved(false);
+    rawDispatch(action);
+  }, []);
+
+  const createInvoice = api.invoice.create.useMutation({
+    onSuccess: async ({ id }) => {
+      setSaved(true);
+      await utils.invoice.invalidate();
+      router.push(`/invoices/${id}/edit`);
+    },
+  });
+  const updateInvoice = api.invoice.update.useMutation({
+    onSuccess: async () => {
+      setSaved(true);
+      await utils.invoice.invalidate();
+    },
+  });
+
+  const saving = createInvoice.isPending || updateInvoice.isPending;
+  const saveError = (createInvoice.error ?? updateInvoice.error)?.message;
+
   const totals = computeTotals(draft);
   const errors = showErrors ? validateDraft(draft) : null;
 
@@ -110,14 +115,21 @@ export function InvoiceForm({ initialDraft }: InvoiceFormProps) {
     return () => clearTimeout(timeout);
   }, [justSent]);
 
-  const handleSend = () => {
+  const persist = (onSaved?: () => void) => {
+    if (saving) return;
     if (validateDraft(draft)) {
       setShowErrors(true);
       return;
     }
     setShowErrors(false);
-    setJustSent(true);
+    if (invoiceId) {
+      updateInvoice.mutate({ id: invoiceId, draft }, { onSuccess: onSaved });
+    } else {
+      createInvoice.mutate(draft, { onSuccess: onSaved });
+    }
   };
+
+  const handleSend = () => persist(() => setJustSent(true));
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
@@ -141,7 +153,7 @@ export function InvoiceForm({ initialDraft }: InvoiceFormProps) {
           />
           <LineItemsGrid
             items={draft.lineItems}
-            savedItems={mockSavedItems}
+            savedItems={savedItems}
             invalidItemIds={errors?.invalidLineItemIds ?? []}
             error={errors?.lineItems}
             dispatch={dispatch}
@@ -171,9 +183,10 @@ export function InvoiceForm({ initialDraft }: InvoiceFormProps) {
         </div>
         <StickyActionBar
           balanceCents={totals.balanceCents}
-          autosaveStatus={autosaveStatus}
+          autosaveStatus={saving ? "saving" : saved ? "saved" : "idle"}
+          saveError={saveError}
           justSent={justSent}
-          onSaveDraft={saveNow}
+          onSaveDraft={() => persist()}
           onSend={handleSend}
         />
       </div>

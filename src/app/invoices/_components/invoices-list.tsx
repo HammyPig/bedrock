@@ -18,6 +18,7 @@ import { formatIsoDate, todayIsoDate } from "~/lib/dates";
 import { formatCents } from "~/lib/money";
 import { matchesAllTokens, tokenize } from "~/lib/search";
 import { cn } from "~/lib/utils";
+import { api } from "~/trpc/react";
 import {
   balanceCents,
   invoiceStatus,
@@ -26,10 +27,7 @@ import {
   summarizeInvoice,
   type StatusFilter,
 } from "../_lib/invoices";
-import { mockInvoices } from "../_lib/mock-data";
 import { type InvoiceStatus } from "../_lib/types";
-
-const invoiceSummaries = mockInvoices.map(summarizeInvoice);
 
 const STATUS_BADGE: Record<InvoiceStatus, string> = {
   unpaid: "bg-muted text-muted-foreground",
@@ -39,8 +37,11 @@ const STATUS_BADGE: Record<InvoiceStatus, string> = {
 
 export function InvoicesList() {
   const router = useRouter();
+  const [invoices] = api.invoice.list.useSuspenseQuery();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+
+  const invoiceSummaries = invoices.map(summarizeInvoice);
 
   const today = todayIsoDate();
   const tokens = tokenize(query);

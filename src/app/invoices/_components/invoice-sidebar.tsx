@@ -14,21 +14,8 @@ import {
   CommandList,
 } from "~/components/ui/command";
 import { fieldMatchesAnyToken, matchesAllTokens, tokenize } from "~/lib/search";
-import { mockInvoices } from "../_lib/mock-data";
+import { api } from "~/trpc/react";
 import { Highlight } from "./highlight";
-
-// Same newest-first ordering as the invoices list, so switching feels consistent.
-const sidebarInvoices = mockInvoices
-  .map(({ id, draft }) => ({
-    id,
-    invoiceNumber: draft.invoiceNumber,
-    issueDate: draft.issueDate,
-    billTo: draft.billTo,
-  }))
-  .sort(
-    (a, b) =>
-      b.issueDate.localeCompare(a.issueDate) || b.invoiceNumber.localeCompare(a.invoiceNumber),
-  );
 
 /** Floating switcher beside the edit form: every invoice, searchable like the customer picker. */
 export function InvoiceSidebar() {
@@ -37,6 +24,20 @@ export function InvoiceSidebar() {
   const rootRef = useRef<HTMLElement | null>(null);
   const [query, setQuery] = useState("");
   const tokens = tokenize(query);
+
+  const [invoices] = api.invoice.list.useSuspenseQuery();
+  // Same newest-first ordering as the invoices list, so switching feels consistent.
+  const sidebarInvoices = invoices
+    .map(({ id, draft }) => ({
+      id,
+      invoiceNumber: draft.invoiceNumber,
+      issueDate: draft.issueDate,
+      billTo: draft.billTo,
+    }))
+    .sort(
+      (a, b) =>
+        b.issueDate.localeCompare(a.issueDate) || b.invoiceNumber.localeCompare(a.invoiceNumber),
+    );
 
   const filtered = sidebarInvoices.filter(({ invoiceNumber, billTo }) =>
     matchesAllTokens(
