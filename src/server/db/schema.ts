@@ -94,6 +94,76 @@ export const verificationTokens = createTable(
   (t) => [primaryKey({ columns: [t.identifier, t.token] })],
 );
 
+/**
+ * The tenant: all invoicing data (items, customers, invoices, settings) hangs
+ * off a business, and users reach it through a businessUsers membership row.
+ * ownerUserId is the user who created the business.
+ */
+export const businesses = createTable("business", (d) => ({
+  id: d
+    .varchar({ length: 255 })
+    .notNull()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  ownerUserId: d
+    .varchar({ length: 255 })
+    .notNull()
+    .references(() => users.id),
+  createdAt: d
+    .timestamp({ withTimezone: true })
+    .$defaultFn(() => new Date())
+    .notNull(),
+}));
+
+/** Membership link. userId as primary key = a user belongs to at most one business. */
+export const businessUsers = createTable(
+  "business_user",
+  (d) => ({
+    userId: d
+      .varchar({ length: 255 })
+      .notNull()
+      .primaryKey()
+      .references(() => users.id),
+    businessId: d
+      .varchar({ length: 255 })
+      .notNull()
+      .references(() => businesses.id),
+    createdAt: d
+      .timestamp({ withTimezone: true })
+      .$defaultFn(() => new Date())
+      .notNull(),
+  }),
+  (t) => [index("business_user_business_id_idx").on(t.businessId)],
+);
+
+/**
+ * Pending invite, keyed by lowercased email. Claimed — converted into a
+ * businessUsers row — the next time a user with a matching email is seen.
+ */
+export const businessInvites = createTable(
+  "business_invite",
+  (d) => ({
+    id: d
+      .varchar({ length: 255 })
+      .notNull()
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    businessId: d
+      .varchar({ length: 255 })
+      .notNull()
+      .references(() => businesses.id),
+    email: d.varchar({ length: 255 }).notNull(),
+    createdAt: d
+      .timestamp({ withTimezone: true })
+      .$defaultFn(() => new Date())
+      .notNull(),
+  }),
+  (t) => [
+    uniqueIndex("business_invite_business_email_idx").on(t.businessId, t.email),
+    index("business_invite_email_idx").on(t.email),
+  ],
+);
+
 /** Catalog of products/services the invoice line-item lookup draws from. */
 export const items = createTable(
   "item",
@@ -103,10 +173,10 @@ export const items = createTable(
       .notNull()
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
-    userId: d
+    businessId: d
       .varchar({ length: 255 })
       .notNull()
-      .references(() => users.id),
+      .references(() => businesses.id),
     sku: d.varchar({ length: 64 }).notNull(),
     name: d.varchar({ length: 256 }).notNull(),
     unitPriceCents: d.integer().notNull(),
@@ -116,7 +186,7 @@ export const items = createTable(
       .notNull(),
     updatedAt: d.timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
   }),
-  (t) => [index("item_user_id_idx").on(t.userId)],
+  (t) => [index("item_business_id_idx").on(t.businessId)],
 );
 
 export const customers = createTable(
@@ -127,10 +197,10 @@ export const customers = createTable(
       .notNull()
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
-    userId: d
+    businessId: d
       .varchar({ length: 255 })
       .notNull()
-      .references(() => users.id),
+      .references(() => businesses.id),
     name: d.varchar({ length: 255 }).notNull(),
     company: d.varchar({ length: 255 }).notNull(),
     phone: d.varchar({ length: 64 }).notNull(),
@@ -144,7 +214,7 @@ export const customers = createTable(
       .notNull(),
     updatedAt: d.timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
   }),
-  (t) => [index("customer_user_id_idx").on(t.userId)],
+  (t) => [index("customer_business_id_idx").on(t.businessId)],
 );
 
 /**
@@ -161,10 +231,10 @@ export const invoices = createTable(
       .notNull()
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
-    userId: d
+    businessId: d
       .varchar({ length: 255 })
       .notNull()
-      .references(() => users.id),
+      .references(() => businesses.id),
     invoiceNumber: d.varchar({ length: 64 }).notNull(),
     billTo: d.jsonb().$type<BillTo>().notNull(),
     sourceCustomerId: d.varchar({ length: 255 }),
@@ -186,23 +256,23 @@ export const invoices = createTable(
     updatedAt: d.timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
   }),
   (t) => [
-    index("invoice_user_id_idx").on(t.userId),
-    uniqueIndex("invoice_user_number_idx").on(t.userId, t.invoiceNumber),
+    index("invoice_business_id_idx").on(t.businessId),
+    uniqueIndex("invoice_business_number_idx").on(t.businessId, t.invoiceNumber),
   ],
 );
 
 /**
- * One row per user: the business identity printed on invoices plus invoice
+ * One row per business: the identity printed on invoices plus invoice
  * numbering preferences. nextInvoiceNumber is the zero-padded sequence the
  * next invoice should use ("000213") — its length sets the padding width, and
  * it's a floor, not a counter: invoice numbers already used push past it.
  */
 export const businessSettings = createTable("business_settings", (d) => ({
-  userId: d
+  businessId: d
     .varchar({ length: 255 })
     .notNull()
     .primaryKey()
-    .references(() => users.id),
+    .references(() => businesses.id),
   businessName: d.varchar({ length: 255 }).notNull(),
   taxId: d.varchar({ length: 64 }).notNull(),
   address: d.jsonb().$type<Address>().notNull(),
