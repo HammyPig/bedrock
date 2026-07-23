@@ -3,8 +3,8 @@
 import { useState } from "react";
 
 import { Input } from "~/components/ui/input";
+import { formatCents, parseMoneyInput } from "~/lib/money";
 import { cn } from "~/lib/utils";
-import { formatCents, parseMoneyInput } from "../_lib/money";
 
 type MoneyInputProps = Omit<
   React.ComponentProps<"input">,

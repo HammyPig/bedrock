@@ -43,12 +43,6 @@ export interface Customer {
 /** The invoice's own billing-details snapshot — editing it never touches the saved customer. */
 export type BillTo = Omit<Customer, "id">;
 
-export interface SavedItem {
-  sku: string;
-  name: string;
-  unitPriceCents: number;
-}
-
 export interface InvoiceDraft {
   invoiceNumber: string;
   billTo: BillTo;

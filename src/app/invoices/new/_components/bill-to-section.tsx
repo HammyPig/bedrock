@@ -30,6 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
+import { fieldMatchesAnyToken, matchesAllTokens, tokenize } from "~/lib/search";
 import {
   billToHasContent,
   billToMatchesCustomer,
@@ -37,7 +38,6 @@ import {
   customerDisplayName,
 } from "../_lib/invoice";
 import { mockCustomers } from "../_lib/mock-data";
-import { fieldMatchesAnyToken, matchesAllTokens, tokenize } from "../_lib/search";
 import { type BillTo, type Customer, type CustomerTier, type InvoiceAction } from "../_lib/types";
 import { AddressField } from "./address-field";
 import { Highlight } from "./highlight";

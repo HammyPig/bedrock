@@ -1,7 +1,7 @@
 import { fakerEN_AU as faker } from "@faker-js/faker";
 
 import { emptyAddress } from "./invoice";
-import { type Address, type Customer, type CustomerTier, type SavedItem } from "./types";
+import { type Address, type Customer, type CustomerTier } from "./types";
 
 export const SUGGESTED_INVOICE_NUMBER = "INV-0042";
 
@@ -40,11 +40,3 @@ export const mockCustomers: Customer[] = Array.from({ length: CUSTOMER_COUNT }, 
 
 /** Stand-in for a real address-lookup service (e.g. Google Places, Addressify). */
 export const mockAddressSuggestions: Address[] = Array.from({ length: 15 }, () => fakeAddress());
-
-const SAVED_ITEM_COUNT = 15;
-
-export const mockSavedItems: SavedItem[] = Array.from({ length: SAVED_ITEM_COUNT }, () => ({
-  sku: faker.string.alphanumeric({ length: 6, casing: "upper" }),
-  name: faker.commerce.productName(),
-  unitPriceCents: Math.round(Number(faker.commerce.price({ min: 5, max: 500 })) * 100),
-}));

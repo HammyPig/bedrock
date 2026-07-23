@@ -4,8 +4,9 @@ import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 
 import { Label } from "~/components/ui/label";
 import { Textarea } from "~/components/ui/textarea";
+import { mockSavedItems } from "~/lib/items";
 import { emptyBillTo, makeLineItem, todayIsoDate, validateDraft } from "../_lib/invoice";
-import { mockSavedItems, SUGGESTED_INVOICE_NUMBER } from "../_lib/mock-data";
+import { SUGGESTED_INVOICE_NUMBER } from "../_lib/mock-data";
 import { computeTotals } from "../_lib/money";
 import { type InvoiceAction, type InvoiceDraft } from "../_lib/types";
 import { BillToSection } from "./bill-to-section";

@@ -3,7 +3,7 @@
 import { CheckIcon } from "lucide-react";
 
 import { Button } from "~/components/ui/button";
-import { formatCents } from "../_lib/money";
+import { formatCents } from "~/lib/money";
 
 interface StickyActionBarProps {
   balanceCents: number;

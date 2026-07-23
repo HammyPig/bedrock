@@ -2,11 +2,11 @@
 
 import { XIcon } from "lucide-react";
 
+import { MoneyInput } from "~/components/money-input";
 import { Button } from "~/components/ui/button";
+import { formatCents } from "~/lib/money";
 import { cn } from "~/lib/utils";
-import { formatCents } from "../_lib/money";
 import { type Discount, type DiscountMode, type InvoiceAction, type Totals } from "../_lib/types";
-import { MoneyInput } from "./money-input";
 import { NumberInput } from "./number-input";
 
 interface TotalsPanelProps {
