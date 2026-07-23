@@ -9,18 +9,18 @@ interface StickyActionBarProps {
   balanceCents: number;
   autosaveStatus: "idle" | "saving" | "saved";
   saveError?: string;
-  justSent: boolean;
-  onSaveDraft: () => void;
-  onSend: () => void;
+  exporting: boolean;
+  onSave: () => void;
+  onSaveAndExport: () => void;
 }
 
 export function StickyActionBar({
   balanceCents,
   autosaveStatus,
   saveError,
-  justSent,
-  onSaveDraft,
-  onSend,
+  exporting,
+  onSave,
+  onSaveAndExport,
 }: StickyActionBarProps) {
   const saving = autosaveStatus === "saving";
 
@@ -43,11 +43,11 @@ export function StickyActionBar({
       <div className="flex items-center gap-3">
         <span className="text-muted-foreground text-sm">Balance due</span>
         <span className="font-semibold tabular-nums">{formatCents(balanceCents)}</span>
-        <Button variant="outline" disabled={saving} onClick={onSaveDraft}>
-          Save draft
+        <Button variant="outline" disabled={saving || exporting} onClick={onSave}>
+          Save
         </Button>
-        <Button disabled={saving} onClick={onSend}>
-          {justSent ? "Sent ✓" : "Send"}
+        <Button disabled={saving || exporting} onClick={onSaveAndExport}>
+          {exporting ? "Exporting…" : "Save + export"}
         </Button>
       </div>
     </div>

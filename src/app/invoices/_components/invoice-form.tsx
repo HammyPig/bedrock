@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useReducer, useState } from "react";
+import { useCallback, useReducer, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { BackLink } from "~/components/back-link";
@@ -82,7 +82,7 @@ export function InvoiceForm({ initialDraft, invoiceId, suggestedInvoiceNumber }:
     (existing) => existing ?? createInitialDraft(suggestedInvoiceNumber ?? "INV-0001"),
   );
   const [showErrors, setShowErrors] = useState(false);
-  const [justSent, setJustSent] = useState(false);
+  const [exporting, setExporting] = useState(false);
   // An existing invoice starts in sync with the database; any edit marks it dirty.
   const [saved, setSaved] = useState(initialDraft !== undefined);
 
@@ -111,12 +111,6 @@ export function InvoiceForm({ initialDraft, invoiceId, suggestedInvoiceNumber }:
   const totals = computeTotals(draft);
   const errors = showErrors ? validateDraft(draft) : null;
 
-  useEffect(() => {
-    if (!justSent) return;
-    const timeout = setTimeout(() => setJustSent(false), 1500);
-    return () => clearTimeout(timeout);
-  }, [justSent]);
-
   const persist = (onSaved?: () => void) => {
     if (saving) return;
     if (validateDraft(draft)) {
@@ -131,7 +125,26 @@ export function InvoiceForm({ initialDraft, invoiceId, suggestedInvoiceNumber }:
     }
   };
 
-  const handleSend = () => persist(() => setJustSent(true));
+  const handleExportPdf = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      // The PDF renderer is heavy, so it only loads when an export is requested.
+      const [{ invoicePdfBlob }, settings] = await Promise.all([
+        import("../_lib/invoice-pdf"),
+        utils.settings.get.ensureData(),
+      ]);
+      const blob = await invoicePdfBlob(draft, settings);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `${draft.invoiceNumber.trim() || "invoice"}.pdf`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
@@ -191,9 +204,9 @@ export function InvoiceForm({ initialDraft, invoiceId, suggestedInvoiceNumber }:
           balanceCents={totals.balanceCents}
           autosaveStatus={saving ? "saving" : saved ? "saved" : "idle"}
           saveError={saveError}
-          justSent={justSent}
-          onSaveDraft={() => persist()}
-          onSend={handleSend}
+          exporting={exporting}
+          onSave={() => persist()}
+          onSaveAndExport={() => persist(() => void handleExportPdf())}
         />
       </div>
     </div>
