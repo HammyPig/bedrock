@@ -1,10 +1,9 @@
 "use client";
 
 import { Fragment, useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeftIcon } from "lucide-react";
 
+import { BackLink } from "~/components/back-link";
 import {
   Command,
   CommandEmpty,
@@ -62,13 +61,7 @@ export function InvoiceSidebar() {
     <aside ref={rootRef} className="sticky top-10 mt-10 w-52 self-start">
       {/* h-8 + mb-6 mirror the form title's 2rem line and mb-6, so the card tops align. */}
       <div className="mb-6 flex h-8 items-center">
-        <Link
-          href="/invoices"
-          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-xs font-medium tracking-wide uppercase transition-colors"
-        >
-          <ArrowLeftIcon className="size-3.5" />
-          All invoices
-        </Link>
+        <BackLink href="/invoices">All invoices</BackLink>
       </div>
       <Command shouldFilter={false} className="border shadow-sm">
         <CommandInput placeholder="Search invoices..." value={query} onValueChange={setQuery} />
