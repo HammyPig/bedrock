@@ -2,6 +2,7 @@ import { type Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 
 import { auth } from "~/server/auth";
+import { resolveBusinessId } from "~/server/business";
 import { api, HydrateClient } from "~/trpc/server";
 import { InvoiceForm } from "../../../_components/invoice-form";
 
@@ -11,7 +12,9 @@ interface EditInvoicePageProps {
 
 export async function generateMetadata({ params }: EditInvoicePageProps): Promise<Metadata> {
   const session = await auth();
-  if (!session?.user) return { title: "Edit invoice" };
+  if (!session?.user || !(await resolveBusinessId(session.user))) {
+    return { title: "Edit invoice" };
+  }
 
   const { invoiceId } = await params;
   const invoice = await api.invoice.get({ id: invoiceId });
@@ -21,6 +24,7 @@ export async function generateMetadata({ params }: EditInvoicePageProps): Promis
 export default async function EditInvoicePage({ params }: EditInvoicePageProps) {
   const session = await auth();
   if (!session?.user) redirect("/login");
+  if (!(await resolveBusinessId(session.user))) redirect("/");
 
   const { invoiceId } = await params;
   const invoice = await api.invoice.get({ id: invoiceId });

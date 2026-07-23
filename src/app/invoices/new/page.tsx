@@ -2,6 +2,7 @@ import { type Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { auth } from "~/server/auth";
+import { resolveBusinessId } from "~/server/business";
 import { api, HydrateClient } from "~/trpc/server";
 import { InvoiceForm } from "../_components/invoice-form";
 
@@ -12,6 +13,7 @@ export const metadata: Metadata = {
 export default async function NewInvoicePage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
+  if (!(await resolveBusinessId(session.user))) redirect("/");
 
   const suggestedInvoiceNumber = await api.invoice.nextNumber();
   void api.item.list.prefetch();

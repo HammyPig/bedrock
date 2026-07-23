@@ -4,6 +4,7 @@ import { FileTextIcon, PackageIcon, PlusIcon, SettingsIcon } from "lucide-react"
 
 import { Button } from "~/components/ui/button";
 import { auth, signOut } from "~/server/auth";
+import { resolveBusinessId } from "~/server/business";
 
 const sections = [
   {
@@ -29,6 +30,37 @@ const sections = [
 export default async function Home() {
   const session = await auth();
   if (!session?.user) redirect("/login");
+
+  const businessId = await resolveBusinessId(session.user);
+  if (!businessId) {
+    return (
+      <main className="bg-background flex min-h-screen items-center justify-center px-4">
+        <div className="w-full max-w-md text-center">
+          <h1 className="mb-1 text-2xl font-semibold tracking-tight">Bedrock</h1>
+          <p className="text-muted-foreground mb-6 text-sm">
+            Welcome, {session.user.name ?? session.user.email}. Create your business to get started.
+          </p>
+          <Button asChild size="lg">
+            <Link href="/business/new">
+              <PlusIcon />
+              Create your business
+            </Link>
+          </Button>
+          <form
+            className="mt-4"
+            action={async () => {
+              "use server";
+              await signOut({ redirectTo: "/login" });
+            }}
+          >
+            <Button type="submit" variant="ghost">
+              Sign out
+            </Button>
+          </form>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="bg-background min-h-screen">
