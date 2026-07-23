@@ -9,6 +9,10 @@ export interface BusinessSettings {
   website: string;
   email: string;
   phone: string;
+  /** Logo image as a data URL, printed top-left on invoices; empty for none. */
+  logo: string;
+  /** Hex colour for invoice headings and rules, e.g. "#1a5276". */
+  accentColor: string;
   /** Free text printed on invoices: bank details, PayID, cheque instructions, etc. */
   paymentDetails: string;
   termsAndConditions: string;
@@ -30,6 +34,8 @@ export function defaultSettings(): BusinessSettings {
     website: "",
     email: "",
     phone: "",
+    logo: "",
+    accentColor: "#111827",
     paymentDetails: "",
     termsAndConditions: "",
     invoiceNumberPrefix: "INV-",

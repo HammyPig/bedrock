@@ -1,10 +1,15 @@
 "use client";
 
+import { useState } from "react";
+
 import { AddressField } from "~/app/invoices/_components/address-field";
+import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Textarea } from "~/components/ui/textarea";
 import { type BusinessSettings } from "../_lib/settings";
+
+const MAX_LOGO_BYTES = 1_000_000;
 
 interface SettingsFieldsProps {
   value: BusinessSettings;
@@ -16,8 +21,24 @@ interface SettingsFieldsProps {
  * create-business page. The parent owns the state and the save/create action.
  */
 export function SettingsFields({ value, onChange }: SettingsFieldsProps) {
+  const [logoError, setLogoError] = useState<string | null>(null);
   const nextNumberValid = Number(value.nextInvoiceNumber) >= 1;
   const previewNumber = value.invoiceNumberPrefix + value.nextInvoiceNumber;
+
+  const handleLogoFile = (file: File | undefined) => {
+    if (!file) return;
+    if (file.size > MAX_LOGO_BYTES) {
+      setLogoError("Logo images must be 1MB or smaller.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result !== "string") return;
+      setLogoError(null);
+      onChange({ logo: reader.result });
+    };
+    reader.readAsDataURL(file);
+  };
 
   return (
     <div className="space-y-10 p-8 sm:p-10">
@@ -74,6 +95,57 @@ export function SettingsFields({ value, onChange }: SettingsFieldsProps) {
               value={value.address}
               onChange={(address) => onChange({ address })}
             />
+          </div>
+        </div>
+      </section>
+      <section>
+        <h2 className="mb-1 font-medium">Invoice appearance</h2>
+        <p className="text-muted-foreground mb-4 text-sm">
+          Your logo and accent colour, used on every invoice PDF.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="logo">Logo</Label>
+            {value.logo !== "" && (
+              // eslint-disable-next-line @next/next/no-img-element -- data-URL preview, nothing to optimize
+              <img
+                src={value.logo}
+                alt="Business logo"
+                className="h-16 w-auto rounded-md border p-1"
+              />
+            )}
+            <div className="flex items-center gap-3" key={value.logo === "" ? "no-logo" : "logo"}>
+              <Input
+                id="logo"
+                type="file"
+                accept="image/*"
+                onChange={(e) => handleLogoFile(e.currentTarget.files?.[0])}
+              />
+              {value.logo !== "" && (
+                <Button type="button" variant="outline" onClick={() => onChange({ logo: "" })}>
+                  Remove
+                </Button>
+              )}
+            </div>
+            {logoError && <p className="text-destructive text-sm">{logoError}</p>}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="accent-color">Accent colour</Label>
+            <div className="flex items-center gap-3">
+              <input
+                id="accent-color"
+                type="color"
+                value={value.accentColor}
+                onChange={(e) => onChange({ accentColor: e.currentTarget.value })}
+                className="border-input h-9 w-14 cursor-pointer rounded-md border bg-transparent p-1"
+              />
+              <span className="text-muted-foreground text-sm uppercase tabular-nums">
+                {value.accentColor}
+              </span>
+            </div>
+            <p className="text-muted-foreground text-sm">
+              Colours the headings and rules on the PDF.
+            </p>
           </div>
         </div>
       </section>

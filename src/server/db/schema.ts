@@ -262,10 +262,10 @@ export const invoices = createTable(
 );
 
 /**
- * One row per business: the identity printed on invoices plus invoice
- * numbering preferences. nextInvoiceNumber is the zero-padded sequence the
- * next invoice should use ("000213") — its length sets the padding width, and
- * it's a floor, not a counter: invoice numbers already used push past it.
+ * One row per business: the identity and appearance printed on invoices plus
+ * invoice numbering preferences. nextInvoiceNumber is the zero-padded sequence
+ * the next invoice should use ("000213") — its length sets the padding width,
+ * and it's a floor, not a counter: invoice numbers already used push past it.
  */
 export const businessSettings = createTable("business_settings", (d) => ({
   businessId: d
@@ -279,6 +279,8 @@ export const businessSettings = createTable("business_settings", (d) => ({
   website: d.varchar({ length: 255 }).notNull(),
   email: d.varchar({ length: 255 }).notNull(),
   phone: d.varchar({ length: 64 }).notNull(),
+  logo: d.text().notNull().default(""),
+  accentColor: d.varchar({ length: 16 }).notNull().default("#111827"),
   paymentDetails: d.text().notNull(),
   termsAndConditions: d.text().notNull(),
   invoiceNumberPrefix: d.varchar({ length: 16 }).notNull(),

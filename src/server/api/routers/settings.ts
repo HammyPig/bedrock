@@ -18,6 +18,11 @@ export const settingsInput = z.object({
   website: z.string().max(255),
   email: z.string().max(255),
   phone: z.string().max(64),
+  logo: z
+    .string()
+    .max(1_500_000, "Logo image is too large.")
+    .refine((value) => value === "" || value.startsWith("data:image/"), "Logo must be an image."),
+  accentColor: z.string().regex(/^#[0-9a-f]{6}$/i, "Colour must be a six-digit hex value."),
   paymentDetails: z.string(),
   termsAndConditions: z.string(),
   invoiceNumberPrefix: z.string().max(16),
@@ -36,6 +41,8 @@ function toSettings(row: typeof businessSettings.$inferSelect): BusinessSettings
     website: row.website,
     email: row.email,
     phone: row.phone,
+    logo: row.logo,
+    accentColor: row.accentColor,
     paymentDetails: row.paymentDetails,
     termsAndConditions: row.termsAndConditions,
     invoiceNumberPrefix: row.invoiceNumberPrefix,
