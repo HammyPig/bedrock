@@ -9,7 +9,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
-import { deriveDueDate, formatIsoDate, PAYMENT_TERMS_OPTIONS } from "../_lib/invoice";
+import { formatIsoDate } from "~/lib/dates";
+import { deriveDueDate, PAYMENT_TERMS_OPTIONS } from "../_lib/invoice";
 import { type InvoiceAction, type InvoiceDraft, type PaymentTerms } from "../_lib/types";
 
 interface InvoiceMetaProps {

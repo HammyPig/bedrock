@@ -1,6 +1,6 @@
 import { type Metadata } from "next";
 
-import { InvoiceForm } from "./_components/invoice-form";
+import { InvoiceForm } from "../_components/invoice-form";
 
 export const metadata: Metadata = {
   title: "New invoice",

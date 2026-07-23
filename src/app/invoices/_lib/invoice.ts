@@ -1,3 +1,4 @@
+import { addDaysIso } from "~/lib/dates";
 import {
   type Address,
   type BillTo,
@@ -30,36 +31,8 @@ const TERM_DAYS: Record<Exclude<PaymentTerms, "custom">, number> = {
   net_30: 30,
 };
 
-function toIsoDate(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-export function todayIsoDate(): string {
-  return toIsoDate(new Date());
-}
-
-/** Parsed as local time — a bare new Date("YYYY-MM-DD") would be UTC, off by one near midnight. */
-function parseIsoDate(isoDate: string): Date {
-  return new Date(`${isoDate}T00:00:00`);
-}
-
 export function deriveDueDate(issueDate: string, terms: Exclude<PaymentTerms, "custom">): string {
-  const date = parseIsoDate(issueDate);
-  date.setDate(date.getDate() + TERM_DAYS[terms]);
-  return toIsoDate(date);
-}
-
-const dateFormatter = new Intl.DateTimeFormat("en-AU", {
-  month: "short",
-  day: "numeric",
-  year: "numeric",
-});
-
-export function formatIsoDate(isoDate: string): string {
-  return dateFormatter.format(parseIsoDate(isoDate));
+  return addDaysIso(issueDate, TERM_DAYS[terms]);
 }
 
 export function makeLineItem(): LineItem {
@@ -134,8 +107,8 @@ export function billToHasContent(billTo: BillTo): boolean {
   );
 }
 
-/** Display label for a customer: contact name, falling back to company. */
-export function customerDisplayName(customer: Customer): string {
+/** Display label for a customer or bill-to snapshot: contact name, falling back to company. */
+export function customerDisplayName(customer: Pick<Customer, "name" | "company">): string {
   if (customer.name.trim() !== "") return customer.name;
   if (customer.company.trim() !== "") return customer.company;
   return "Unnamed customer";

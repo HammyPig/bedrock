@@ -87,3 +87,24 @@ export type InvoiceAction =
   | { type: "updateLineItem"; id: string; patch: Partial<Omit<LineItem, "id">> }
   | { type: "appendLineItem"; item: LineItem }
   | { type: "removeLineItem"; id: string };
+
+/** A stored invoice: the id is the URL key; everything else lives in the draft. */
+export interface Invoice {
+  id: string;
+  draft: InvoiceDraft;
+}
+
+export type InvoiceStatus = "unpaid" | "overdue" | "paid";
+
+/** Row shape for the invoice list, derived from an Invoice. */
+export interface InvoiceSummary {
+  id: string;
+  invoiceNumber: string;
+  customerName: string;
+  /** ISO date, YYYY-MM-DD. */
+  issueDate: string;
+  /** ISO date, YYYY-MM-DD. */
+  dueDate: string;
+  totalCents: number;
+  paidCents: number;
+}

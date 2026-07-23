@@ -4,8 +4,9 @@ import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 
 import { Label } from "~/components/ui/label";
 import { Textarea } from "~/components/ui/textarea";
+import { todayIsoDate } from "~/lib/dates";
 import { mockSavedItems } from "~/lib/items";
-import { emptyBillTo, makeLineItem, todayIsoDate, validateDraft } from "../_lib/invoice";
+import { emptyBillTo, makeLineItem, validateDraft } from "../_lib/invoice";
 import { SUGGESTED_INVOICE_NUMBER } from "../_lib/mock-data";
 import { computeTotals } from "../_lib/money";
 import { type InvoiceAction, type InvoiceDraft } from "../_lib/types";
@@ -85,8 +86,17 @@ function useAutosave(draft: InvoiceDraft) {
   return { status, saveNow };
 }
 
-export function InvoiceForm() {
-  const [draft, dispatch] = useReducer(invoiceReducer, null, createInitialDraft);
+interface InvoiceFormProps {
+  /** Existing invoice being edited; omitted on the create page. */
+  initialDraft?: InvoiceDraft;
+}
+
+export function InvoiceForm({ initialDraft }: InvoiceFormProps) {
+  const [draft, dispatch] = useReducer(
+    invoiceReducer,
+    initialDraft,
+    (existing) => existing ?? createInitialDraft(),
+  );
   const [showErrors, setShowErrors] = useState(false);
   const [justSent, setJustSent] = useState(false);
 
@@ -111,7 +121,9 @@ export function InvoiceForm() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
-      <h1 className="mb-6 text-2xl font-semibold tracking-tight">New invoice</h1>
+      <h1 className="mb-6 text-2xl font-semibold tracking-tight">
+        {initialDraft ? `Edit ${initialDraft.invoiceNumber}` : "New invoice"}
+      </h1>
       <div className="bg-card rounded-xl border shadow-sm">
         <div className="space-y-8 p-8 sm:p-10">
           <BillToSection
