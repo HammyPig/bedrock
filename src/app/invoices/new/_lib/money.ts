@@ -1,8 +1,8 @@
 import { type InvoiceDraft, type LineItem, type Totals } from "./types";
 
-const currencyFormatter = new Intl.NumberFormat("en-US", {
+const currencyFormatter = new Intl.NumberFormat("en-AU", {
   style: "currency",
-  currency: "USD",
+  currency: "AUD",
 });
 
 export function formatCents(cents: number): string {

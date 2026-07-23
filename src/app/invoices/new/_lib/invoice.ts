@@ -52,7 +52,7 @@ export function deriveDueDate(issueDate: string, terms: Exclude<PaymentTerms, "c
   return toIsoDate(date);
 }
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
+const dateFormatter = new Intl.DateTimeFormat("en-AU", {
   month: "short",
   day: "numeric",
   year: "numeric",
