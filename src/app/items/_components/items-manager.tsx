@@ -3,19 +3,18 @@
 import { useEffect, useState } from "react";
 
 import { Input } from "~/components/ui/input";
-import { mockSavedItems } from "~/lib/items";
 import { matchesAllTokens, tokenize } from "~/lib/search";
-import { diffRows, makeItemRow, summarizeErrors, validateItems } from "../_lib/items";
+import { api } from "~/trpc/react";
+import { diffRows, summarizeErrors, validateItems } from "../_lib/items";
 import { type ItemRow, type ItemsErrors } from "../_lib/types";
 import { ItemsGrid } from "./items-grid";
 import { SaveBar } from "./save-bar";
 
 export function ItemsManager() {
-  const [rows, setRows] = useState<ItemRow[]>(() =>
-    mockSavedItems.map((item) => makeItemRow(item)),
-  );
-  /** Last-saved snapshot; nothing is persisted in this scaffold. */
-  const [savedRows, setSavedRows] = useState<ItemRow[]>(rows);
+  const [initialRows] = api.item.list.useSuspenseQuery();
+  const [rows, setRows] = useState<ItemRow[]>(initialRows);
+  /** Last-saved snapshot, reset to the server's canonical rows after each save. */
+  const [savedRows, setSavedRows] = useState<ItemRow[]>(initialRows);
   const [justSaved, setJustSaved] = useState(false);
   const [query, setQuery] = useState("");
   /** Rows that haven't been blurred yet — their validation errors stay hidden. */
@@ -69,12 +68,22 @@ export function ItemsManager() {
     setFocusedRowId((prev) => (prev === id ? null : prev));
   };
 
+  const utils = api.useUtils();
+  const saveItems = api.item.saveAll.useMutation({
+    onSuccess: async (fresh) => {
+      // The server assigns ids to new rows, so reset both copies to its result.
+      setRows(fresh);
+      setSavedRows(fresh);
+      setJustSaved(true);
+      await utils.item.list.invalidate();
+    },
+  });
+
   const handleSave = () => {
     // Surface errors on rows that were never blurred before blocking the save.
     setUntouchedIds(new Set());
     if (errors.size > 0) return;
-    setSavedRows(rows);
-    setJustSaved(true);
+    saveItems.mutate(rows.map(({ id, sku, name, unitPriceCents }) => ({ id, sku, name, unitPriceCents })));
   };
 
   const countLabel =
@@ -118,6 +127,8 @@ export function ItemsManager() {
           addedCount={addedCount}
           deletedCount={deletedCount}
           justSaved={justSaved}
+          saving={saveItems.isPending}
+          saveError={saveItems.error?.message}
           onSave={handleSave}
         />
       </div>

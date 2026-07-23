@@ -9,6 +9,8 @@ interface SaveBarProps {
   addedCount: number;
   deletedCount: number;
   justSaved: boolean;
+  saving: boolean;
+  saveError?: string;
   onSave: () => void;
 }
 
@@ -17,6 +19,8 @@ export function SaveBar({
   addedCount,
   deletedCount,
   justSaved,
+  saving,
+  saveError,
   onSave,
 }: SaveBarProps) {
   const dirty = editedCount + addedCount + deletedCount > 0;
@@ -30,22 +34,28 @@ export function SaveBar({
 
   return (
     <div className="bg-card/95 sticky bottom-0 flex items-center justify-between gap-4 rounded-b-xl border-t px-8 py-4 backdrop-blur sm:px-10">
-      <p className="text-muted-foreground flex items-center gap-1.5 text-sm">
-        {dirty ? (
-          <>
-            <span aria-hidden className="size-2 rounded-full bg-amber-400" />
-            {summary}
-          </>
-        ) : justSaved ? (
-          <>
-            <CheckIcon className="size-4" />
-            Saved
-          </>
-        ) : (
-          "No unsaved changes"
-        )}
-      </p>
-      <Button disabled={!dirty} onClick={onSave}>
+      {saveError && !saving ? (
+        <p className="text-destructive text-sm">{saveError}</p>
+      ) : (
+        <p className="text-muted-foreground flex items-center gap-1.5 text-sm">
+          {saving ? (
+            "Saving…"
+          ) : dirty ? (
+            <>
+              <span aria-hidden className="size-2 rounded-full bg-amber-400" />
+              {summary}
+            </>
+          ) : justSaved ? (
+            <>
+              <CheckIcon className="size-4" />
+              Saved
+            </>
+          ) : (
+            "No unsaved changes"
+          )}
+        </p>
+      )}
+      <Button disabled={!dirty || saving} onClick={onSave}>
         Save
       </Button>
     </div>

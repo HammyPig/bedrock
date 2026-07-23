@@ -1,15 +1,25 @@
 import { type Metadata } from "next";
+import { redirect } from "next/navigation";
 
+import { auth } from "~/server/auth";
+import { api, HydrateClient } from "~/trpc/server";
 import { ItemsManager } from "./_components/items-manager";
 
 export const metadata: Metadata = {
   title: "Items",
 };
 
-export default function ItemsPage() {
+export default async function ItemsPage() {
+  const session = await auth();
+  if (!session?.user) redirect("/login");
+
+  void api.item.list.prefetch();
+
   return (
-    <main className="bg-background min-h-screen">
-      <ItemsManager />
-    </main>
+    <HydrateClient>
+      <main className="bg-background min-h-screen">
+        <ItemsManager />
+      </main>
+    </HydrateClient>
   );
 }
