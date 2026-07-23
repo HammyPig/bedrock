@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { type Invoice, type InvoiceDraft } from "~/app/invoices/_lib/types";
 import { billToInput } from "~/server/api/routers/customer";
+import { loadEffectiveSettings } from "~/server/api/routers/settings";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { invoiceLineItems, invoices } from "~/server/db/schema";
 import { type db as database } from "~/server/db";
@@ -156,18 +157,9 @@ export const invoiceRouter = createTRPCRouter({
       return { id: input.id };
     }),
 
-  /** Next free number in the INV-#### sequence, suggested on the create page. */
+  /** Suggested number for the next invoice, from the user's numbering settings. */
   nextNumber: protectedProcedure.query(async ({ ctx }) => {
-    const rows = await ctx.db
-      .select({ invoiceNumber: invoices.invoiceNumber })
-      .from(invoices)
-      .where(eq(invoices.userId, ctx.session.user.id));
-
-    let max = 0;
-    for (const { invoiceNumber } of rows) {
-      const match = /^INV-(\d+)$/.exec(invoiceNumber.trim());
-      if (match) max = Math.max(max, Number(match[1]));
-    }
-    return `INV-${String(max + 1).padStart(4, "0")}`;
+    const settings = await loadEffectiveSettings(ctx.db, ctx.session.user.id);
+    return settings.invoiceNumberPrefix + settings.nextInvoiceNumber;
   }),
 });
