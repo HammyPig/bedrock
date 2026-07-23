@@ -1,3 +1,6 @@
+import { customerRouter } from "~/server/api/routers/customer";
+import { invoiceRouter } from "~/server/api/routers/invoice";
+import { itemRouter } from "~/server/api/routers/item";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
 
 /**
@@ -5,7 +8,11 @@ import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
  *
  * All routers added in /api/routers should be manually added here.
  */
-export const appRouter = createTRPCRouter({});
+export const appRouter = createTRPCRouter({
+  customer: customerRouter,
+  invoice: invoiceRouter,
+  item: itemRouter,
+});
 
 // export type definition of API
 export type AppRouter = typeof appRouter;
