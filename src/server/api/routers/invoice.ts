@@ -5,7 +5,7 @@ import { z } from "zod";
 import { type Invoice, type InvoiceDraft } from "~/app/invoices/_lib/types";
 import { billToInput } from "~/server/api/routers/customer";
 import { loadEffectiveSettings } from "~/server/api/routers/settings";
-import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
+import { businessProcedure, createTRPCRouter } from "~/server/api/trpc";
 import { invoiceLineItems, invoices } from "~/server/db/schema";
 import { type db as database } from "~/server/db";
 
@@ -80,14 +80,14 @@ function toInvoice(row: InvoiceRow): Invoice {
 
 async function assertInvoiceNumberFree(
   db: typeof database,
-  userId: string,
+  businessId: string,
   invoiceNumber: string,
   excludeId?: string,
 ) {
   const existing = await db.query.invoices.findFirst({
     columns: { id: true },
     where: and(
-      eq(invoices.userId, userId),
+      eq(invoices.businessId, businessId),
       eq(invoices.invoiceNumber, invoiceNumber),
       excludeId === undefined ? undefined : ne(invoices.id, excludeId),
     ),
@@ -101,31 +101,31 @@ async function assertInvoiceNumberFree(
 }
 
 export const invoiceRouter = createTRPCRouter({
-  list: protectedProcedure.query(async ({ ctx }) => {
+  list: businessProcedure.query(async ({ ctx }) => {
     const rows = await ctx.db.query.invoices.findMany({
-      where: eq(invoices.userId, ctx.session.user.id),
+      where: eq(invoices.businessId, ctx.businessId),
       with: { lineItems: { orderBy: [asc(invoiceLineItems.position)] } },
     });
     return rows.map(toInvoice);
   }),
 
-  get: protectedProcedure.input(z.object({ id: z.string() })).query(async ({ ctx, input }) => {
+  get: businessProcedure.input(z.object({ id: z.string() })).query(async ({ ctx, input }) => {
     const row = await ctx.db.query.invoices.findFirst({
-      where: and(eq(invoices.id, input.id), eq(invoices.userId, ctx.session.user.id)),
+      where: and(eq(invoices.id, input.id), eq(invoices.businessId, ctx.businessId)),
       with: { lineItems: { orderBy: [asc(invoiceLineItems.position)] } },
     });
     return row ? toInvoice(row) : null;
   }),
 
-  create: protectedProcedure.input(draftInput).mutation(async ({ ctx, input }) => {
-    const userId = ctx.session.user.id;
-    await assertInvoiceNumberFree(ctx.db, userId, input.invoiceNumber);
+  create: businessProcedure.input(draftInput).mutation(async ({ ctx, input }) => {
+    const businessId = ctx.businessId;
+    await assertInvoiceNumberFree(ctx.db, businessId, input.invoiceNumber);
 
     const { lineItems, ...invoiceColumns } = input;
     return ctx.db.transaction(async (tx) => {
       const [created] = await tx
         .insert(invoices)
-        .values({ ...invoiceColumns, userId })
+        .values({ ...invoiceColumns, businessId })
         .returning({ id: invoices.id });
       if (!created) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       await tx
@@ -135,18 +135,18 @@ export const invoiceRouter = createTRPCRouter({
     });
   }),
 
-  update: protectedProcedure
+  update: businessProcedure
     .input(z.object({ id: z.string(), draft: draftInput }))
     .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
-      await assertInvoiceNumberFree(ctx.db, userId, input.draft.invoiceNumber, input.id);
+      const businessId = ctx.businessId;
+      await assertInvoiceNumberFree(ctx.db, businessId, input.draft.invoiceNumber, input.id);
 
       const { lineItems, ...invoiceColumns } = input.draft;
       await ctx.db.transaction(async (tx) => {
         const [updated] = await tx
           .update(invoices)
           .set(invoiceColumns)
-          .where(and(eq(invoices.id, input.id), eq(invoices.userId, userId)))
+          .where(and(eq(invoices.id, input.id), eq(invoices.businessId, businessId)))
           .returning({ id: invoices.id });
         if (!updated) throw new TRPCError({ code: "NOT_FOUND" });
         await tx.delete(invoiceLineItems).where(eq(invoiceLineItems.invoiceId, input.id));
@@ -157,9 +157,9 @@ export const invoiceRouter = createTRPCRouter({
       return { id: input.id };
     }),
 
-  /** Suggested number for the next invoice, from the user's numbering settings. */
-  nextNumber: protectedProcedure.query(async ({ ctx }) => {
-    const settings = await loadEffectiveSettings(ctx.db, ctx.session.user.id);
+  /** Suggested number for the next invoice, from the business's numbering settings. */
+  nextNumber: businessProcedure.query(async ({ ctx }) => {
+    const settings = await loadEffectiveSettings(ctx.db, ctx.businessId);
     return settings.invoiceNumberPrefix + settings.nextInvoiceNumber;
   }),
 });

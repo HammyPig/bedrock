@@ -2,7 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { and, asc, eq, notInArray } from "drizzle-orm";
 import { z } from "zod";
 
-import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
+import { businessProcedure, createTRPCRouter } from "~/server/api/trpc";
 import { items } from "~/server/db/schema";
 
 const itemRowInput = z.object({
@@ -22,29 +22,32 @@ function toItemRow(row: typeof items.$inferSelect) {
 }
 
 export const itemRouter = createTRPCRouter({
-  list: protectedProcedure.query(async ({ ctx }) => {
+  list: businessProcedure.query(async ({ ctx }) => {
     const rows = await ctx.db.query.items.findMany({
-      where: eq(items.userId, ctx.session.user.id),
+      where: eq(items.businessId, ctx.businessId),
       orderBy: [asc(items.createdAt), asc(items.id)],
     });
     return rows.map(toItemRow);
   }),
 
   /**
-   * Replaces the user's catalog with the submitted grid: rows with a known id
-   * are updated, unknown ids are inserted fresh, and anything missing from the
-   * submission is deleted. Returns the saved catalog so the client can reset
-   * its working copy to canonical ids and order.
+   * Replaces the business's catalog with the submitted grid: rows with a known
+   * id are updated, unknown ids are inserted fresh, and anything missing from
+   * the submission is deleted. Returns the saved catalog so the client can
+   * reset its working copy to canonical ids and order.
    */
-  saveAll: protectedProcedure.input(z.array(itemRowInput)).mutation(async ({ ctx, input }) => {
+  saveAll: businessProcedure.input(z.array(itemRowInput)).mutation(async ({ ctx, input }) => {
     const skus = input.map((row) => normalizeSku(row.sku));
     if (new Set(skus).size !== skus.length) {
       throw new TRPCError({ code: "BAD_REQUEST", message: "Each item needs a unique SKU." });
     }
 
-    const userId = ctx.session.user.id;
+    const businessId = ctx.businessId;
     await ctx.db.transaction(async (tx) => {
-      const existing = await tx.select({ id: items.id }).from(items).where(eq(items.userId, userId));
+      const existing = await tx
+        .select({ id: items.id })
+        .from(items)
+        .where(eq(items.businessId, businessId));
       const existingIds = new Set(existing.map((row) => row.id));
       const keptIds = input.map((row) => row.id).filter((id) => existingIds.has(id));
 
@@ -52,8 +55,8 @@ export const itemRouter = createTRPCRouter({
         .delete(items)
         .where(
           keptIds.length > 0
-            ? and(eq(items.userId, userId), notInArray(items.id, keptIds))
-            : eq(items.userId, userId),
+            ? and(eq(items.businessId, businessId), notInArray(items.id, keptIds))
+            : eq(items.businessId, businessId),
         );
 
       for (const row of input) {
@@ -62,15 +65,15 @@ export const itemRouter = createTRPCRouter({
           await tx
             .update(items)
             .set(values)
-            .where(and(eq(items.id, row.id), eq(items.userId, userId)));
+            .where(and(eq(items.id, row.id), eq(items.businessId, businessId)));
         } else {
-          await tx.insert(items).values({ ...values, userId });
+          await tx.insert(items).values({ ...values, businessId });
         }
       }
     });
 
     const rows = await ctx.db.query.items.findMany({
-      where: eq(items.userId, userId),
+      where: eq(items.businessId, businessId),
       orderBy: [asc(items.createdAt), asc(items.id)],
     });
     return rows.map(toItemRow);

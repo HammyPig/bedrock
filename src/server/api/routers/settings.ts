@@ -7,11 +7,11 @@ import {
   type BusinessSettings,
 } from "~/app/settings/_lib/settings";
 import { addressInput } from "~/server/api/routers/customer";
-import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
+import { businessProcedure, createTRPCRouter } from "~/server/api/trpc";
 import { businessSettings, invoices } from "~/server/db/schema";
 import { type db as database } from "~/server/db";
 
-const settingsInput = z.object({
+export const settingsInput = z.object({
   businessName: z.string().max(255),
   taxId: z.string().max(64),
   address: addressInput,
@@ -51,17 +51,17 @@ function toSettings(row: typeof businessSettings.$inferSelect): BusinessSettings
  */
 export async function loadEffectiveSettings(
   db: typeof database,
-  userId: string,
+  businessId: string,
 ): Promise<BusinessSettings> {
   const row = await db.query.businessSettings.findFirst({
-    where: eq(businessSettings.userId, userId),
+    where: eq(businessSettings.businessId, businessId),
   });
   const settings = row ? toSettings(row) : defaultSettings();
 
   const invoiceRows = await db
     .select({ invoiceNumber: invoices.invoiceNumber })
     .from(invoices)
-    .where(eq(invoices.userId, userId));
+    .where(eq(invoices.businessId, businessId));
 
   let sequence = Number(settings.nextInvoiceNumber);
   for (const { invoiceNumber } of invoiceRows) {
@@ -74,16 +74,16 @@ export async function loadEffectiveSettings(
 }
 
 export const settingsRouter = createTRPCRouter({
-  get: protectedProcedure.query(({ ctx }) => loadEffectiveSettings(ctx.db, ctx.session.user.id)),
+  get: businessProcedure.query(({ ctx }) => loadEffectiveSettings(ctx.db, ctx.businessId)),
 
-  save: protectedProcedure.input(settingsInput).mutation(async ({ ctx, input }) => {
-    const userId = ctx.session.user.id;
+  save: businessProcedure.input(settingsInput).mutation(async ({ ctx, input }) => {
+    const businessId = ctx.businessId;
     await ctx.db
       .insert(businessSettings)
-      .values({ ...input, userId })
-      .onConflictDoUpdate({ target: businessSettings.userId, set: input });
+      .values({ ...input, businessId })
+      .onConflictDoUpdate({ target: businessSettings.businessId, set: input });
     // Re-read so the client's form resets to the effective next number, not
     // the raw floor it submitted.
-    return loadEffectiveSettings(ctx.db, userId);
+    return loadEffectiveSettings(ctx.db, businessId);
   }),
 });
