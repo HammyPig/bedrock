@@ -60,6 +60,13 @@ const styles = StyleSheet.create({
   colUnit: { width: 75, textAlign: "right" },
   colDisc: { width: 45, textAlign: "right" },
   colAmount: { width: 80, textAlign: "right" },
+  backorderTag: {
+    fontSize: 7,
+    fontFamily: "Helvetica-Bold",
+    color: "#6b7280",
+    letterSpacing: 0.5,
+  },
+  backorderNote: { marginTop: 6, fontSize: 8, color: "#6b7280" },
   summary: { flexDirection: "row", justifyContent: "space-between", marginTop: 12 },
   // paddingTop matches the totals rows' paddingVertical so both columns start level.
   summaryLeft: { flex: 1, paddingRight: 24, paddingTop: 2 },
@@ -125,6 +132,7 @@ export function InvoicePdf({ draft, settings }: InvoicePdfProps) {
   const items = draft.lineItems.filter((item) => item.name.trim() !== "" || item.sku.trim() !== "");
   const showSku = items.some((item) => item.sku.trim() !== "");
   const showDiscount = items.some((item) => item.discountPercent > 0);
+  const showBackordered = items.some((item) => item.backordered);
   const businessContact = [settings.phone, settings.email, settings.website].filter(
     (value) => value.trim() !== "",
   );
@@ -215,7 +223,10 @@ export function InvoicePdf({ draft, settings }: InvoicePdfProps) {
         {items.map((item) => (
           <View key={item.id} style={styles.tableRow} wrap={false}>
             {showSku && <Text style={styles.colSku}>{item.sku}</Text>}
-            <Text style={styles.colName}>{item.name}</Text>
+            <Text style={styles.colName}>
+              {item.name}
+              {item.backordered && <Text style={styles.backorderTag}>{"   BACKORDERED"}</Text>}
+            </Text>
             <Text style={styles.colQty}>{String(item.quantity)}</Text>
             <Text style={styles.colUnit}>{formatCents(item.unitPriceCents)}</Text>
             {showDiscount && (
@@ -226,6 +237,9 @@ export function InvoicePdf({ draft, settings }: InvoicePdfProps) {
             <Text style={styles.colAmount}>{formatCents(lineItemSubtotalCents(item))}</Text>
           </View>
         ))}
+        {showBackordered && (
+          <Text style={styles.backorderNote}>Backordered items will ship separately.</Text>
+        )}
 
         <View style={styles.summary}>
           <View style={styles.summaryLeft}>
