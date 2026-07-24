@@ -36,6 +36,13 @@ export const vendorRouter = createTRPCRouter({
     return rows.map(toVendor);
   }),
 
+  get: businessProcedure.input(z.object({ id: z.string() })).query(async ({ ctx, input }) => {
+    const row = await ctx.db.query.vendors.findFirst({
+      where: and(eq(vendors.id, input.id), eq(vendors.businessId, ctx.businessId)),
+    });
+    return row ? toVendor(row) : null;
+  }),
+
   create: businessProcedure.input(vendorDetailsInput).mutation(async ({ ctx, input }) => {
     const [created] = await ctx.db
       .insert(vendors)
@@ -55,4 +62,13 @@ export const vendorRouter = createTRPCRouter({
         .returning({ id: vendors.id });
       if (!updated) throw new TRPCError({ code: "NOT_FOUND" });
     }),
+
+  delete: businessProcedure.input(z.object({ id: z.string() })).mutation(async ({ ctx, input }) => {
+    const [deleted] = await ctx.db
+      .delete(vendors)
+      .where(and(eq(vendors.id, input.id), eq(vendors.businessId, ctx.businessId)))
+      .returning({ id: vendors.id });
+    if (!deleted) throw new TRPCError({ code: "NOT_FOUND" });
+    return { id: input.id };
+  }),
 });

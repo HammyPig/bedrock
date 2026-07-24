@@ -6,6 +6,7 @@ import {
   PlusIcon,
   SettingsIcon,
   ShoppingCartIcon,
+  TruckIcon,
   UsersIcon,
 } from "lucide-react";
 
@@ -38,6 +39,12 @@ const sections = [
     title: "Customers",
     description: "The people and businesses you invoice.",
     icon: UsersIcon,
+  },
+  {
+    href: "/vendors",
+    title: "Vendors",
+    description: "The suppliers you order from.",
+    icon: TruckIcon,
   },
   {
     // Straight to the first section — /settings itself only redirects there.
