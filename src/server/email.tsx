@@ -6,6 +6,8 @@ import { Resend } from "resend";
 import { customerDisplayName, draftDueDate } from "~/app/invoices/_lib/invoice";
 import { computeTotals } from "~/app/invoices/_lib/money";
 import { type InvoiceDraft } from "~/app/invoices/_lib/types";
+import { purchaseOrderTotals, vendorDisplayName } from "~/app/purchase-orders/_lib/purchase-order";
+import { type PurchaseOrderDraft } from "~/app/purchase-orders/_lib/types";
 import { type BusinessSettings } from "~/app/settings/_lib/settings";
 import { formatIsoDate } from "~/lib/dates";
 import { formatCents } from "~/lib/money";
@@ -59,6 +61,62 @@ export async function sendInvoiceEmail(
     attachments: [
       {
         filename: `${draft.invoiceNumber.trim() || "invoice"}.pdf`,
+        content: pdf,
+      },
+    ],
+  });
+  if (error) {
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: `The email could not be sent: ${error.message}`,
+    });
+  }
+}
+
+/**
+ * Emails the purchase order to `to`, with the rendered PDF attached. Unlike
+ * invoices there are no configurable templates — the wording is fixed.
+ */
+export async function sendPurchaseOrderEmail(
+  to: string,
+  draft: PurchaseOrderDraft,
+  settings: BusinessSettings,
+) {
+  if (!env.RESEND_API_KEY || !env.EMAIL_FROM) {
+    throw new TRPCError({
+      code: "PRECONDITION_FAILED",
+      message: "Email sending isn't configured — set RESEND_API_KEY and EMAIL_FROM.",
+    });
+  }
+
+  // The PDF renderer is heavy, so it only loads when an email is sent.
+  const { renderToBuffer } = await import("@react-pdf/renderer");
+  const { PurchaseOrderPdf } = await import("~/app/purchase-orders/_lib/purchase-order-pdf");
+  const pdf = await renderToBuffer(<PurchaseOrderPdf draft={draft} settings={settings} />);
+
+  const totals = purchaseOrderTotals(draft);
+  const expectedLine =
+    draft.expectedDate === null
+      ? ""
+      : `\n\nDelivery is expected by ${formatIsoDate(draft.expectedDate)}.`;
+  const body = `Hi ${vendorDisplayName(draft.vendor)},
+
+Please find attached purchase order ${draft.poNumber} from ${settings.businessName}, totalling ${formatCents(totals.totalCents)}.${expectedLine}
+
+Thanks,
+${settings.businessName}`;
+
+  const resend = new Resend(env.RESEND_API_KEY);
+  const { error } = await resend.emails.send({
+    from: env.EMAIL_FROM,
+    to,
+    // Replies go to the business, not the sending domain.
+    replyTo: settings.email.trim() !== "" ? settings.email : undefined,
+    subject: `Purchase order ${draft.poNumber} from ${settings.businessName}`,
+    text: body,
+    attachments: [
+      {
+        filename: `${draft.poNumber.trim() || "purchase-order"}.pdf`,
         content: pdf,
       },
     ],

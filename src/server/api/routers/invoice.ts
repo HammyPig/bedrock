@@ -10,9 +10,9 @@ import { sendInvoiceEmail } from "~/server/email";
 import { invoiceLineItems, invoices } from "~/server/db/schema";
 import { type db as database } from "~/server/db";
 
-const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Expected an ISO date (YYYY-MM-DD)");
+export const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Expected an ISO date (YYYY-MM-DD)");
 
-const lineItemInput = z.object({
+export const lineItemInput = z.object({
   id: z.string().min(1).max(255),
   sku: z.string().max(64),
   name: z.string().min(1),

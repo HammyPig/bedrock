@@ -10,6 +10,7 @@ import type {
   DocumentType,
   PaymentTerms,
 } from "~/app/invoices/_lib/types";
+import type { VendorDetails } from "~/app/purchase-orders/_lib/types";
 import { DEFAULT_EMAIL_BODY, DEFAULT_EMAIL_SUBJECT } from "~/app/settings/_lib/settings";
 
 /**
@@ -227,6 +228,33 @@ export const customers = createTable(
   (t) => [index("customer_business_id_idx").on(t.businessId)],
 );
 
+/** Suppliers the business orders from; purchase orders draw their vendor snapshot from here. */
+export const vendors = createTable(
+  "vendor",
+  (d) => ({
+    id: d
+      .varchar({ length: 255 })
+      .notNull()
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    businessId: d
+      .varchar({ length: 255 })
+      .notNull()
+      .references(() => businesses.id),
+    name: d.varchar({ length: 255 }).notNull(),
+    company: d.varchar({ length: 255 }).notNull(),
+    phone: d.varchar({ length: 64 }).notNull(),
+    email: d.varchar({ length: 255 }).notNull(),
+    address: d.jsonb().$type<Address>().notNull(),
+    createdAt: d
+      .timestamp({ withTimezone: true })
+      .$defaultFn(() => new Date())
+      .notNull(),
+    updatedAt: d.timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
+  }),
+  (t) => [index("vendor_business_id_idx").on(t.businessId)],
+);
+
 /**
  * Columns mirror InvoiceDraft minus lineItems. billTo is a jsonb snapshot of
  * the customer details at invoice time; sourceCustomerId is a soft pointer
@@ -334,4 +362,76 @@ export const invoicesRelations = relations(invoices, ({ many }) => ({
 
 export const invoiceLineItemsRelations = relations(invoiceLineItems, ({ one }) => ({
   invoice: one(invoices, { fields: [invoiceLineItems.invoiceId], references: [invoices.id] }),
+}));
+
+/**
+ * Columns mirror PurchaseOrderDraft minus lineItems. vendor is a jsonb snapshot
+ * of the vendor details at order time; sourceVendorId is a soft pointer (no FK)
+ * so a missing vendor degrades to "unsaved" in the UI. Totals stay derived.
+ */
+export const purchaseOrders = createTable(
+  "purchase_order",
+  (d) => ({
+    id: d
+      .varchar({ length: 255 })
+      .notNull()
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    businessId: d
+      .varchar({ length: 255 })
+      .notNull()
+      .references(() => businesses.id),
+    poNumber: d.varchar({ length: 64 }).notNull(),
+    vendor: d.jsonb().$type<VendorDetails>().notNull(),
+    sourceVendorId: d.varchar({ length: 255 }),
+    orderDate: d.date({ mode: "string" }).notNull(),
+    expectedDate: d.date({ mode: "string" }),
+    discount: d.jsonb().$type<Discount>(),
+    freightCents: d.integer().notNull(),
+    taxRatePercent: d.doublePrecision().notNull(),
+    notes: d.text().notNull(),
+    createdAt: d
+      .timestamp({ withTimezone: true })
+      .$defaultFn(() => new Date())
+      .notNull(),
+    updatedAt: d.timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
+  }),
+  (t) => [
+    index("purchase_order_business_id_idx").on(t.businessId),
+    uniqueIndex("purchase_order_business_number_idx").on(t.businessId, t.poNumber),
+  ],
+);
+
+/** Denormalized snapshot of a catalog item at order time — no FK to items. */
+export const purchaseOrderLineItems = createTable(
+  "purchase_order_line_item",
+  (d) => ({
+    id: d
+      .varchar({ length: 255 })
+      .notNull()
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    purchaseOrderId: d
+      .varchar({ length: 255 })
+      .notNull()
+      .references(() => purchaseOrders.id, { onDelete: "cascade" }),
+    position: d.integer().notNull(),
+    sku: d.varchar({ length: 64 }).notNull(),
+    name: d.text().notNull(),
+    quantity: d.doublePrecision().notNull(),
+    unitPriceCents: d.integer().notNull(),
+    discountPercent: d.doublePrecision().notNull(),
+  }),
+  (t) => [index("purchase_order_line_item_po_id_idx").on(t.purchaseOrderId)],
+);
+
+export const purchaseOrdersRelations = relations(purchaseOrders, ({ many }) => ({
+  lineItems: many(purchaseOrderLineItems),
+}));
+
+export const purchaseOrderLineItemsRelations = relations(purchaseOrderLineItems, ({ one }) => ({
+  purchaseOrder: one(purchaseOrders, {
+    fields: [purchaseOrderLineItems.purchaseOrderId],
+    references: [purchaseOrders.id],
+  }),
 }));

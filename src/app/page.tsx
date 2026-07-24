@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { FileTextIcon, PackageIcon, PlusIcon, SettingsIcon } from "lucide-react";
+import { FileTextIcon, PackageIcon, PlusIcon, SettingsIcon, ShoppingCartIcon } from "lucide-react";
 
 import { Button } from "~/components/ui/button";
 import { auth, signOut } from "~/server/auth";
@@ -12,6 +12,12 @@ const sections = [
     title: "Invoices",
     description: "Everything you've billed, and what's still owing.",
     icon: FileTextIcon,
+  },
+  {
+    href: "/purchase-orders",
+    title: "Purchase orders",
+    description: "Everything you've ordered from your vendors.",
+    icon: ShoppingCartIcon,
   },
   {
     href: "/items",

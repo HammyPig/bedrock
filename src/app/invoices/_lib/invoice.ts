@@ -93,7 +93,7 @@ export function addressHasContent(address: Address): boolean {
   return values.some((value) => value.trim() !== "");
 }
 
-function addressesEqual(a: Address, b: Address): boolean {
+export function addressesEqual(a: Address, b: Address): boolean {
   return (
     a.line1 === b.line1 &&
     a.line2 === b.line2 &&
