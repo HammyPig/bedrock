@@ -26,12 +26,13 @@ export default async function EditPurchaseOrderPage({ params }: EditPurchaseOrde
   if (!session?.user) redirect("/login");
   if (!(await resolveBusinessId(session.user))) redirect("/");
 
+  // Kicked off before the awaited get so all three fetches run concurrently.
+  void api.item.list.prefetch();
+  void api.vendor.list.prefetch();
+
   const { purchaseOrderId } = await params;
   const purchaseOrder = await api.purchaseOrder.get({ id: purchaseOrderId });
   if (!purchaseOrder) notFound();
-
-  void api.item.list.prefetch();
-  void api.vendor.list.prefetch();
 
   return (
     <HydrateClient>

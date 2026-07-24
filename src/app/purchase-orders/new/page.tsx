@@ -15,9 +15,11 @@ export default async function NewPurchaseOrderPage() {
   if (!session?.user) redirect("/login");
   if (!(await resolveBusinessId(session.user))) redirect("/");
 
-  const suggestedPoNumber = await api.purchaseOrder.nextNumber();
+  // Kicked off before the awaited nextNumber so all three fetches run concurrently.
   void api.item.list.prefetch();
   void api.vendor.list.prefetch();
+
+  const suggestedPoNumber = await api.purchaseOrder.nextNumber();
 
   return (
     <HydrateClient>

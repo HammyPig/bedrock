@@ -15,9 +15,11 @@ export default async function NewInvoicePage() {
   if (!session?.user) redirect("/login");
   if (!(await resolveBusinessId(session.user))) redirect("/");
 
-  const suggestedInvoiceNumber = await api.invoice.nextNumber();
+  // Kicked off before the awaited nextNumber so all three fetches run concurrently.
   void api.item.list.prefetch();
   void api.customer.list.prefetch();
+
+  const suggestedInvoiceNumber = await api.invoice.nextNumber();
 
   return (
     <HydrateClient>

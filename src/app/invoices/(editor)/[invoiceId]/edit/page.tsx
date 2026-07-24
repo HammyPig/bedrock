@@ -26,12 +26,13 @@ export default async function EditInvoicePage({ params }: EditInvoicePageProps) 
   if (!session?.user) redirect("/login");
   if (!(await resolveBusinessId(session.user))) redirect("/");
 
+  // Kicked off before the awaited get so all three fetches run concurrently.
+  void api.item.list.prefetch();
+  void api.customer.list.prefetch();
+
   const { invoiceId } = await params;
   const invoice = await api.invoice.get({ id: invoiceId });
   if (!invoice) notFound();
-
-  void api.item.list.prefetch();
-  void api.customer.list.prefetch();
 
   return (
     <HydrateClient>
