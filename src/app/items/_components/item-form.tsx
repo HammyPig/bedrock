@@ -26,7 +26,19 @@ import { cn } from "~/lib/utils";
 import { api } from "~/trpc/react";
 import { validateItem } from "../_lib/items";
 
-const EMPTY_ITEM: SavedItem = { sku: "", name: "", unitPriceCents: 0 };
+const EMPTY_ITEM: SavedItem = {
+  sku: "",
+  name: "",
+  vendor: "",
+  barcode: "",
+  unitPriceCents: 0,
+  tier1PriceCents: 0,
+  tier2PriceCents: 0,
+  tier3PriceCents: 0,
+  costCents: 0,
+};
+
+const ITEM_FIELDS = Object.keys(EMPTY_ITEM) as (keyof SavedItem)[];
 
 interface ItemFormProps {
   /** Existing item being edited; omitted on the create page. */
@@ -75,9 +87,7 @@ export function ItemForm({ initialItem, itemId }: ItemFormProps) {
 
   const errors = showErrors ? validateItem(draft) : null;
   const dirty =
-    draft.sku !== savedItem?.sku ||
-    draft.name !== savedItem?.name ||
-    draft.unitPriceCents !== savedItem?.unitPriceCents;
+    savedItem === null || ITEM_FIELDS.some((field) => draft[field] !== savedItem[field]);
 
   const patch = (fields: Partial<SavedItem>) => setDraft((prev) => ({ ...prev, ...fields }));
 
@@ -171,6 +181,29 @@ export function ItemForm({ initialItem, itemId }: ItemFormProps) {
                 onChange={(e) => patch({ name: e.currentTarget.value.replace(/\s*\n\s*/g, " ") })}
               />
             </section>
+          </div>
+          <div className="flex flex-col gap-6 sm:flex-row">
+            <section className="flex-1 space-y-2">
+              <Label htmlFor="item-vendor">Vendor</Label>
+              <Input
+                id="item-vendor"
+                value={draft.vendor}
+                placeholder="Vendor"
+                onChange={(e) => patch({ vendor: e.currentTarget.value })}
+              />
+            </section>
+            <section className="space-y-2">
+              <Label htmlFor="item-barcode">Barcode</Label>
+              <Input
+                id="item-barcode"
+                className="sm:w-48"
+                value={draft.barcode}
+                placeholder="Barcode"
+                onChange={(e) => patch({ barcode: e.currentTarget.value })}
+              />
+            </section>
+          </div>
+          <div className="flex flex-col gap-6 sm:flex-row">
             <section className="space-y-2">
               <Label htmlFor="item-price">Unit price</Label>
               <MoneyInput
@@ -180,7 +213,50 @@ export function ItemForm({ initialItem, itemId }: ItemFormProps) {
                 onValueCentsChange={(unitPriceCents) => patch({ unitPriceCents })}
               />
             </section>
+            <section className="space-y-2">
+              <Label htmlFor="item-cost">Cost</Label>
+              <MoneyInput
+                id="item-cost"
+                className="sm:w-32"
+                valueCents={draft.costCents}
+                onValueCentsChange={(costCents) => patch({ costCents })}
+              />
+            </section>
           </div>
+          <div className="flex flex-col gap-6 sm:flex-row">
+            <section className="space-y-2">
+              <Label htmlFor="item-tier1-price">Tier 1 price</Label>
+              <MoneyInput
+                id="item-tier1-price"
+                className="sm:w-32"
+                valueCents={draft.tier1PriceCents}
+                onValueCentsChange={(tier1PriceCents) => patch({ tier1PriceCents })}
+              />
+            </section>
+            <section className="space-y-2">
+              <Label htmlFor="item-tier2-price">Tier 2 price</Label>
+              <MoneyInput
+                id="item-tier2-price"
+                className="sm:w-32"
+                valueCents={draft.tier2PriceCents}
+                onValueCentsChange={(tier2PriceCents) => patch({ tier2PriceCents })}
+              />
+            </section>
+            <section className="space-y-2">
+              <Label htmlFor="item-tier3-price">Tier 3 price</Label>
+              <MoneyInput
+                id="item-tier3-price"
+                className="sm:w-32"
+                valueCents={draft.tier3PriceCents}
+                onValueCentsChange={(tier3PriceCents) => patch({ tier3PriceCents })}
+              />
+            </section>
+          </div>
+          <p className="text-muted-foreground text-sm">
+            Tier prices replace the unit price for customers in that tier; a tier left at $0.00
+            falls back to the unit price. Cost is what you pay your vendor and never appears on an
+            invoice.
+          </p>
           {errors && <p className="text-destructive text-sm">Every item needs a SKU and a name.</p>}
         </div>
         <SaveBar

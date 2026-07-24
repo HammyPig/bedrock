@@ -18,7 +18,9 @@ export function ItemsList() {
   const [query, setQuery] = useState("");
 
   const tokens = tokenize(query);
-  const rows = items.filter((item) => matchesAllTokens([item.sku, item.name], tokens));
+  const rows = items.filter((item) =>
+    matchesAllTokens([item.sku, item.name, item.vendor, item.barcode], tokens),
+  );
 
   const countLabel =
     rows.length === items.length
@@ -57,7 +59,7 @@ export function ItemsList() {
             <Input
               className="max-w-xs"
               value={query}
-              placeholder="Search by SKU or name..."
+              placeholder="Search by SKU, name, or vendor..."
               aria-label="Search items"
               onChange={(e) => setQuery(e.currentTarget.value)}
             />
@@ -71,6 +73,7 @@ export function ItemsList() {
                 <tr className="text-muted-foreground border-b text-left text-xs">
                   <th className="pr-4 pb-2 font-medium">SKU</th>
                   <th className="pr-4 pb-2 font-medium">Name</th>
+                  <th className="pr-4 pb-2 font-medium">Vendor</th>
                   <th className="pb-2 text-right font-medium">Unit price</th>
                 </tr>
               </thead>
@@ -91,7 +94,10 @@ export function ItemsList() {
                         {item.sku}
                       </Link>
                     </td>
-                    <td className="max-w-96 truncate py-3 pr-4">{item.name}</td>
+                    <td className="max-w-64 truncate py-3 pr-4">{item.name}</td>
+                    <td className="text-muted-foreground max-w-40 truncate py-3 pr-4">
+                      {item.vendor}
+                    </td>
                     <td className="py-3 text-right tabular-nums">
                       {formatCents(item.unitPriceCents)}
                     </td>

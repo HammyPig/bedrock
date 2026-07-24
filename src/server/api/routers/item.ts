@@ -9,7 +9,13 @@ import { type db as database } from "~/server/db";
 const itemInput = z.object({
   sku: z.string().min(1).max(64),
   name: z.string().min(1).max(256),
+  vendor: z.string().max(256),
+  barcode: z.string().max(64),
   unitPriceCents: z.number().int().min(0),
+  tier1PriceCents: z.number().int().min(0),
+  tier2PriceCents: z.number().int().min(0),
+  tier3PriceCents: z.number().int().min(0),
+  costCents: z.number().int().min(0),
 });
 
 /** Comparison key only — the user's own casing/spacing is never rewritten. */
@@ -18,7 +24,18 @@ function normalizeSku(sku: string): string {
 }
 
 function toItemRow(row: typeof items.$inferSelect) {
-  return { id: row.id, sku: row.sku, name: row.name, unitPriceCents: row.unitPriceCents };
+  return {
+    id: row.id,
+    sku: row.sku,
+    name: row.name,
+    vendor: row.vendor,
+    barcode: row.barcode,
+    unitPriceCents: row.unitPriceCents,
+    tier1PriceCents: row.tier1PriceCents,
+    tier2PriceCents: row.tier2PriceCents,
+    tier3PriceCents: row.tier3PriceCents,
+    costCents: row.costCents,
+  };
 }
 
 /** SKUs are compared normalized, so this scans the catalog rather than matching exactly. */

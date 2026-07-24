@@ -180,7 +180,15 @@ export const items = createTable(
       .references(() => businesses.id),
     sku: d.varchar({ length: 64 }).notNull(),
     name: d.varchar({ length: 256 }).notNull(),
+    vendor: d.varchar({ length: 256 }).notNull().default(""),
+    barcode: d.varchar({ length: 64 }).notNull().default(""),
     unitPriceCents: d.integer().notNull(),
+    // Per-customer-tier prices; 0 means "not set" and falls back to unitPriceCents.
+    tier1PriceCents: d.integer().notNull().default(0),
+    tier2PriceCents: d.integer().notNull().default(0),
+    tier3PriceCents: d.integer().notNull().default(0),
+    /** What the business pays its vendor — internal only, never shown on invoices. */
+    costCents: d.integer().notNull().default(0),
     createdAt: d
       .timestamp({ withTimezone: true })
       .$defaultFn(() => new Date())
