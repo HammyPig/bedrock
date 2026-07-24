@@ -11,16 +11,75 @@ import { EMAIL_TEMPLATE_PLACEHOLDERS, type BusinessSettings } from "../_lib/sett
 
 const MAX_LOGO_BYTES = 1_000_000;
 
-interface SettingsFieldsProps {
+export interface SettingsFieldsProps {
   value: BusinessSettings;
   onChange: (patch: Partial<BusinessSettings>) => void;
 }
 
-/**
- * The business-settings sections, shared between the settings page and the
- * create-business page. The parent owns the state and the save/create action.
- */
-export function SettingsFields({ value, onChange }: SettingsFieldsProps) {
+/** Name, tax ID, and contact details — the invoice header block. */
+export function BusinessDetailsFields({ value, onChange }: SettingsFieldsProps) {
+  return (
+    <section>
+      <h2 className="mb-1 font-medium">Business details</h2>
+      <p className="text-muted-foreground mb-4 text-sm">
+        Shown in the header of every invoice you send.
+      </p>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2 sm:col-span-2">
+          <Label htmlFor="business-name">Business name</Label>
+          <Input
+            id="business-name"
+            value={value.businessName}
+            onChange={(e) => onChange({ businessName: e.currentTarget.value })}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="tax-id">ABN / tax ID</Label>
+          <Input
+            id="tax-id"
+            value={value.taxId}
+            onChange={(e) => onChange({ taxId: e.currentTarget.value })}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="website">Website</Label>
+          <Input
+            id="website"
+            value={value.website}
+            onChange={(e) => onChange({ website: e.currentTarget.value })}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            value={value.email}
+            onChange={(e) => onChange({ email: e.currentTarget.value })}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="phone">Phone</Label>
+          <Input
+            id="phone"
+            value={value.phone}
+            onChange={(e) => onChange({ phone: e.currentTarget.value })}
+          />
+        </div>
+        <div className="space-y-2 sm:col-span-2">
+          <Label>Address</Label>
+          <AddressField
+            labelPrefix="Business"
+            value={value.address}
+            onChange={(address) => onChange({ address })}
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** Everything printed on the invoice PDF: branding, payment details, terms, numbering. */
+export function InvoiceAppearanceFields({ value, onChange }: SettingsFieldsProps) {
   const [logoError, setLogoError] = useState<string | null>(null);
   const nextNumberValid = Number(value.nextInvoiceNumber) >= 1;
   const previewNumber = value.invoiceNumberPrefix + value.nextInvoiceNumber;
@@ -41,63 +100,7 @@ export function SettingsFields({ value, onChange }: SettingsFieldsProps) {
   };
 
   return (
-    <div className="space-y-10 p-8 sm:p-10">
-      <section>
-        <h2 className="mb-1 font-medium">Business details</h2>
-        <p className="text-muted-foreground mb-4 text-sm">
-          Shown in the header of every invoice you send.
-        </p>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="business-name">Business name</Label>
-            <Input
-              id="business-name"
-              value={value.businessName}
-              onChange={(e) => onChange({ businessName: e.currentTarget.value })}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="tax-id">ABN / tax ID</Label>
-            <Input
-              id="tax-id"
-              value={value.taxId}
-              onChange={(e) => onChange({ taxId: e.currentTarget.value })}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="website">Website</Label>
-            <Input
-              id="website"
-              value={value.website}
-              onChange={(e) => onChange({ website: e.currentTarget.value })}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              value={value.email}
-              onChange={(e) => onChange({ email: e.currentTarget.value })}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="phone">Phone</Label>
-            <Input
-              id="phone"
-              value={value.phone}
-              onChange={(e) => onChange({ phone: e.currentTarget.value })}
-            />
-          </div>
-          <div className="space-y-2 sm:col-span-2">
-            <Label>Address</Label>
-            <AddressField
-              labelPrefix="Business"
-              value={value.address}
-              onChange={(address) => onChange({ address })}
-            />
-          </div>
-        </div>
-      </section>
+    <>
       <section>
         <h2 className="mb-1 font-medium">Invoice appearance</h2>
         <p className="text-muted-foreground mb-4 text-sm">
@@ -176,40 +179,6 @@ export function SettingsFields({ value, onChange }: SettingsFieldsProps) {
         />
       </section>
       <section>
-        <h2 className="mb-1 font-medium">Invoice email</h2>
-        <p className="text-muted-foreground mb-4 text-sm">
-          The email your customers receive when you send them an invoice — the PDF is attached
-          automatically. Placeholders are filled in per invoice:{" "}
-          {EMAIL_TEMPLATE_PLACEHOLDERS.map((placeholder, i) => (
-            <span key={placeholder}>
-              {i > 0 && ", "}
-              <code className="text-foreground">{`{${placeholder}}`}</code>
-            </span>
-          ))}
-          .
-        </p>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email-subject">Subject</Label>
-            <Input
-              id="email-subject"
-              maxLength={255}
-              value={value.emailSubject}
-              onChange={(e) => onChange({ emailSubject: e.currentTarget.value })}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="email-body">Message</Label>
-            <Textarea
-              id="email-body"
-              rows={7}
-              value={value.emailBody}
-              onChange={(e) => onChange({ emailBody: e.currentTarget.value })}
-            />
-          </div>
-        </div>
-      </section>
-      <section>
         <h2 className="mb-1 font-medium">Invoice numbering</h2>
         <p className="text-muted-foreground mb-4 text-sm">
           New invoice numbers are the prefix followed by a running number. Zero-pad the next number
@@ -249,6 +218,61 @@ export function SettingsFields({ value, onChange }: SettingsFieldsProps) {
           <p className="text-destructive mt-3 text-sm">Next number must be 1 or higher.</p>
         )}
       </section>
+    </>
+  );
+}
+
+/** Subject and body templates for the email invoices are sent with. */
+export function InvoiceEmailFields({ value, onChange }: SettingsFieldsProps) {
+  return (
+    <section>
+      <h2 className="mb-1 font-medium">Invoice email</h2>
+      <p className="text-muted-foreground mb-4 text-sm">
+        The email your customers receive when you send them an invoice — the PDF is attached
+        automatically. Placeholders are filled in per invoice:{" "}
+        {EMAIL_TEMPLATE_PLACEHOLDERS.map((placeholder, i) => (
+          <span key={placeholder}>
+            {i > 0 && ", "}
+            <code className="text-foreground">{`{${placeholder}}`}</code>
+          </span>
+        ))}
+        .
+      </p>
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="email-subject">Subject</Label>
+          <Input
+            id="email-subject"
+            maxLength={255}
+            value={value.emailSubject}
+            onChange={(e) => onChange({ emailSubject: e.currentTarget.value })}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="email-body">Message</Label>
+          <Textarea
+            id="email-body"
+            rows={7}
+            value={value.emailBody}
+            onChange={(e) => onChange({ emailBody: e.currentTarget.value })}
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Every business-settings section at once, for the create-business page,
+ * which collects everything in a single form. The settings pages render
+ * the sections individually via SettingsForm.
+ */
+export function SettingsFields(props: SettingsFieldsProps) {
+  return (
+    <div className="space-y-10 p-8 sm:p-10">
+      <BusinessDetailsFields {...props} />
+      <InvoiceAppearanceFields {...props} />
+      <InvoiceEmailFields {...props} />
     </div>
   );
 }
