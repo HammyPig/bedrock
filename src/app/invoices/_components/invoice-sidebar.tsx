@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
-import { BackLink } from "~/components/back-link";
+import { Sidebar, sidebarItemClass } from "~/components/sidebar";
 import {
   Command,
   CommandEmpty,
@@ -13,6 +13,7 @@ import {
   CommandList,
 } from "~/components/ui/command";
 import { fieldMatchesAnyToken, matchesAllTokens, tokenize } from "~/lib/search";
+import { cn } from "~/lib/utils";
 import { api } from "~/trpc/react";
 import { Highlight } from "./highlight";
 
@@ -20,7 +21,7 @@ import { Highlight } from "./highlight";
 export function InvoiceSidebar() {
   const { invoiceId: activeInvoiceId } = useParams<{ invoiceId: string }>();
   const router = useRouter();
-  const rootRef = useRef<HTMLElement | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const [query, setQuery] = useState("");
   const tokens = tokenize(query);
 
@@ -58,55 +59,61 @@ export function InvoiceSidebar() {
   }, []);
 
   return (
-    <aside ref={rootRef} className="sticky top-10 mt-10 w-52 self-start">
-      {/* h-8 + mb-6 mirror the form title's 2rem line and mb-6, so the card tops align. */}
-      <div className="mb-6 flex h-8 items-center">
-        <BackLink href="/invoices">All invoices</BackLink>
-      </div>
-      <Command shouldFilter={false} className="border shadow-sm">
-        <CommandInput placeholder="Search invoices..." value={query} onValueChange={setQuery} />
-        <CommandList className="max-h-[50vh]">
-          <CommandEmpty>No invoices found.</CommandEmpty>
-          {filtered.length > 0 && (
-            <CommandGroup>
-              {filtered.map((invoice) => {
-                // Second line: whichever customer details matched the search, like the customer picker.
-                const matchedDetails = [
-                  invoice.billTo.name,
-                  invoice.billTo.company,
-                  invoice.billTo.phone,
-                  invoice.billTo.email,
-                ].filter((field) => field.trim() !== "" && fieldMatchesAnyToken(field, tokens));
+    <Sidebar backHref="/invoices" backLabel="All invoices">
+      <div ref={rootRef}>
+        <Command shouldFilter={false} className="bg-card border shadow-sm">
+          <CommandInput placeholder="Search invoices..." value={query} onValueChange={setQuery} />
+          <CommandList className="max-h-[50vh]">
+            <CommandEmpty>No invoices found.</CommandEmpty>
+            {filtered.length > 0 && (
+              <CommandGroup>
+                {filtered.map((invoice) => {
+                  const isActive = invoice.id === activeInvoiceId;
+                  // Second line: whichever customer details matched the search, like the customer picker.
+                  const matchedDetails = [
+                    invoice.billTo.name,
+                    invoice.billTo.company,
+                    invoice.billTo.phone,
+                    invoice.billTo.email,
+                  ].filter((field) => field.trim() !== "" && fieldMatchesAnyToken(field, tokens));
 
-                return (
-                  <CommandItem
-                    key={invoice.id}
-                    value={invoice.id}
-                    data-checked={invoice.id === activeInvoiceId}
-                    onSelect={() => router.push(`/invoices/${invoice.id}/edit`)}
-                  >
-                    <div className="flex min-w-0 flex-col">
-                      <span className="truncate tabular-nums">
-                        <Highlight text={invoice.invoiceNumber} tokens={tokens} />
-                      </span>
-                      {matchedDetails.length > 0 && (
-                        <span className="text-muted-foreground truncate text-xs">
-                          {matchedDetails.map((text, index) => (
-                            <Fragment key={text}>
-                              {index > 0 && " · "}
-                              <Highlight text={text} tokens={tokens} />
-                            </Fragment>
-                          ))}
-                        </span>
+                  return (
+                    <CommandItem
+                      key={invoice.id}
+                      value={invoice.id}
+                      data-checked={isActive}
+                      onSelect={() => router.push(`/invoices/${invoice.id}/edit`)}
+                      // The shared look replaces cmdk's filled hover bar and check icon: the
+                      // current invoice keeps its fill, other rows only brighten their text.
+                      className={cn(
+                        sidebarItemClass(isActive),
+                        "data-selected:text-foreground *:[svg]:hidden",
+                        isActive ? "data-selected:bg-muted" : "data-selected:bg-transparent",
                       )}
-                    </div>
-                  </CommandItem>
-                );
-              })}
-            </CommandGroup>
-          )}
-        </CommandList>
-      </Command>
-    </aside>
+                    >
+                      <div className="flex min-w-0 flex-col">
+                        <span className="truncate tabular-nums">
+                          <Highlight text={invoice.invoiceNumber} tokens={tokens} />
+                        </span>
+                        {matchedDetails.length > 0 && (
+                          <span className="text-muted-foreground truncate text-xs">
+                            {matchedDetails.map((text, index) => (
+                              <Fragment key={text}>
+                                {index > 0 && " · "}
+                                <Highlight text={text} tokens={tokens} />
+                              </Fragment>
+                            ))}
+                          </span>
+                        )}
+                      </div>
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            )}
+          </CommandList>
+        </Command>
+      </div>
+    </Sidebar>
   );
 }
