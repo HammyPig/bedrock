@@ -35,6 +35,13 @@ export function deriveDueDate(issueDate: string, terms: Exclude<PaymentTerms, "c
   return addDaysIso(issueDate, TERM_DAYS[terms]);
 }
 
+/** Effective due date of a draft; custom terms without a date fall back to the issue date. */
+export function draftDueDate(draft: Pick<InvoiceDraft, "issueDate" | "terms" | "customDueDate">) {
+  return draft.terms === "custom"
+    ? (draft.customDueDate ?? draft.issueDate)
+    : deriveDueDate(draft.issueDate, draft.terms);
+}
+
 export function makeLineItem(): LineItem {
   return {
     id: crypto.randomUUID(),

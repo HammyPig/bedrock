@@ -3,7 +3,7 @@ import { Document, Font, Image, Page, pdf, StyleSheet, Text, View } from "@react
 import { type BusinessSettings } from "~/app/settings/_lib/settings";
 import { formatIsoDate } from "~/lib/dates";
 import { formatCents } from "~/lib/money";
-import { customerDisplayName, deriveDueDate } from "./invoice";
+import { customerDisplayName, draftDueDate } from "./invoice";
 import { computeTotals, lineItemSubtotalCents } from "./money";
 import { type Address, type InvoiceDraft } from "./types";
 
@@ -121,10 +121,7 @@ interface InvoicePdfProps {
 
 export function InvoicePdf({ draft, settings }: InvoicePdfProps) {
   const totals = computeTotals(draft);
-  const dueDate =
-    draft.terms === "custom"
-      ? (draft.customDueDate ?? draft.issueDate)
-      : deriveDueDate(draft.issueDate, draft.terms);
+  const dueDate = draftDueDate(draft);
   const items = draft.lineItems.filter((item) => item.name.trim() !== "" || item.sku.trim() !== "");
   const showSku = items.some((item) => item.sku.trim() !== "");
   const showDiscount = items.some((item) => item.discountPercent > 0);

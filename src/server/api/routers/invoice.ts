@@ -6,6 +6,7 @@ import { type Invoice, type InvoiceDraft } from "~/app/invoices/_lib/types";
 import { billToInput } from "~/server/api/routers/customer";
 import { loadEffectiveSettings } from "~/server/api/routers/settings";
 import { businessProcedure, createTRPCRouter } from "~/server/api/trpc";
+import { sendInvoiceEmail } from "~/server/email";
 import { invoiceLineItems, invoices } from "~/server/db/schema";
 import { type db as database } from "~/server/db";
 
@@ -155,6 +156,30 @@ export const invoiceRouter = createTRPCRouter({
           .values(lineItems.map((line, position) => ({ ...line, invoiceId: input.id, position })));
       });
       return { id: input.id };
+    }),
+
+  /** Emails the saved invoice, PDF attached, to the bill-to email address. */
+  sendEmail: businessProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const row = await ctx.db.query.invoices.findFirst({
+        where: and(eq(invoices.id, input.id), eq(invoices.businessId, ctx.businessId)),
+        with: { lineItems: { orderBy: [asc(invoiceLineItems.position)] } },
+      });
+      if (!row) throw new TRPCError({ code: "NOT_FOUND" });
+
+      const { draft } = toInvoice(row);
+      const to = draft.billTo.email.trim();
+      if (to === "") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Add an email address to the billing details first.",
+        });
+      }
+
+      const settings = await loadEffectiveSettings(ctx.db, ctx.businessId);
+      await sendInvoiceEmail(to, draft, settings);
+      return { sentTo: to };
     }),
 
   /** Suggested number for the next invoice, from the business's numbering settings. */
