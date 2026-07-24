@@ -7,7 +7,7 @@ import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Textarea } from "~/components/ui/textarea";
-import { type BusinessSettings } from "../_lib/settings";
+import { EMAIL_TEMPLATE_PLACEHOLDERS, type BusinessSettings } from "../_lib/settings";
 
 const MAX_LOGO_BYTES = 1_000_000;
 
@@ -174,6 +174,40 @@ export function SettingsFields({ value, onChange }: SettingsFieldsProps) {
           value={value.termsAndConditions}
           onChange={(e) => onChange({ termsAndConditions: e.currentTarget.value })}
         />
+      </section>
+      <section>
+        <h2 className="mb-1 font-medium">Invoice email</h2>
+        <p className="text-muted-foreground mb-4 text-sm">
+          The email your customers receive when you send them an invoice — the PDF is attached
+          automatically. Placeholders are filled in per invoice:{" "}
+          {EMAIL_TEMPLATE_PLACEHOLDERS.map((placeholder, i) => (
+            <span key={placeholder}>
+              {i > 0 && ", "}
+              <code className="text-foreground">{`{${placeholder}}`}</code>
+            </span>
+          ))}
+          .
+        </p>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="email-subject">Subject</Label>
+            <Input
+              id="email-subject"
+              maxLength={255}
+              value={value.emailSubject}
+              onChange={(e) => onChange({ emailSubject: e.currentTarget.value })}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="email-body">Message</Label>
+            <Textarea
+              id="email-body"
+              rows={7}
+              value={value.emailBody}
+              onChange={(e) => onChange({ emailBody: e.currentTarget.value })}
+            />
+          </div>
+        </div>
       </section>
       <section>
         <h2 className="mb-1 font-medium">Invoice numbering</h2>

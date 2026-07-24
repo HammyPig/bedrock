@@ -9,6 +9,7 @@ import type {
   Discount,
   PaymentTerms,
 } from "~/app/invoices/_lib/types";
+import { DEFAULT_EMAIL_BODY, DEFAULT_EMAIL_SUBJECT } from "~/app/settings/_lib/settings";
 
 /**
  * This is an example of how to use the multi-project schema feature of Drizzle ORM. Use the same
@@ -281,6 +282,8 @@ export const businessSettings = createTable("business_settings", (d) => ({
   phone: d.varchar({ length: 64 }).notNull(),
   logo: d.text().notNull().default(""),
   accentColor: d.varchar({ length: 16 }).notNull().default("#111827"),
+  emailSubject: d.varchar({ length: 255 }).notNull().default(DEFAULT_EMAIL_SUBJECT),
+  emailBody: d.text().notNull().default(DEFAULT_EMAIL_BODY),
   paymentDetails: d.text().notNull(),
   termsAndConditions: d.text().notNull(),
   invoiceNumberPrefix: d.varchar({ length: 16 }).notNull(),
