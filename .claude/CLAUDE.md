@@ -26,3 +26,4 @@ There is no test framework.
 - DB tables must be created via `createTable` in `src/server/db/schema.ts` (prefixes names with `bedrock_`); drizzle-kit filters on `bedrock_*`, so tables defined any other way are silently ignored.
 - A dev-only tRPC middleware adds 100–500ms artificial latency to every procedure — don't mistake it for a real perf problem.
 - Money is integer cents everywhere; format only at render (`src/app/invoices/new/_lib/money.ts`).
+- Conductor workspaces (`.conductor/settings.toml`) all share the one local Postgres via a copied `.env` — `bun run db:push` from any workspace changes the schema for every branch, so hold off pushing schema changes until they're settled. The dev server runs on `$CONDUCTOR_PORT` (not 3000); Google OAuth sign-in still works there via the shared DB session, but the OAuth flow itself can only start on a port registered in Google Cloud Console.
