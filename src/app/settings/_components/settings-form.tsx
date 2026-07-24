@@ -1,15 +1,31 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 
-import { BackLink } from "~/components/back-link";
 import { SaveBar } from "~/components/save-bar";
 import { api } from "~/trpc/react";
 import { type BusinessSettings } from "../_lib/settings";
-import { SettingsFields } from "./settings-fields";
-import { UsersSection } from "./users-section";
+import {
+  BusinessDetailsFields,
+  InvoiceAppearanceFields,
+  InvoiceEmailFields,
+  type SettingsFieldsProps,
+} from "./settings-fields";
 
-export function SettingsForm() {
+const SECTION_FIELDS = {
+  business: BusinessDetailsFields,
+  appearance: InvoiceAppearanceFields,
+  email: InvoiceEmailFields,
+} satisfies Record<string, ComponentType<SettingsFieldsProps>>;
+
+export type SettingsSection = keyof typeof SECTION_FIELDS;
+
+/**
+ * One settings sub-page's card: its sections plus the save bar. Every page
+ * edits the full settings object and saves it whole — fields that live on
+ * other pages ride along unchanged from the last-loaded values.
+ */
+export function SettingsForm({ section }: { section: SettingsSection }) {
   const [initial] = api.settings.get.useSuspenseQuery();
   const [settings, setSettings] = useState<BusinessSettings>(initial);
   /** Last-saved snapshot, reset to the server's canonical values after each save. */
@@ -45,26 +61,20 @@ export function SettingsForm() {
     saveSettings.mutate(settings);
   };
 
+  const Fields = SECTION_FIELDS[section];
+
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10">
-      <div className="mb-4">
-        <BackLink href="/">Home</BackLink>
+    <div className="bg-card rounded-xl border shadow-sm">
+      <div className="space-y-10 p-8 sm:p-10">
+        <Fields value={settings} onChange={patch} />
       </div>
-      <h1 className="mb-1 text-2xl font-semibold tracking-tight">Settings</h1>
-      <p className="text-muted-foreground mb-6 text-sm">
-        Your business details and invoice preferences.
-      </p>
-      <div className="bg-card rounded-xl border shadow-sm">
-        <SettingsFields value={settings} onChange={patch} />
-        <SaveBar
-          summary={dirty ? "Unsaved changes" : null}
-          justSaved={justSaved}
-          saving={saveSettings.isPending}
-          saveError={saveSettings.error?.message}
-          onSave={handleSave}
-        />
-      </div>
-      <UsersSection />
+      <SaveBar
+        summary={dirty ? "Unsaved changes" : null}
+        justSaved={justSaved}
+        saving={saveSettings.isPending}
+        saveError={saveSettings.error?.message}
+        onSave={handleSave}
+      />
     </div>
   );
 }

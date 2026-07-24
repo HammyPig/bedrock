@@ -30,7 +30,7 @@ export function UsersSection() {
   };
 
   return (
-    <div className="bg-card mt-6 rounded-xl border p-8 shadow-sm sm:p-10">
+    <div className="bg-card rounded-xl border p-8 shadow-sm sm:p-10">
       <h2 className="mb-1 font-medium">Users</h2>
       <p className="text-muted-foreground mb-4 text-sm">
         People with access to this business. Invited people join automatically the first time they
