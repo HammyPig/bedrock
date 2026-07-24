@@ -52,6 +52,13 @@ export const customerRouter = createTRPCRouter({
     return rows.map(toCustomer);
   }),
 
+  get: businessProcedure.input(z.object({ id: z.string() })).query(async ({ ctx, input }) => {
+    const row = await ctx.db.query.customers.findFirst({
+      where: and(eq(customers.id, input.id), eq(customers.businessId, ctx.businessId)),
+    });
+    return row ? toCustomer(row) : null;
+  }),
+
   create: businessProcedure.input(billToInput).mutation(async ({ ctx, input }) => {
     const [created] = await ctx.db
       .insert(customers)
@@ -121,4 +128,13 @@ export const customerRouter = createTRPCRouter({
         .returning({ id: customers.id });
       if (!updated) throw new TRPCError({ code: "NOT_FOUND" });
     }),
+
+  delete: businessProcedure.input(z.object({ id: z.string() })).mutation(async ({ ctx, input }) => {
+    const [deleted] = await ctx.db
+      .delete(customers)
+      .where(and(eq(customers.id, input.id), eq(customers.businessId, ctx.businessId)))
+      .returning({ id: customers.id });
+    if (!deleted) throw new TRPCError({ code: "NOT_FOUND" });
+    return { id: input.id };
+  }),
 });

@@ -1,6 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { FileTextIcon, PackageIcon, PlusIcon, SettingsIcon, ShoppingCartIcon } from "lucide-react";
+import {
+  FileTextIcon,
+  PackageIcon,
+  PlusIcon,
+  SettingsIcon,
+  ShoppingCartIcon,
+  UsersIcon,
+} from "lucide-react";
 
 import { Button } from "~/components/ui/button";
 import { DEFAULT_SETTINGS_PAGE } from "~/app/settings/_lib/sections";
@@ -25,6 +32,12 @@ const sections = [
     title: "Items",
     description: "The products and services you add to invoices.",
     icon: PackageIcon,
+  },
+  {
+    href: "/customers",
+    title: "Customers",
+    description: "The people and businesses you invoice.",
+    icon: UsersIcon,
   },
   {
     // Straight to the first section — /settings itself only redirects there.
