@@ -1,5 +1,6 @@
 import { type Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
+import { cache } from "react";
 
 import { auth } from "~/server/auth";
 import { resolveBusinessId } from "~/server/business";
@@ -10,6 +11,9 @@ interface EditInvoicePageProps {
   params: Promise<{ invoiceId: string }>;
 }
 
+/** Memoized per request so generateMetadata and the page share one fetch. */
+const getInvoice = cache(async (id: string) => api.invoice.get({ id }));
+
 export async function generateMetadata({ params }: EditInvoicePageProps): Promise<Metadata> {
   const session = await auth();
   if (!session?.user || !(await resolveBusinessId(session.user))) {
@@ -17,7 +21,7 @@ export async function generateMetadata({ params }: EditInvoicePageProps): Promis
   }
 
   const { invoiceId } = await params;
-  const invoice = await api.invoice.get({ id: invoiceId });
+  const invoice = await getInvoice(invoiceId);
   return { title: invoice ? `Edit ${invoice.draft.invoiceNumber}` : "Edit invoice" };
 }
 
@@ -31,7 +35,7 @@ export default async function EditInvoicePage({ params }: EditInvoicePageProps) 
   void api.customer.list.prefetch();
 
   const { invoiceId } = await params;
-  const invoice = await api.invoice.get({ id: invoiceId });
+  const invoice = await getInvoice(invoiceId);
   if (!invoice) notFound();
 
   return (

@@ -1,5 +1,6 @@
 import { type Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
+import { cache } from "react";
 
 import { auth } from "~/server/auth";
 import { resolveBusinessId } from "~/server/business";
@@ -10,6 +11,9 @@ interface EditPurchaseOrderPageProps {
   params: Promise<{ purchaseOrderId: string }>;
 }
 
+/** Memoized per request so generateMetadata and the page share one fetch. */
+const getPurchaseOrder = cache(async (id: string) => api.purchaseOrder.get({ id }));
+
 export async function generateMetadata({ params }: EditPurchaseOrderPageProps): Promise<Metadata> {
   const session = await auth();
   if (!session?.user || !(await resolveBusinessId(session.user))) {
@@ -17,7 +21,7 @@ export async function generateMetadata({ params }: EditPurchaseOrderPageProps): 
   }
 
   const { purchaseOrderId } = await params;
-  const purchaseOrder = await api.purchaseOrder.get({ id: purchaseOrderId });
+  const purchaseOrder = await getPurchaseOrder(purchaseOrderId);
   return { title: purchaseOrder ? `Edit ${purchaseOrder.draft.poNumber}` : "Edit purchase order" };
 }
 
@@ -31,7 +35,7 @@ export default async function EditPurchaseOrderPage({ params }: EditPurchaseOrde
   void api.vendor.list.prefetch();
 
   const { purchaseOrderId } = await params;
-  const purchaseOrder = await api.purchaseOrder.get({ id: purchaseOrderId });
+  const purchaseOrder = await getPurchaseOrder(purchaseOrderId);
   if (!purchaseOrder) notFound();
 
   return (
