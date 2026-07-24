@@ -3,25 +3,20 @@ import { redirect } from "next/navigation";
 
 import { auth } from "~/server/auth";
 import { resolveBusinessId } from "~/server/business";
-import { api, HydrateClient } from "~/trpc/server";
-import { ItemsList } from "./_components/items-list";
+import { ItemForm } from "../_components/item-form";
 
 export const metadata: Metadata = {
-  title: "Items",
+  title: "New item",
 };
 
-export default async function ItemsPage() {
+export default async function NewItemPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
   if (!(await resolveBusinessId(session.user))) redirect("/");
 
-  void api.item.list.prefetch();
-
   return (
-    <HydrateClient>
-      <main className="bg-background min-h-screen">
-        <ItemsList />
-      </main>
-    </HydrateClient>
+    <main className="bg-background min-h-screen">
+      <ItemForm />
+    </main>
   );
 }
