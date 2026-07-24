@@ -86,10 +86,18 @@ export function InvoiceForm({ initialDraft, invoiceId, suggestedInvoiceNumber }:
   // An existing invoice starts in sync with the database; any edit marks it dirty.
   const [saved, setSaved] = useState(initialDraft !== undefined);
 
-  const dispatch = useCallback((action: InvoiceAction) => {
-    setSaved(false);
-    rawDispatch(action);
-  }, []);
+  const sendEmail = api.invoice.sendEmail.useMutation();
+  const resetSendEmail = sendEmail.reset;
+
+  const dispatch = useCallback(
+    (action: InvoiceAction) => {
+      setSaved(false);
+      // A stale "Sent to …" confirmation shouldn't outlive the edit it predates.
+      resetSendEmail();
+      rawDispatch(action);
+    },
+    [resetSendEmail],
+  );
 
   const createInvoice = api.invoice.create.useMutation({
     onSuccess: async ({ id }) => {
@@ -111,7 +119,7 @@ export function InvoiceForm({ initialDraft, invoiceId, suggestedInvoiceNumber }:
   const totals = computeTotals(draft);
   const errors = showErrors ? validateDraft(draft) : null;
 
-  const persist = (onSaved?: () => void) => {
+  const persist = (onSaved?: (id: string) => void) => {
     if (saving) return;
     if (validateDraft(draft)) {
       setShowErrors(true);
@@ -119,9 +127,9 @@ export function InvoiceForm({ initialDraft, invoiceId, suggestedInvoiceNumber }:
     }
     setShowErrors(false);
     if (invoiceId) {
-      updateInvoice.mutate({ id: invoiceId, draft }, { onSuccess: onSaved });
+      updateInvoice.mutate({ id: invoiceId, draft }, { onSuccess: ({ id }) => onSaved?.(id) });
     } else {
-      createInvoice.mutate(draft, { onSuccess: onSaved });
+      createInvoice.mutate(draft, { onSuccess: ({ id }) => onSaved?.(id) });
     }
   };
 
@@ -205,8 +213,12 @@ export function InvoiceForm({ initialDraft, invoiceId, suggestedInvoiceNumber }:
           autosaveStatus={saving ? "saving" : saved ? "saved" : "idle"}
           saveError={saveError}
           exporting={exporting}
+          sending={sendEmail.isPending}
+          sendError={sendEmail.error?.message}
+          sentTo={sendEmail.data?.sentTo}
           onSave={() => persist()}
           onSaveAndExport={() => persist(() => void handleExportPdf())}
+          onSaveAndEmail={() => persist((id) => sendEmail.mutate({ id }))}
         />
       </div>
     </div>
