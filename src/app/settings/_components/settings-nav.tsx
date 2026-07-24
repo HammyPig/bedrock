@@ -4,13 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { Sidebar, sidebarItemClass } from "~/components/sidebar";
-
-const SECTIONS = [
-  { href: "/settings/business", label: "Business details" },
-  { href: "/settings/appearance", label: "Invoice appearance" },
-  { href: "/settings/email", label: "Invoice email" },
-  { href: "/settings/users", label: "Users" },
-];
+import { SETTINGS_SECTIONS } from "../_lib/sections";
 
 /** The settings section links, current one highlighted; layout comes from className. */
 export function SettingsNav({ className }: { className?: string }) {
@@ -18,7 +12,7 @@ export function SettingsNav({ className }: { className?: string }) {
 
   return (
     <nav className={className}>
-      {SECTIONS.map(({ href, label }) => {
+      {SETTINGS_SECTIONS.map(({ href, label }) => {
         const active = pathname === href;
         return (
           <Link
