@@ -22,6 +22,7 @@ const lineItemInput = z.object({
 });
 
 const draftInput = z.object({
+  documentType: z.enum(["invoice", "quote"]),
   invoiceNumber: z.string().min(1).max(64),
   billTo: billToInput,
   sourceCustomerId: z.string().max(255).nullable(),
@@ -53,6 +54,7 @@ function toInvoice(row: InvoiceRow): Invoice {
   return {
     id: row.id,
     draft: {
+      documentType: row.documentType,
       invoiceNumber: row.invoiceNumber,
       billTo: row.billTo,
       sourceCustomerId: row.sourceCustomerId,

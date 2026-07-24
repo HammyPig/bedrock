@@ -9,7 +9,13 @@ import { Textarea } from "~/components/ui/textarea";
 import { todayIsoDate } from "~/lib/dates";
 import { cn } from "~/lib/utils";
 import { api } from "~/trpc/react";
-import { emptyBillTo, makeLineItem, repriceLineItems, validateDraft } from "../_lib/invoice";
+import {
+  DOCUMENT_TYPE_OPTIONS,
+  emptyBillTo,
+  makeLineItem,
+  repriceLineItems,
+  validateDraft,
+} from "../_lib/invoice";
 import { computeTotals } from "../_lib/money";
 import { type InvoiceAction, type InvoiceDraft } from "../_lib/types";
 import { BillToSection } from "./bill-to-section";
@@ -20,6 +26,7 @@ import { TotalsPanel } from "./totals-panel";
 
 function createInitialDraft(invoiceNumber: string): InvoiceDraft {
   return {
+    documentType: "invoice",
     invoiceNumber,
     billTo: emptyBillTo(),
     sourceCustomerId: null,
@@ -182,9 +189,36 @@ export function InvoiceForm({ initialDraft, invoiceId, suggestedInvoiceNumber }:
       <div className={cn("mb-4", initialDraft && "xl:hidden")}>
         <BackLink href="/invoices">All invoices</BackLink>
       </div>
-      <h1 className="mb-6 text-2xl font-semibold tracking-tight">
-        {initialDraft ? `Edit ${initialDraft.invoiceNumber}` : "New invoice"}
-      </h1>
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {initialDraft
+            ? `Edit ${initialDraft.invoiceNumber}`
+            : draft.documentType === "quote"
+              ? "New quote"
+              : "New invoice"}
+        </h1>
+        <div
+          className="flex overflow-hidden rounded-md border"
+          role="group"
+          aria-label="Document type"
+        >
+          {DOCUMENT_TYPE_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              className={cn(
+                "px-3 py-1.5 text-sm",
+                draft.documentType === option.value
+                  ? "bg-primary font-medium text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted/50",
+              )}
+              onClick={() => dispatch({ type: "patch", patch: { documentType: option.value } })}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="bg-card rounded-xl border shadow-sm">
         <div className="space-y-8 p-8 sm:p-10">
           <BillToSection
@@ -214,7 +248,7 @@ export function InvoiceForm({ initialDraft, invoiceId, suggestedInvoiceNumber }:
               <Textarea
                 id="invoice-notes"
                 rows={4}
-                placeholder="Notes to appear on the invoice..."
+                placeholder={`Notes to appear on the ${draft.documentType}...`}
                 value={draft.notes}
                 onChange={(e) =>
                   dispatch({ type: "patch", patch: { notes: e.currentTarget.value } })

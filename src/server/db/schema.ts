@@ -7,6 +7,7 @@ import type {
   BillTo,
   CustomerTier,
   Discount,
+  DocumentType,
   PaymentTerms,
 } from "~/app/invoices/_lib/types";
 import { DEFAULT_EMAIL_BODY, DEFAULT_EMAIL_SUBJECT } from "~/app/settings/_lib/settings";
@@ -244,6 +245,7 @@ export const invoices = createTable(
       .varchar({ length: 255 })
       .notNull()
       .references(() => businesses.id),
+    documentType: d.varchar({ length: 16 }).$type<DocumentType>().notNull().default("invoice"),
     invoiceNumber: d.varchar({ length: 64 }).notNull(),
     billTo: d.jsonb().$type<BillTo>().notNull(),
     sourceCustomerId: d.varchar({ length: 255 }),

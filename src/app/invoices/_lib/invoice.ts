@@ -5,11 +5,17 @@ import {
   type BillTo,
   type Customer,
   type CustomerTier,
+  type DocumentType,
   type DraftErrors,
   type InvoiceDraft,
   type LineItem,
   type PaymentTerms,
 } from "./types";
+
+export const DOCUMENT_TYPE_OPTIONS: { value: DocumentType; label: string }[] = [
+  { value: "invoice", label: "Invoice" },
+  { value: "quote", label: "Quote" },
+];
 
 export const PAYMENT_TERMS_OPTIONS: { value: PaymentTerms; label: string }[] = [
   { value: "due_on_receipt", label: "Due on receipt" },
@@ -153,7 +159,8 @@ export function validateDraft(draft: InvoiceDraft): DraftErrors | null {
 
   const errors: DraftErrors = { invalidLineItemIds };
   if (draft.invoiceNumber.trim() === "") {
-    errors.invoiceNumber = "Invoice number is required.";
+    errors.invoiceNumber =
+      draft.documentType === "quote" ? "Quote number is required." : "Invoice number is required.";
   }
   if (draft.billTo.name.trim() === "" && draft.billTo.company.trim() === "") {
     errors.billTo = "Billing details need at least a name or company.";

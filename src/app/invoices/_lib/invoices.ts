@@ -2,24 +2,30 @@ import { customerDisplayName, deriveDueDate } from "./invoice";
 import { computeTotals } from "./money";
 import { type Invoice, type InvoiceStatus, type InvoiceSummary } from "./types";
 
-export const STATUS_LABELS: Record<InvoiceStatus, string> = {
+/** What the list's status column shows: quotes get their own badge instead of a payment status. */
+export type ListStatus = InvoiceStatus | "quote";
+
+export const STATUS_LABELS: Record<ListStatus, string> = {
   unpaid: "Unpaid",
   overdue: "Overdue",
   paid: "Paid",
+  quote: "Quote",
 };
 
-export type StatusFilter = InvoiceStatus | "all";
+export type StatusFilter = ListStatus | "all";
 
 export const STATUS_FILTER_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: "all", label: "All statuses" },
   { value: "unpaid", label: "Unpaid" },
   { value: "overdue", label: "Overdue" },
   { value: "paid", label: "Paid" },
+  { value: "quote", label: "Quotes" },
 ];
 
 export function summarizeInvoice({ id, draft }: Invoice): InvoiceSummary {
   return {
     id,
+    documentType: draft.documentType,
     invoiceNumber: draft.invoiceNumber,
     customerName: customerDisplayName(draft.billTo),
     issueDate: draft.issueDate,
@@ -32,8 +38,9 @@ export function summarizeInvoice({ id, draft }: Invoice): InvoiceSummary {
   };
 }
 
+/** Quotes aren't payable, so nothing is owing on them. */
 export function balanceCents(invoice: InvoiceSummary): number {
-  return invoice.totalCents - invoice.paidCents;
+  return invoice.documentType === "quote" ? 0 : invoice.totalCents - invoice.paidCents;
 }
 
 /**
@@ -43,4 +50,9 @@ export function balanceCents(invoice: InvoiceSummary): number {
 export function invoiceStatus(invoice: InvoiceSummary, todayIso: string): InvoiceStatus {
   if (invoice.paidCents >= invoice.totalCents) return "paid";
   return invoice.dueDate < todayIso ? "overdue" : "unpaid";
+}
+
+/** Status shown in the list: quotes get a flat "quote" badge instead of a payment status. */
+export function listStatus(invoice: InvoiceSummary, todayIso: string): ListStatus {
+  return invoice.documentType === "quote" ? "quote" : invoiceStatus(invoice, todayIso);
 }
