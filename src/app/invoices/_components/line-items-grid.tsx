@@ -1,16 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { GripVerticalIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { GripVerticalIcon, PackageIcon, PercentIcon, PlusIcon, Trash2Icon } from "lucide-react";
 
 import { MoneyInput } from "~/components/money-input";
 import { Button } from "~/components/ui/button";
+import { Checkbox } from "~/components/ui/checkbox";
 import { Input } from "~/components/ui/input";
 import { Textarea } from "~/components/ui/textarea";
 import { tierUnitPriceCents, type SavedItem } from "~/lib/items";
 import { formatCents } from "~/lib/money";
 import { matchesAllTokens, tokenize } from "~/lib/search";
-import { cn } from "~/lib/utils";
 import { makeLineItem } from "../_lib/invoice";
 import { lineItemSubtotalCents } from "../_lib/money";
 import { type CustomerTier, type InvoiceAction, type LineItem } from "../_lib/types";
@@ -22,8 +22,21 @@ type CellField = "sku" | "name" | "quantity" | "unitPrice" | "discount";
 /** The name cell is a textarea; every other cell is an input. */
 type CellElement = HTMLInputElement | HTMLTextAreaElement;
 
-const GRID_COLS =
-  "grid grid-cols-[1.25rem_5.5rem_minmax(0,1fr)_3rem_5.5rem_3rem_5.5rem_2rem] items-center gap-2";
+// Inline style rather than a Tailwind arbitrary value: the optional columns
+// would need one full class string per combination for the JIT to see them.
+function gridTemplateColumns(showDiscount: boolean, showBackorder: boolean) {
+  return [
+    "1.25rem", // drag handle
+    "5.5rem", // SKU
+    "minmax(0,1fr)", // name
+    "3rem", // qty
+    "5.5rem", // unit price
+    ...(showDiscount ? ["3rem"] : []),
+    "5.5rem", // subtotal
+    ...(showBackorder ? ["4.5rem"] : []),
+    "2rem", // remove
+  ].join(" ");
+}
 
 interface LineItemsGridProps {
   items: LineItem[];
@@ -45,6 +58,19 @@ export function LineItemsGrid({
 }: LineItemsGridProps) {
   const cellRefs = useRef(new Map<string, CellElement>());
   const [pendingFocus, setPendingFocus] = useState<{ id: string; field: CellField } | null>(null);
+  // Discount and backorder columns are opt-in; each starts visible when the
+  // invoice already uses it so saved data can never be hidden.
+  const [discountToggle, setDiscountToggle] = useState(() =>
+    items.some((item) => item.discountPercent > 0),
+  );
+  const [backorderToggle, setBackorderToggle] = useState(() =>
+    items.some((item) => item.backordered),
+  );
+  const hasDiscounts = items.some((item) => item.discountPercent > 0);
+  const hasBackorders = items.some((item) => item.backordered);
+  const showDiscount = discountToggle || hasDiscounts;
+  const showBackorder = backorderToggle || hasBackorders;
+  const gridStyle = { gridTemplateColumns: gridTemplateColumns(showDiscount, showBackorder) };
 
   // Focus lands after the newly appended row has committed and registered its refs.
   useEffect(() => {
@@ -75,7 +101,8 @@ export function LineItemsGrid({
     const index = items.findIndex((item) => item.id === id);
     const isLastRow = index === items.length - 1;
 
-    if (e.key === "Tab" && !e.shiftKey && field === "discount" && isLastRow) {
+    const lastField: CellField = showDiscount ? "discount" : "unitPrice";
+    if (e.key === "Tab" && !e.shiftKey && field === lastField && isLastRow) {
       e.preventDefault();
       appendRow("sku");
       return;
@@ -110,7 +137,8 @@ export function LineItemsGrid({
   return (
     <section className="space-y-2">
       <div
-        className={cn(GRID_COLS, "px-0.5 text-xs font-medium text-muted-foreground")}
+        className="text-muted-foreground grid items-center gap-2 px-0.5 text-xs font-medium"
+        style={gridStyle}
         aria-hidden
       >
         <span />
@@ -118,8 +146,9 @@ export function LineItemsGrid({
         <span>Name</span>
         <span className="text-right">Qty</span>
         <span className="text-right">Unit price</span>
-        <span className="text-right">Disc. %</span>
+        {showDiscount && <span className="text-right">Disc. %</span>}
         <span className="text-right">Subtotal</span>
+        {showBackorder && <span className="text-center">Backorder</span>}
         <span />
       </div>
       <div className="space-y-2">
@@ -129,7 +158,7 @@ export function LineItemsGrid({
             dispatch({ type: "updateLineItem", id: item.id, patch });
 
           return (
-            <div key={item.id} className={GRID_COLS}>
+            <div key={item.id} className="grid items-center gap-2" style={gridStyle}>
               {/* TODO: drag-to-reorder (later enhancement) */}
               <GripVerticalIcon aria-hidden className="text-muted-foreground/40 size-4" />
               <ItemLookupCell
@@ -171,18 +200,28 @@ export function LineItemsGrid({
                 onValueCentsChange={(cents) => patchItem({ unitPriceCents: cents })}
                 onKeyDown={(e) => handleCellKeyDown(e, item.id, "unitPrice")}
               />
-              <NumberInput
-                ref={registerCell(item.id, "discount")}
-                className="px-1.5"
-                max={100}
-                value={item.discountPercent}
-                aria-label={`Line ${index + 1} discount percent`}
-                onValueChange={(discountPercent) => patchItem({ discountPercent })}
-                onKeyDown={(e) => handleCellKeyDown(e, item.id, "discount")}
-              />
+              {showDiscount && (
+                <NumberInput
+                  ref={registerCell(item.id, "discount")}
+                  className="px-1.5"
+                  max={100}
+                  value={item.discountPercent}
+                  aria-label={`Line ${index + 1} discount percent`}
+                  onValueChange={(discountPercent) => patchItem({ discountPercent })}
+                  onKeyDown={(e) => handleCellKeyDown(e, item.id, "discount")}
+                />
+              )}
               <div className="text-muted-foreground text-right text-sm tabular-nums">
                 {formatCents(lineItemSubtotalCents(item))}
               </div>
+              {showBackorder && (
+                <Checkbox
+                  className="justify-self-center"
+                  checked={item.backordered}
+                  aria-label={`Line ${index + 1} backordered`}
+                  onCheckedChange={(checked) => patchItem({ backordered: checked === true })}
+                />
+              )}
               <Button
                 variant="ghost"
                 size="icon-sm"
@@ -197,11 +236,57 @@ export function LineItemsGrid({
         })}
       </div>
       {error && <p className="text-destructive text-sm">{error}</p>}
-      <Button variant="ghost" size="sm" className="-ml-1" onClick={() => appendRow("sku")}>
-        <PlusIcon />
-        Add item
-      </Button>
+      <div className="flex items-center justify-between">
+        <Button variant="ghost" size="sm" className="-ml-1" onClick={() => appendRow("sku")}>
+          <PlusIcon />
+          Add item
+        </Button>
+        <div className="-mr-1 flex items-center gap-1">
+          <ColumnToggle
+            icon={<PercentIcon />}
+            label="Discounts"
+            show={showDiscount}
+            locked={hasDiscounts}
+            onToggle={() => setDiscountToggle(!showDiscount)}
+          />
+          <ColumnToggle
+            icon={<PackageIcon />}
+            label="Backorders"
+            show={showBackorder}
+            locked={hasBackorders}
+            onToggle={() => setBackorderToggle(!showBackorder)}
+          />
+        </div>
+      </div>
     </section>
+  );
+}
+
+/** Chip that reveals an opt-in grid column; locked while lines still use it. */
+function ColumnToggle({
+  icon,
+  label,
+  show,
+  locked,
+  onToggle,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  show: boolean;
+  locked: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <Button
+      variant={show ? "secondary" : "ghost"}
+      size="sm"
+      aria-pressed={show}
+      disabled={locked}
+      onClick={onToggle}
+    >
+      {icon}
+      {label}
+    </Button>
   );
 }
 
