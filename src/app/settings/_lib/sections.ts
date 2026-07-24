@@ -8,6 +8,7 @@ export const SETTINGS_SECTIONS = [
   { href: "/settings/appearance", label: "Invoice appearance" },
   { href: "/settings/email", label: "Invoice email" },
   { href: "/settings/users", label: "Users" },
+  { href: "/settings/data", label: "Import & export" },
 ] as const;
 
 export const DEFAULT_SETTINGS_PAGE = SETTINGS_SECTIONS[0].href;
