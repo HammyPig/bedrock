@@ -84,6 +84,46 @@ export const itemRouter = createTRPCRouter({
     return { id: created.id };
   }),
 
+  /** CSV import: rows whose SKU is already taken are skipped and reported, never overwritten. */
+  bulkCreate: businessProcedure
+    .input(z.object({ items: z.array(itemInput).min(1).max(10000) }))
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.db
+        .select({ sku: items.sku })
+        .from(items)
+        .where(eq(items.businessId, ctx.businessId));
+      const inCatalog = new Set(existing.map((row) => normalizeSku(row.sku)));
+
+      const skipped: { index: number; reason: string }[] = [];
+      const seen = new Set<string>();
+      const toInsert: (typeof items.$inferInsert)[] = [];
+      input.items.forEach((item, index) => {
+        const key = normalizeSku(item.sku);
+        if (inCatalog.has(key)) {
+          skipped.push({ index, reason: `An item with SKU ${item.sku.trim()} already exists.` });
+          return;
+        }
+        if (seen.has(key)) {
+          skipped.push({
+            index,
+            reason: `SKU ${item.sku.trim()} appears earlier in the file; only the first row was imported.`,
+          });
+          return;
+        }
+        seen.add(key);
+        toInsert.push({ ...item, businessId: ctx.businessId });
+      });
+
+      if (toInsert.length > 0) {
+        await ctx.db.transaction(async (tx) => {
+          for (let i = 0; i < toInsert.length; i += 500) {
+            await tx.insert(items).values(toInsert.slice(i, i + 500));
+          }
+        });
+      }
+      return { importedCount: toInsert.length, skipped };
+    }),
+
   update: businessProcedure
     .input(itemInput.extend({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
