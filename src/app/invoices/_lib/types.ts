@@ -1,3 +1,5 @@
+import { type SavedItem } from "~/lib/items";
+
 export type PaymentTerms = "due_on_receipt" | "net_7" | "net_14" | "net_30" | "custom";
 
 export type CustomerTier = "tier_1" | "tier_2" | "tier_3";
@@ -86,7 +88,13 @@ export type InvoiceAction =
   | { type: "fillBillToFromCustomer"; customer: Customer }
   | { type: "updateLineItem"; id: string; patch: Partial<Omit<LineItem, "id">> }
   | { type: "appendLineItem"; item: LineItem }
-  | { type: "removeLineItem"; id: string };
+  | { type: "removeLineItem"; id: string }
+  | {
+      type: "repriceLineItems";
+      savedItems: SavedItem[];
+      fromTier: CustomerTier | "";
+      toTier: CustomerTier | "";
+    };
 
 /** A stored invoice: the id is the URL key; everything else lives in the draft. */
 export interface Invoice {

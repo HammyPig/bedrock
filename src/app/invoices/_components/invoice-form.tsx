@@ -9,7 +9,7 @@ import { Textarea } from "~/components/ui/textarea";
 import { todayIsoDate } from "~/lib/dates";
 import { cn } from "~/lib/utils";
 import { api } from "~/trpc/react";
-import { emptyBillTo, makeLineItem, validateDraft } from "../_lib/invoice";
+import { emptyBillTo, makeLineItem, repriceLineItems, validateDraft } from "../_lib/invoice";
 import { computeTotals } from "../_lib/money";
 import { type InvoiceAction, type InvoiceDraft } from "../_lib/types";
 import { BillToSection } from "./bill-to-section";
@@ -59,6 +59,16 @@ function invoiceReducer(draft: InvoiceDraft, action: InvoiceAction): InvoiceDraf
       return { ...draft, lineItems: [...draft.lineItems, action.item] };
     case "removeLineItem":
       return { ...draft, lineItems: draft.lineItems.filter((item) => item.id !== action.id) };
+    case "repriceLineItems":
+      return {
+        ...draft,
+        lineItems: repriceLineItems(
+          draft.lineItems,
+          action.savedItems,
+          action.fromTier,
+          action.toTier,
+        ),
+      };
   }
 }
 
@@ -89,14 +99,26 @@ export function InvoiceForm({ initialDraft, invoiceId, suggestedInvoiceNumber }:
   const sendEmail = api.invoice.sendEmail.useMutation();
   const resetSendEmail = sendEmail.reset;
 
+  const tier = draft.billTo.tier;
   const dispatch = useCallback(
     (action: InvoiceAction) => {
       setSaved(false);
       // A stale "Sent to …" confirmation shouldn't outlive the edit it predates.
       resetSendEmail();
       rawDispatch(action);
+      // Any action that lands on a different tier re-prices the lines already on
+      // the invoice (only those still at the old tier's catalog price).
+      const newTier =
+        action.type === "patchBillTo"
+          ? action.patch.tier
+          : action.type === "fillBillToFromCustomer"
+            ? action.customer.tier
+            : undefined;
+      if (newTier !== undefined && newTier !== tier) {
+        rawDispatch({ type: "repriceLineItems", savedItems, fromTier: tier, toTier: newTier });
+      }
     },
-    [resetSendEmail],
+    [resetSendEmail, tier, savedItems],
   );
 
   const createInvoice = api.invoice.create.useMutation({
@@ -181,6 +203,7 @@ export function InvoiceForm({ initialDraft, invoiceId, suggestedInvoiceNumber }:
           <LineItemsGrid
             items={draft.lineItems}
             savedItems={savedItems}
+            tier={draft.billTo.tier}
             invalidItemIds={errors?.invalidLineItemIds ?? []}
             error={errors?.lineItems}
             dispatch={dispatch}

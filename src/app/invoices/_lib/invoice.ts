@@ -1,4 +1,5 @@
 import { addDaysIso } from "~/lib/dates";
+import { tierUnitPriceCents, type SavedItem } from "~/lib/items";
 import {
   type Address,
   type BillTo,
@@ -51,6 +52,30 @@ export function makeLineItem(): LineItem {
     unitPriceCents: 0,
     discountPercent: 0,
   };
+}
+
+/** Comparison key only — mirrors the server's SKU uniqueness check. */
+function normalizeSku(sku: string): string {
+  return sku.trim().toUpperCase();
+}
+
+/**
+ * Re-prices catalog-backed lines when the invoice's tier changes. A line follows
+ * the tier only while its price still matches what the old tier would charge —
+ * hand-edited prices and lines that aren't in the catalog stay untouched.
+ */
+export function repriceLineItems(
+  lineItems: LineItem[],
+  savedItems: SavedItem[],
+  fromTier: CustomerTier | "",
+  toTier: CustomerTier | "",
+): LineItem[] {
+  return lineItems.map((line) => {
+    if (line.sku.trim() === "") return line;
+    const saved = savedItems.find((item) => normalizeSku(item.sku) === normalizeSku(line.sku));
+    if (!saved || line.unitPriceCents !== tierUnitPriceCents(saved, fromTier)) return line;
+    return { ...line, unitPriceCents: tierUnitPriceCents(saved, toTier) };
+  });
 }
 
 export function emptyAddress(): Address {
