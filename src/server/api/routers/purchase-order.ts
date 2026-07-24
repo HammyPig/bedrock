@@ -3,7 +3,7 @@ import { and, asc, eq, ne } from "drizzle-orm";
 import { z } from "zod";
 
 import { type PurchaseOrder, type PurchaseOrderDraft } from "~/app/purchase-orders/_lib/types";
-import { isoDate, lineItemInput } from "~/server/api/routers/invoice";
+import { isoDate, lineItemBaseInput } from "~/server/api/routers/invoice";
 import { vendorDetailsInput } from "~/server/api/routers/vendor";
 import { loadEffectiveSettings } from "~/server/api/routers/settings";
 import { businessProcedure, createTRPCRouter } from "~/server/api/trpc";
@@ -18,7 +18,7 @@ const draftInput = z.object({
   orderDate: isoDate,
   expectedDate: isoDate.nullable(),
   lineItems: z
-    .array(lineItemInput)
+    .array(lineItemBaseInput)
     .min(1)
     .refine(
       (lines) => new Set(lines.map((line) => line.id)).size === lines.length,

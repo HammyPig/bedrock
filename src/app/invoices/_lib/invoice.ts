@@ -9,6 +9,7 @@ import {
   type DraftErrors,
   type InvoiceDraft,
   type LineItem,
+  type LineItemBase,
   type PaymentTerms,
 } from "./types";
 
@@ -49,7 +50,7 @@ export function draftDueDate(draft: Pick<InvoiceDraft, "issueDate" | "terms" | "
     : deriveDueDate(draft.issueDate, draft.terms);
 }
 
-export function makeLineItem(): LineItem {
+export function makeLineItemBase(): LineItemBase {
   return {
     id: crypto.randomUUID(),
     sku: "",
@@ -58,6 +59,10 @@ export function makeLineItem(): LineItem {
     unitPriceCents: 0,
     discountPercent: 0,
   };
+}
+
+export function makeLineItem(): LineItem {
+  return { ...makeLineItemBase(), backordered: false };
 }
 
 /** Comparison key only — mirrors the server's SKU uniqueness check. */

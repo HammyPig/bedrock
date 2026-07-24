@@ -1,4 +1,4 @@
-import { type Address, type Discount, type LineItem } from "~/app/invoices/_lib/types";
+import { type Address, type Discount, type LineItemBase } from "~/app/invoices/_lib/types";
 
 /** A saved vendor the business orders from. */
 export interface Vendor {
@@ -22,7 +22,7 @@ export interface PurchaseOrderDraft {
   orderDate: string;
   /** Expected delivery date, ISO YYYY-MM-DD; null when unknown. */
   expectedDate: string | null;
-  lineItems: LineItem[];
+  lineItems: LineItemBase[];
   discount: Discount | null;
   freightCents: number;
   taxRatePercent: number;
@@ -40,8 +40,8 @@ export type PurchaseOrderAction =
   | { type: "patch"; patch: Partial<PurchaseOrderDraft> }
   | { type: "patchVendor"; patch: Partial<VendorDetails> }
   | { type: "fillVendorFromSaved"; vendor: Vendor }
-  | { type: "updateLineItem"; id: string; patch: Partial<Omit<LineItem, "id">> }
-  | { type: "appendLineItem"; item: LineItem }
+  | { type: "updateLineItem"; id: string; patch: Partial<Omit<LineItemBase, "id">> }
+  | { type: "appendLineItem"; item: LineItemBase }
   | { type: "removeLineItem"; id: string };
 
 /** A stored purchase order: the id is the URL key; everything else lives in the draft. */

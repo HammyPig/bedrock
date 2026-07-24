@@ -3,7 +3,7 @@
 import { useCallback, useReducer, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { makeLineItem } from "~/app/invoices/_lib/invoice";
+import { makeLineItemBase } from "~/app/invoices/_lib/invoice";
 import { BackLink } from "~/components/back-link";
 import { Label } from "~/components/ui/label";
 import { Textarea } from "~/components/ui/textarea";
@@ -25,7 +25,7 @@ function createInitialDraft(poNumber: string): PurchaseOrderDraft {
     sourceVendorId: null,
     orderDate: todayIsoDate(),
     expectedDate: null,
-    lineItems: [makeLineItem()],
+    lineItems: [makeLineItemBase()],
     discount: null,
     freightCents: 0,
     taxRatePercent: 10,

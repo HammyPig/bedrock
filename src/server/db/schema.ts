@@ -352,6 +352,7 @@ export const invoiceLineItems = createTable(
     quantity: d.doublePrecision().notNull(),
     unitPriceCents: d.integer().notNull(),
     discountPercent: d.doublePrecision().notNull(),
+    backordered: d.boolean().notNull().default(false),
   }),
   (t) => [index("invoice_line_item_invoice_id_idx").on(t.invoiceId)],
 );

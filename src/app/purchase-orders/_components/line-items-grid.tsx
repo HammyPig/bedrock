@@ -4,9 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { GripVerticalIcon, PlusIcon, Trash2Icon } from "lucide-react";
 
 import { NumberInput } from "~/app/invoices/_components/number-input";
-import { makeLineItem } from "~/app/invoices/_lib/invoice";
+import { makeLineItemBase } from "~/app/invoices/_lib/invoice";
 import { lineItemSubtotalCents } from "~/app/invoices/_lib/money";
-import { type LineItem } from "~/app/invoices/_lib/types";
+import { type LineItemBase } from "~/app/invoices/_lib/types";
 import { MoneyInput } from "~/components/money-input";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -27,7 +27,7 @@ const GRID_COLS =
   "grid grid-cols-[1.25rem_5.5rem_minmax(0,1fr)_3rem_5.5rem_3rem_5.5rem_2rem] items-center gap-2";
 
 interface LineItemsGridProps {
-  items: LineItem[];
+  items: LineItemBase[];
   savedItems: SavedItem[];
   invalidItemIds: string[];
   error?: string;
@@ -64,7 +64,7 @@ export function LineItemsGrid({
   };
 
   const appendRow = (focusField: CellField) => {
-    const item = makeLineItem();
+    const item = makeLineItemBase();
     dispatch({ type: "appendLineItem", item });
     setPendingFocus({ id: item.id, field: focusField });
   };
@@ -123,7 +123,7 @@ export function LineItemsGrid({
       <div className="space-y-2">
         {items.map((item, index) => {
           const showInvalid = invalidItemIds.includes(item.id);
-          const patchItem = (patch: Partial<Omit<LineItem, "id">>) =>
+          const patchItem = (patch: Partial<Omit<LineItemBase, "id">>) =>
             dispatch({ type: "updateLineItem", id: item.id, patch });
 
           return (
@@ -214,12 +214,12 @@ function ItemLookupCell({
   onKeyDown,
 }: {
   field: "sku" | "name";
-  item: LineItem;
+  item: LineItemBase;
   index: number;
   savedItems: SavedItem[];
   invalid?: boolean;
   cellRef: (el: CellElement | null) => void;
-  onPatch: (patch: Partial<Omit<LineItem, "id">>) => void;
+  onPatch: (patch: Partial<Omit<LineItemBase, "id">>) => void;
   onPickSaved: (saved: SavedItem) => void;
   onKeyDown: (e: React.KeyboardEvent<CellElement>) => void;
 }) {

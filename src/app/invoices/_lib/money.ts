@@ -1,16 +1,18 @@
-import { type InvoiceDraft, type LineItem, type Totals } from "./types";
+import { type Discount, type LineItemBase, type Totals } from "./types";
 
 /** Line subtotal: qty x unit price, less the per-line discount. */
-export function lineItemSubtotalCents(item: LineItem): number {
+export function lineItemSubtotalCents(item: LineItemBase): number {
   return Math.round(item.quantity * item.unitPriceCents * (1 - item.discountPercent / 100));
 }
 
-export function computeTotals(
-  draft: Pick<
-    InvoiceDraft,
-    "lineItems" | "discount" | "freightCents" | "taxRatePercent" | "paidCents"
-  >,
-): Totals {
+// Structural rather than Pick<InvoiceDraft, ...> so purchase orders can use it too.
+export function computeTotals(draft: {
+  lineItems: LineItemBase[];
+  discount: Discount | null;
+  freightCents: number;
+  taxRatePercent: number;
+  paidCents: number;
+}): Totals {
   const subtotalCents = draft.lineItems.reduce((sum, item) => sum + lineItemSubtotalCents(item), 0);
 
   let discountCents = 0;

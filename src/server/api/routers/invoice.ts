@@ -12,7 +12,8 @@ import { type db as database } from "~/server/db";
 
 export const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Expected an ISO date (YYYY-MM-DD)");
 
-export const lineItemInput = z.object({
+/** Shared with the purchase-order router, which uses the base shape as-is. */
+export const lineItemBaseInput = z.object({
   id: z.string().min(1).max(255),
   sku: z.string().max(64),
   name: z.string().min(1),
@@ -20,6 +21,8 @@ export const lineItemInput = z.object({
   unitPriceCents: z.number().int().min(0),
   discountPercent: z.number().min(0).max(100),
 });
+
+const lineItemInput = lineItemBaseInput.extend({ backordered: z.boolean() });
 
 const draftInput = z.object({
   documentType: z.enum(["invoice", "quote"]),
@@ -71,6 +74,7 @@ function toInvoice(row: InvoiceRow): Invoice {
         quantity: line.quantity,
         unitPriceCents: line.unitPriceCents,
         discountPercent: line.discountPercent,
+        backordered: line.backordered,
       })),
       discount: row.discount,
       freightCents: row.freightCents,

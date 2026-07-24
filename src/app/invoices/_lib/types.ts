@@ -15,7 +15,8 @@ export interface Discount {
   value: number;
 }
 
-export interface LineItem {
+/** Line-item fields shared with purchase orders. */
+export interface LineItemBase {
   id: string;
   sku: string;
   name: string;
@@ -23,6 +24,11 @@ export interface LineItem {
   unitPriceCents: number;
   /** Per-line discount, 0-100. */
   discountPercent: number;
+}
+
+export interface LineItem extends LineItemBase {
+  /** On backorder — still billed on this invoice, ships separately. */
+  backordered: boolean;
 }
 
 export interface Address {
