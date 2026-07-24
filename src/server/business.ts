@@ -9,11 +9,18 @@ import { businessInvites, businessUsers } from "~/server/db/schema";
  * membership row is created (oldest invite wins) and every invite for that
  * email is cleared. Lives outside the routers so both the tRPC middleware
  * and server components can use it without an import cycle through trpc.ts.
+ *
+ * auth() already joins the membership into the session lookup, so for members
+ * this returns straight off the session and only member-less users (the
+ * invite-claim path) hit the database here.
  */
 export async function resolveBusinessId(user: {
   id: string;
   email?: string | null;
+  businessId?: string | null;
 }): Promise<string | null> {
+  if (user.businessId) return user.businessId;
+
   const membership = await db.query.businessUsers.findFirst({
     where: eq(businessUsers.userId, user.id),
   });
