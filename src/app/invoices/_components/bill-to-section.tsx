@@ -40,7 +40,7 @@ import {
 } from "../_lib/invoice";
 import { type BillTo, type Customer, type CustomerTier, type InvoiceAction } from "../_lib/types";
 import { AddressField } from "./address-field";
-import { Highlight } from "./highlight";
+import { Highlight } from "~/components/highlight";
 
 interface BillToSectionProps {
   billTo: BillTo;

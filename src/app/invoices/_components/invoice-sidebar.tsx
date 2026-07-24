@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
+import { Highlight } from "~/components/highlight";
 import { Sidebar, sidebarItemClass } from "~/components/sidebar";
 import {
   Command,
@@ -15,7 +16,6 @@ import {
 import { fieldMatchesAnyToken, matchesAllTokens, tokenize } from "~/lib/search";
 import { cn } from "~/lib/utils";
 import { api } from "~/trpc/react";
-import { Highlight } from "./highlight";
 
 /** Floating switcher beside the edit form: every invoice, searchable like the customer picker. */
 export function InvoiceSidebar() {

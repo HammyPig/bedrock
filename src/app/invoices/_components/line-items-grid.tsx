@@ -14,7 +14,7 @@ import { cn } from "~/lib/utils";
 import { makeLineItem } from "../_lib/invoice";
 import { lineItemSubtotalCents } from "../_lib/money";
 import { type InvoiceAction, type LineItem } from "../_lib/types";
-import { Highlight } from "./highlight";
+import { Highlight } from "~/components/highlight";
 import { NumberInput } from "./number-input";
 
 type CellField = "sku" | "name" | "quantity" | "unitPrice" | "discount";
