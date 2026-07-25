@@ -8,6 +8,7 @@ export const SETTINGS_SECTIONS = [
   { href: "/settings/appearance", label: "Invoice appearance" },
   { href: "/settings/email", label: "Invoice email" },
   { href: "/settings/users", label: "Users" },
+  { href: "/settings/modules", label: "Modules" },
   { href: "/settings/data", label: "Import & export" },
 ] as const;
 

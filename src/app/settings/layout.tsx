@@ -8,6 +8,8 @@ import { SettingsNav, SettingsSidebar } from "./_components/settings-nav";
  */
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
   void api.settings.get.prefetch();
+  void api.settings.modules.prefetch();
+  void api.tier.list.prefetch();
   void api.business.users.prefetch();
 
   return (
