@@ -2,9 +2,11 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import {
+  defaultModules,
   defaultSettings,
   invoiceNumberSequence,
   type BusinessSettings,
+  type Modules,
 } from "~/app/settings/_lib/settings";
 import { addressInput } from "~/server/api/routers/customer";
 import { businessProcedure, createTRPCRouter } from "~/server/api/trpc";
@@ -34,6 +36,10 @@ export const settingsInput = z.object({
     .regex(/^\d+$/, "Next number must be digits only.")
     .refine((value) => Number(value) >= 1, "Next number must be 1 or higher."),
 }) satisfies z.ZodType<BusinessSettings>;
+
+const modulesInput = z.object({
+  tieredPricing: z.boolean(),
+}) satisfies z.ZodType<Modules>;
 
 function toSettings(row: typeof businessSettings.$inferSelect): BusinessSettings {
   return {
@@ -84,8 +90,28 @@ export async function loadEffectiveSettings(
   return { ...settings, nextInvoiceNumber: String(sequence).padStart(width, "0") };
 }
 
+/** The business's module toggles; a business with no settings row has every module off. */
+export async function loadModules(db: typeof database, businessId: string): Promise<Modules> {
+  const row = await db.query.businessSettings.findFirst({
+    where: eq(businessSettings.businessId, businessId),
+    columns: { modules: true },
+  });
+  return row?.modules ?? defaultModules();
+}
+
 export const settingsRouter = createTRPCRouter({
   get: businessProcedure.query(({ ctx }) => loadEffectiveSettings(ctx.db, ctx.businessId)),
+
+  modules: businessProcedure.query(({ ctx }) => loadModules(ctx.db, ctx.businessId)),
+
+  setModules: businessProcedure.input(modulesInput).mutation(async ({ ctx, input }) => {
+    // The settings row may not exist yet; seed it with defaults if so.
+    await ctx.db
+      .insert(businessSettings)
+      .values({ ...defaultSettings(), businessId: ctx.businessId, modules: input })
+      .onConflictDoUpdate({ target: businessSettings.businessId, set: { modules: input } });
+    return input;
+  }),
 
   save: businessProcedure.input(settingsInput).mutation(async ({ ctx, input }) => {
     const businessId = ctx.businessId;

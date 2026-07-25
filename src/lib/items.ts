@@ -1,25 +1,22 @@
-import { type CustomerTier } from "~/app/invoices/_lib/types";
-
 export interface SavedItem {
   sku: string;
   name: string;
   vendor: string;
   barcode: string;
   unitPriceCents: number;
-  tier1PriceCents: number;
-  tier2PriceCents: number;
-  tier3PriceCents: number;
+  /** Tier prices by tier id (Tiered pricing module); a missing or $0 entry falls back to unitPriceCents. */
+  tierPrices: Record<string, number>;
   costCents: number;
 }
 
-const TIER_PRICE_FIELD = {
-  tier_1: "tier1PriceCents",
-  tier_2: "tier2PriceCents",
-  tier_3: "tier3PriceCents",
-} as const satisfies Record<CustomerTier, keyof SavedItem>;
-
-/** Price for a customer tier; untiered customers and unset ($0) tier prices get the unit price. */
-export function tierUnitPriceCents(item: SavedItem, tier: CustomerTier | ""): number {
-  const tierPrice = tier === "" ? 0 : item[TIER_PRICE_FIELD[tier]];
+/** Price for a customer tier; untiered customers and unset tier prices get the unit price. */
+export function tierUnitPriceCents(item: SavedItem, tierId: string | null): number {
+  const tierPrice = tierId === null ? 0 : (item.tierPrices[tierId] ?? 0);
   return tierPrice > 0 ? tierPrice : item.unitPriceCents;
+}
+
+/** Equal when every tier prices to the same amount, treating missing and $0 alike. */
+export function tierPricesEqual(a: Record<string, number>, b: Record<string, number>): boolean {
+  const tierIds = new Set([...Object.keys(a), ...Object.keys(b)]);
+  return [...tierIds].every((tierId) => (a[tierId] ?? 0) === (b[tierId] ?? 0));
 }

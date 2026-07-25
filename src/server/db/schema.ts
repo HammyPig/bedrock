@@ -5,13 +5,17 @@ import { type AdapterAccount } from "next-auth/adapters";
 import type {
   Address,
   BillTo,
-  CustomerTier,
   Discount,
   DocumentType,
   PaymentTerms,
 } from "~/app/invoices/_lib/types";
 import type { VendorDetails } from "~/app/purchase-orders/_lib/types";
-import { DEFAULT_EMAIL_BODY, DEFAULT_EMAIL_SUBJECT } from "~/app/settings/_lib/settings";
+import {
+  DEFAULT_EMAIL_BODY,
+  DEFAULT_EMAIL_SUBJECT,
+  defaultModules,
+  type Modules,
+} from "~/app/settings/_lib/settings";
 
 /**
  * This is an example of how to use the multi-project schema feature of Drizzle ORM. Use the same
@@ -167,6 +171,34 @@ export const businessInvites = createTable(
   ],
 );
 
+/**
+ * Pricing tiers (Tiered pricing module). Named per business and ordered by
+ * position; customers are assigned a tier and items price per tier. All tier
+ * data lives in this table and itemTierPrices, so the core tables stay
+ * module-free and turning the module off simply leaves them unread.
+ */
+export const tiers = createTable(
+  "tier",
+  (d) => ({
+    id: d
+      .varchar({ length: 255 })
+      .notNull()
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    businessId: d
+      .varchar({ length: 255 })
+      .notNull()
+      .references(() => businesses.id),
+    name: d.varchar({ length: 64 }).notNull(),
+    position: d.integer().notNull(),
+    createdAt: d
+      .timestamp({ withTimezone: true })
+      .$defaultFn(() => new Date())
+      .notNull(),
+  }),
+  (t) => [index("tier_business_id_idx").on(t.businessId)],
+);
+
 /** Catalog of products/services the invoice line-item lookup draws from. */
 export const items = createTable(
   "item",
@@ -185,10 +217,6 @@ export const items = createTable(
     vendor: d.varchar({ length: 256 }).notNull().default(""),
     barcode: d.varchar({ length: 64 }).notNull().default(""),
     unitPriceCents: d.integer().notNull(),
-    // Per-customer-tier prices; 0 means "not set" and falls back to unitPriceCents.
-    tier1PriceCents: d.integer().notNull().default(0),
-    tier2PriceCents: d.integer().notNull().default(0),
-    tier3PriceCents: d.integer().notNull().default(0),
     /** What the business pays its vendor — internal only, never shown on invoices. */
     costCents: d.integer().notNull().default(0),
     createdAt: d
@@ -199,6 +227,38 @@ export const items = createTable(
   }),
   (t) => [index("item_business_id_idx").on(t.businessId)],
 );
+
+/**
+ * A tier's price for a catalog item (Tiered pricing module). A row exists only
+ * when a price is set — no row means the tier pays the item's unit price.
+ */
+export const itemTierPrices = createTable(
+  "item_tier_price",
+  (d) => ({
+    itemId: d
+      .varchar({ length: 255 })
+      .notNull()
+      .references(() => items.id, { onDelete: "cascade" }),
+    tierId: d
+      .varchar({ length: 255 })
+      .notNull()
+      .references(() => tiers.id, { onDelete: "cascade" }),
+    priceCents: d.integer().notNull(),
+  }),
+  (t) => [
+    primaryKey({ columns: [t.itemId, t.tierId] }),
+    index("item_tier_price_tier_id_idx").on(t.tierId),
+  ],
+);
+
+export const itemsRelations = relations(items, ({ many }) => ({
+  tierPrices: many(itemTierPrices),
+}));
+
+export const itemTierPricesRelations = relations(itemTierPrices, ({ one }) => ({
+  item: one(items, { fields: [itemTierPrices.itemId], references: [items.id] }),
+  tier: one(tiers, { fields: [itemTierPrices.tierId], references: [tiers.id] }),
+}));
 
 export const customers = createTable(
   "customer",
@@ -216,7 +276,8 @@ export const customers = createTable(
     company: d.varchar({ length: 255 }).notNull(),
     phone: d.varchar({ length: 64 }).notNull(),
     email: d.varchar({ length: 255 }).notNull(),
-    tier: d.varchar({ length: 16 }).$type<CustomerTier | "">().notNull(),
+    /** Pricing tier assignment (Tiered pricing module); null when unassigned. */
+    tierId: d.varchar({ length: 255 }).references(() => tiers.id, { onDelete: "set null" }),
     billingAddress: d.jsonb().$type<Address>().notNull(),
     deliveryAddress: d.jsonb().$type<Address>().notNull(),
     createdAt: d
@@ -326,6 +387,8 @@ export const businessSettings = createTable("business_settings", (d) => ({
   termsAndConditions: d.text().notNull(),
   invoiceNumberPrefix: d.varchar({ length: 16 }).notNull(),
   nextInvoiceNumber: d.varchar({ length: 20 }).notNull(),
+  /** Optional-feature toggles; hides module UI without touching module data. */
+  modules: d.jsonb().$type<Modules>().notNull().default(defaultModules()),
   createdAt: d
     .timestamp({ withTimezone: true })
     .$defaultFn(() => new Date())

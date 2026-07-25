@@ -37,12 +37,18 @@ function ExportFields() {
     setExporting(kind);
     setError(null);
     try {
-      const csv =
-        kind === "items"
-          ? itemsCsv(await utils.item.list.fetch())
-          : kind === "customers"
-            ? customersCsv(await utils.customer.list.fetch())
-            : invoicesCsv(await utils.invoice.list.fetch());
+      let csv: string;
+      if (kind === "invoices") {
+        csv = invoicesCsv(await utils.invoice.list.fetch());
+      } else {
+        // Tier columns come and go with the Tiered pricing module.
+        const modules = await utils.settings.modules.fetch();
+        const tiers = modules.tieredPricing ? await utils.tier.list.fetch() : null;
+        csv =
+          kind === "items"
+            ? itemsCsv(await utils.item.list.fetch(), tiers ?? [])
+            : customersCsv(await utils.customer.list.fetch(), tiers);
+      }
       downloadCsv(`${kind}-${new Date().toISOString().slice(0, 10)}.csv`, csv);
     } catch {
       setError("Something went wrong preparing the export — try again.");

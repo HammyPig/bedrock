@@ -5,7 +5,11 @@ export type PaymentTerms = "due_on_receipt" | "net_7" | "net_14" | "net_30" | "c
 /** What the document is: a quote can later be switched to an invoice (and back). */
 export type DocumentType = "invoice" | "quote";
 
-export type CustomerTier = "tier_1" | "tier_2" | "tier_3";
+/** A pricing tier as the UI needs it (Tiered pricing module). */
+export interface Tier {
+  id: string;
+  name: string;
+}
 
 export type DiscountMode = "percent" | "fixed";
 
@@ -45,8 +49,8 @@ export interface Customer {
   company: string;
   phone: string;
   email: string;
-  /** Pricing tier; "" means unassigned. */
-  tier: CustomerTier | "";
+  /** Pricing tier id (Tiered pricing module); null means unassigned. */
+  tierId: string | null;
   billingAddress: Address;
   deliveryAddress: Address;
 }
@@ -102,8 +106,8 @@ export type InvoiceAction =
   | {
       type: "repriceLineItems";
       savedItems: SavedItem[];
-      fromTier: CustomerTier | "";
-      toTier: CustomerTier | "";
+      fromTierId: string | null;
+      toTierId: string | null;
     };
 
 /** A stored invoice: the id is the URL key; everything else lives in the draft. */

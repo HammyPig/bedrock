@@ -21,7 +21,7 @@ import {
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Textarea } from "~/components/ui/textarea";
-import { type SavedItem } from "~/lib/items";
+import { tierPricesEqual, type SavedItem } from "~/lib/items";
 import { cn } from "~/lib/utils";
 import { api } from "~/trpc/react";
 import { validateItem } from "../_lib/items";
@@ -32,13 +32,12 @@ const EMPTY_ITEM: SavedItem = {
   vendor: "",
   barcode: "",
   unitPriceCents: 0,
-  tier1PriceCents: 0,
-  tier2PriceCents: 0,
-  tier3PriceCents: 0,
+  tierPrices: {},
   costCents: 0,
 };
 
-const ITEM_FIELDS = Object.keys(EMPTY_ITEM) as (keyof SavedItem)[];
+/** The scalar fields; tierPrices is compared separately with tierPricesEqual. */
+const ITEM_FIELDS = ["sku", "name", "vendor", "barcode", "unitPriceCents", "costCents"] as const;
 
 interface ItemFormProps {
   /** Existing item being edited; omitted on the create page. */
@@ -50,6 +49,8 @@ interface ItemFormProps {
 export function ItemForm({ initialItem, itemId }: ItemFormProps) {
   const router = useRouter();
   const utils = api.useUtils();
+  const modules = api.settings.modules.useQuery();
+  const tiers = api.tier.list.useQuery();
 
   const [draft, setDraft] = useState<SavedItem>(initialItem ?? EMPTY_ITEM);
   /** Last-saved snapshot; null until a new item is first saved. */
@@ -87,9 +88,15 @@ export function ItemForm({ initialItem, itemId }: ItemFormProps) {
 
   const errors = showErrors ? validateItem(draft) : null;
   const dirty =
-    savedItem === null || ITEM_FIELDS.some((field) => draft[field] !== savedItem[field]);
+    savedItem === null ||
+    ITEM_FIELDS.some((field) => draft[field] !== savedItem[field]) ||
+    !tierPricesEqual(draft.tierPrices, savedItem.tierPrices);
 
   const patch = (fields: Partial<SavedItem>) => setDraft((prev) => ({ ...prev, ...fields }));
+  const patchTierPrice = (tierId: string, cents: number) =>
+    setDraft((prev) => ({ ...prev, tierPrices: { ...prev.tierPrices, [tierId]: cents } }));
+
+  const showTiers = (modules.data?.tieredPricing ?? false) && (tiers.data?.length ?? 0) > 0;
 
   const handleSave = () => {
     if (saving) return;
@@ -223,39 +230,25 @@ export function ItemForm({ initialItem, itemId }: ItemFormProps) {
               />
             </section>
           </div>
-          <div className="flex flex-col gap-6 sm:flex-row">
-            <section className="space-y-2">
-              <Label htmlFor="item-tier1-price">Tier 1 price</Label>
-              <MoneyInput
-                id="item-tier1-price"
-                className="sm:w-32"
-                valueCents={draft.tier1PriceCents}
-                onValueCentsChange={(tier1PriceCents) => patch({ tier1PriceCents })}
-              />
-            </section>
-            <section className="space-y-2">
-              <Label htmlFor="item-tier2-price">Tier 2 price</Label>
-              <MoneyInput
-                id="item-tier2-price"
-                className="sm:w-32"
-                valueCents={draft.tier2PriceCents}
-                onValueCentsChange={(tier2PriceCents) => patch({ tier2PriceCents })}
-              />
-            </section>
-            <section className="space-y-2">
-              <Label htmlFor="item-tier3-price">Tier 3 price</Label>
-              <MoneyInput
-                id="item-tier3-price"
-                className="sm:w-32"
-                valueCents={draft.tier3PriceCents}
-                onValueCentsChange={(tier3PriceCents) => patch({ tier3PriceCents })}
-              />
-            </section>
-          </div>
+          {showTiers && (
+            <div className="flex flex-col gap-6 sm:flex-row sm:flex-wrap">
+              {(tiers.data ?? []).map((tier) => (
+                <section key={tier.id} className="space-y-2">
+                  <Label htmlFor={`item-tier-price-${tier.id}`}>{tier.name} price</Label>
+                  <MoneyInput
+                    id={`item-tier-price-${tier.id}`}
+                    className="sm:w-32"
+                    valueCents={draft.tierPrices[tier.id] ?? 0}
+                    onValueCentsChange={(cents) => patchTierPrice(tier.id, cents)}
+                  />
+                </section>
+              ))}
+            </div>
+          )}
           <p className="text-muted-foreground text-sm">
-            Tier prices replace the unit price for customers in that tier; a tier left at $0.00
-            falls back to the unit price. Cost is what you pay your vendor and never appears on an
-            invoice.
+            {showTiers &&
+              "Tier prices replace the unit price for customers in that tier; a tier left at $0.00 falls back to the unit price. "}
+            Cost is what you pay your vendor and never appears on an invoice.
           </p>
           {errors && <p className="text-destructive text-sm">Every item needs a SKU and a name.</p>}
         </div>

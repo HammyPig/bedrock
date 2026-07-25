@@ -4,7 +4,6 @@ import {
   type Address,
   type BillTo,
   type Customer,
-  type CustomerTier,
   type DocumentType,
   type DraftErrors,
   type InvoiceDraft,
@@ -24,12 +23,6 @@ export const PAYMENT_TERMS_OPTIONS: { value: PaymentTerms; label: string }[] = [
   { value: "net_14", label: "Net 14" },
   { value: "net_30", label: "Net 30" },
   { value: "custom", label: "Custom" },
-];
-
-export const CUSTOMER_TIER_OPTIONS: { value: CustomerTier; label: string }[] = [
-  { value: "tier_1", label: "Tier 1" },
-  { value: "tier_2", label: "Tier 2" },
-  { value: "tier_3", label: "Tier 3" },
 ];
 
 const TERM_DAYS: Record<Exclude<PaymentTerms, "custom">, number> = {
@@ -78,14 +71,14 @@ function normalizeSku(sku: string): string {
 export function repriceLineItems(
   lineItems: LineItem[],
   savedItems: SavedItem[],
-  fromTier: CustomerTier | "",
-  toTier: CustomerTier | "",
+  fromTierId: string | null,
+  toTierId: string | null,
 ): LineItem[] {
   return lineItems.map((line) => {
     if (line.sku.trim() === "") return line;
     const saved = savedItems.find((item) => normalizeSku(item.sku) === normalizeSku(line.sku));
-    if (!saved || line.unitPriceCents !== tierUnitPriceCents(saved, fromTier)) return line;
-    return { ...line, unitPriceCents: tierUnitPriceCents(saved, toTier) };
+    if (!saved || line.unitPriceCents !== tierUnitPriceCents(saved, fromTierId)) return line;
+    return { ...line, unitPriceCents: tierUnitPriceCents(saved, toTierId) };
   });
 }
 
@@ -122,7 +115,7 @@ export function emptyBillTo(): BillTo {
     company: "",
     phone: "",
     email: "",
-    tier: "",
+    tierId: null,
     billingAddress: emptyAddress(),
     deliveryAddress: emptyAddress(),
   };
@@ -134,7 +127,7 @@ export function billToMatchesCustomer(billTo: BillTo, customer: Customer): boole
     billTo.company === customer.company &&
     billTo.phone === customer.phone &&
     billTo.email === customer.email &&
-    billTo.tier === customer.tier &&
+    billTo.tierId === customer.tierId &&
     addressesEqual(billTo.billingAddress, customer.billingAddress) &&
     addressesEqual(billTo.deliveryAddress, customer.deliveryAddress)
   );
@@ -142,9 +135,10 @@ export function billToMatchesCustomer(billTo: BillTo, customer: Customer): boole
 
 export function billToHasContent(billTo: BillTo): boolean {
   return (
-    [billTo.name, billTo.company, billTo.phone, billTo.email, billTo.tier].some(
+    [billTo.name, billTo.company, billTo.phone, billTo.email].some(
       (value) => value.trim() !== "",
     ) ||
+    billTo.tierId !== null ||
     addressHasContent(billTo.billingAddress) ||
     addressHasContent(billTo.deliveryAddress)
   );

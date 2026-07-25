@@ -4,7 +4,8 @@ import { z } from "zod";
 
 import { type BillTo, type Customer } from "~/app/invoices/_lib/types";
 import { businessProcedure, createTRPCRouter } from "~/server/api/trpc";
-import { customers } from "~/server/db/schema";
+import { customers, tiers } from "~/server/db/schema";
+import { type db as database } from "~/server/db";
 
 export const addressInput = z.object({
   line1: z.string().max(255),
@@ -20,10 +21,24 @@ export const billToInput = z.object({
   company: z.string().max(255),
   phone: z.string().max(64),
   email: z.string().max(255),
-  tier: z.enum(["tier_1", "tier_2", "tier_3", ""]),
+  tierId: z.string().max(255).nullable(),
   billingAddress: addressInput,
   deliveryAddress: addressInput,
 }) satisfies z.ZodType<BillTo>;
+
+/** Tier ids that don't belong to this business (stale or foreign) store as unassigned. */
+async function resolveTierId(
+  db: typeof database,
+  businessId: string,
+  tierId: string | null,
+): Promise<string | null> {
+  if (tierId === null) return null;
+  const row = await db.query.tiers.findFirst({
+    where: and(eq(tiers.id, tierId), eq(tiers.businessId, businessId)),
+    columns: { id: true },
+  });
+  return row ? tierId : null;
+}
 
 /** Comparison key for import duplicate-detection only. */
 function normalizeName(name: string): string {
@@ -37,7 +52,7 @@ function toCustomer(row: typeof customers.$inferSelect): Customer {
     company: row.company,
     phone: row.phone,
     email: row.email,
-    tier: row.tier,
+    tierId: row.tierId,
     billingAddress: row.billingAddress,
     deliveryAddress: row.deliveryAddress,
   };
@@ -60,9 +75,10 @@ export const customerRouter = createTRPCRouter({
   }),
 
   create: businessProcedure.input(billToInput).mutation(async ({ ctx, input }) => {
+    const tierId = await resolveTierId(ctx.db, ctx.businessId, input.tierId);
     const [created] = await ctx.db
       .insert(customers)
-      .values({ ...input, businessId: ctx.businessId })
+      .values({ ...input, tierId, businessId: ctx.businessId })
       .returning({ id: customers.id });
     if (!created) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
     return { id: created.id };
@@ -85,6 +101,12 @@ export const customerRouter = createTRPCRouter({
         .where(eq(customers.businessId, ctx.businessId));
       const inBook = new Set(existing.map((row) => normalizeName(row.name)));
 
+      const tierRows = await ctx.db
+        .select({ id: tiers.id })
+        .from(tiers)
+        .where(eq(tiers.businessId, ctx.businessId));
+      const validTierIds = new Set(tierRows.map((row) => row.id));
+
       const skipped: { index: number; reason: string }[] = [];
       const seen = new Set<string>();
       const toInsert: (typeof customers.$inferInsert)[] = [];
@@ -105,7 +127,12 @@ export const customerRouter = createTRPCRouter({
           return;
         }
         seen.add(key);
-        toInsert.push({ ...customer, businessId: ctx.businessId });
+        toInsert.push({
+          ...customer,
+          tierId:
+            customer.tierId !== null && validTierIds.has(customer.tierId) ? customer.tierId : null,
+          businessId: ctx.businessId,
+        });
       });
 
       if (toInsert.length > 0) {
@@ -121,9 +148,10 @@ export const customerRouter = createTRPCRouter({
   update: businessProcedure
     .input(z.object({ id: z.string(), details: billToInput }))
     .mutation(async ({ ctx, input }) => {
+      const tierId = await resolveTierId(ctx.db, ctx.businessId, input.details.tierId);
       const [updated] = await ctx.db
         .update(customers)
-        .set(input.details)
+        .set({ ...input.details, tierId })
         .where(and(eq(customers.id, input.id), eq(customers.businessId, ctx.businessId)))
         .returning({ id: customers.id });
       if (!updated) throw new TRPCError({ code: "NOT_FOUND" });

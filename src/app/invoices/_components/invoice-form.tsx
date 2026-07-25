@@ -72,8 +72,8 @@ function invoiceReducer(draft: InvoiceDraft, action: InvoiceAction): InvoiceDraf
         lineItems: repriceLineItems(
           draft.lineItems,
           action.savedItems,
-          action.fromTier,
-          action.toTier,
+          action.fromTierId,
+          action.toTierId,
         ),
       };
   }
@@ -106,7 +106,7 @@ export function InvoiceForm({ initialDraft, invoiceId, suggestedInvoiceNumber }:
   const sendEmail = api.invoice.sendEmail.useMutation();
   const resetSendEmail = sendEmail.reset;
 
-  const tier = draft.billTo.tier;
+  const tierId = draft.billTo.tierId;
   const dispatch = useCallback(
     (action: InvoiceAction) => {
       setSaved(false);
@@ -115,17 +115,22 @@ export function InvoiceForm({ initialDraft, invoiceId, suggestedInvoiceNumber }:
       rawDispatch(action);
       // Any action that lands on a different tier re-prices the lines already on
       // the invoice (only those still at the old tier's catalog price).
-      const newTier =
+      const newTierId =
         action.type === "patchBillTo"
-          ? action.patch.tier
+          ? action.patch.tierId
           : action.type === "fillBillToFromCustomer"
-            ? action.customer.tier
+            ? action.customer.tierId
             : undefined;
-      if (newTier !== undefined && newTier !== tier) {
-        rawDispatch({ type: "repriceLineItems", savedItems, fromTier: tier, toTier: newTier });
+      if (newTierId !== undefined && newTierId !== tierId) {
+        rawDispatch({
+          type: "repriceLineItems",
+          savedItems,
+          fromTierId: tierId,
+          toTierId: newTierId,
+        });
       }
     },
-    [resetSendEmail, tier, savedItems],
+    [resetSendEmail, tierId, savedItems],
   );
 
   const createInvoice = api.invoice.create.useMutation({
@@ -237,7 +242,7 @@ export function InvoiceForm({ initialDraft, invoiceId, suggestedInvoiceNumber }:
           <LineItemsGrid
             items={draft.lineItems}
             savedItems={savedItems}
-            tier={draft.billTo.tier}
+            tierId={draft.billTo.tierId}
             invalidItemIds={errors?.invalidLineItemIds ?? []}
             error={errors?.lineItems}
             dispatch={dispatch}

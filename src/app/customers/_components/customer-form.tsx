@@ -7,11 +7,10 @@ import { Trash2Icon } from "lucide-react";
 import { AddressField } from "~/app/invoices/_components/address-field";
 import {
   billToMatchesCustomer,
-  CUSTOMER_TIER_OPTIONS,
   customerDisplayName,
   emptyBillTo,
 } from "~/app/invoices/_lib/invoice";
-import { type BillTo, type Customer, type CustomerTier } from "~/app/invoices/_lib/types";
+import { type BillTo, type Customer } from "~/app/invoices/_lib/types";
 import { BackLink } from "~/components/back-link";
 import { SaveBar } from "~/components/save-bar";
 import { Button } from "~/components/ui/button";
@@ -27,13 +26,7 @@ import {
 } from "~/components/ui/dialog";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "~/components/ui/select";
+import { TierSelect } from "~/components/tier-select";
 import { cn } from "~/lib/utils";
 import { api } from "~/trpc/react";
 
@@ -60,6 +53,7 @@ interface CustomerFormProps {
 export function CustomerForm({ initialCustomer, customerId }: CustomerFormProps) {
   const router = useRouter();
   const utils = api.useUtils();
+  const modules = api.settings.modules.useQuery();
 
   const [draft, setDraft] = useState<BillTo>(initialCustomer ?? emptyBillTo());
   /** Last-saved snapshot; null until a new customer is first saved. */
@@ -182,24 +176,16 @@ export function CustomerForm({ initialCustomer, customerId }: CustomerFormProps)
                 />
               </section>
             ))}
-            <section className="space-y-2">
-              <Label htmlFor="customer-tier">Tier</Label>
-              <Select
-                value={draft.tier}
-                onValueChange={(value) => patch({ tier: value as CustomerTier })}
-              >
-                <SelectTrigger id="customer-tier" className="w-full">
-                  <SelectValue placeholder="Select tier" />
-                </SelectTrigger>
-                <SelectContent>
-                  {CUSTOMER_TIER_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </section>
+            {modules.data?.tieredPricing && (
+              <section className="space-y-2">
+                <Label htmlFor="customer-tier">Tier</Label>
+                <TierSelect
+                  id="customer-tier"
+                  value={draft.tierId}
+                  onChange={(tierId) => patch({ tierId })}
+                />
+              </section>
+            )}
           </div>
           <div className="grid gap-6 sm:grid-cols-2">
             <section className="space-y-2">

@@ -14,25 +14,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
-import { hashItemColumns, ITEM_HASH_COLUMNS, parseHashBlock } from "~/lib/import-verify";
+import {
+  hashItemColumns,
+  ITEM_HASH_COLUMNS,
+  parseHashBlock,
+  tierHashKey,
+} from "~/lib/import-verify";
 import { api } from "~/trpc/react";
 import {
   autoMapColumns,
   convertCustomerRow,
   convertItemRow,
-  CUSTOMER_FIELDS,
+  customerImportFields,
   ITEM_FIELDS,
+  itemTierFields,
   type ColumnMapping,
   type ImportField,
   type RowConversion,
 } from "../_lib/csv-import";
 
 type ImportKind = "items" | "customers";
-
-const KIND_FIELDS: Record<ImportKind, ImportField[]> = {
-  items: ITEM_FIELDS,
-  customers: CUSTOMER_FIELDS,
-};
 
 const NOUNS: Record<ImportKind, [singular: string, plural: string]> = {
   items: ["item", "items"],
@@ -96,7 +97,21 @@ export function ImportSection() {
   const [pastedHashes, setPastedHashes] = useState("");
   const [copied, setCopied] = useState(false);
 
-  const fields = KIND_FIELDS[kind];
+  const modules = api.settings.modules.useQuery();
+  const tiersQuery = api.tier.list.useQuery();
+  // The import columns depend on the module state, so hold the file input
+  // until it (and, when on, the tier list) has loaded.
+  const ready =
+    modules.data !== undefined && (!modules.data.tieredPricing || tiersQuery.data !== undefined);
+  /** Tiers driving the dynamic import columns; null while Tiered pricing is off. */
+  const importTiers = useMemo(
+    () => (modules.data?.tieredPricing ? (tiersQuery.data ?? []) : null),
+    [modules.data, tiersQuery.data],
+  );
+  const tierFields = useMemo(() => itemTierFields(importTiers ?? []), [importTiers]);
+  const fieldsFor = (importKind: ImportKind): ImportField[] =>
+    importKind === "items" ? [...ITEM_FIELDS, ...tierFields] : customerImportFields(importTiers);
+  const fields = fieldsFor(kind);
 
   const utils = api.useUtils();
   const importItems = api.item.bulkCreate.useMutation({
@@ -128,7 +143,7 @@ export function ImportSection() {
           return;
         }
         setFile({ name: selected.name, headers, rows });
-        setMapping(autoMapColumns(KIND_FIELDS[kind], headers));
+        setMapping(autoMapColumns(fieldsFor(kind), headers));
       },
       error: (error) => setParseError(error.message),
     });
@@ -137,14 +152,17 @@ export function ImportSection() {
   const handleKindChange = (next: ImportKind) => {
     setKind(next);
     setOutcome(null);
-    if (file) setMapping(autoMapColumns(KIND_FIELDS[next], file.headers));
+    if (file) setMapping(autoMapColumns(fieldsFor(next), file.headers));
   };
 
   const conversions = useMemo<RowConversion<unknown>[]>(() => {
     if (!file) return [];
-    const convert = kind === "items" ? convertItemRow : convertCustomerRow;
-    return file.rows.map((row) => convert(row, mapping));
-  }, [file, kind, mapping]);
+    const convert =
+      kind === "items"
+        ? (row: string[]) => convertItemRow(row, mapping, tierFields)
+        : (row: string[]) => convertCustomerRow(row, mapping, importTiers);
+    return file.rows.map((row) => convert(row));
+  }, [file, kind, mapping, tierFields, importTiers]);
 
   const pasteCheck = useMemo(() => {
     if (!outcome?.verification || pastedHashes.trim() === "") return null;
@@ -192,22 +210,34 @@ export function ImportSection() {
       let result: { importedCount: number; skipped: { index: number; reason: string }[] };
       let verification: ColumnCheck[] | null = null;
       if (kind === "items") {
-        const sent = collectValid(file.rows, (row) => convertItemRow(row, mapping));
+        const sent = collectValid(file.rows, (row) => convertItemRow(row, mapping, tierFields));
         const itemResult = await importItems.mutateAsync({ items: sent });
         result = itemResult;
         if (itemResult.columnHashes) {
           const dbHashes = itemResult.columnHashes;
           const skippedIndexes = new Set(itemResult.skipped.map((skip) => skip.index));
-          const localHashes = await hashItemColumns(sent.filter((_, i) => !skippedIndexes.has(i)));
-          verification = ITEM_HASH_COLUMNS.map(({ key, label }) => ({
+          const localHashes = await hashItemColumns(
+            sent.filter((_, i) => !skippedIndexes.has(i)),
+            (importTiers ?? []).map((tier) => tier.id),
+          );
+          const hashColumns: { key: string; label: string }[] = [
+            ...ITEM_HASH_COLUMNS,
+            ...(importTiers ?? []).map((tier) => ({
+              key: tierHashKey(tier.id),
+              label: `${tier.name} price`,
+            })),
+          ];
+          verification = hashColumns.map(({ key, label }) => ({
             label,
-            dbHash: dbHashes[key],
-            localHash: localHashes[key],
+            dbHash: dbHashes[key] ?? "",
+            localHash: localHashes[key] ?? "",
           }));
         }
       } else {
         result = await importCustomers.mutateAsync({
-          customers: collectValid(file.rows, (row) => convertCustomerRow(row, mapping)),
+          customers: collectValid(file.rows, (row) =>
+            convertCustomerRow(row, mapping, importTiers),
+          ),
         });
       }
       setOutcome({
@@ -257,6 +287,7 @@ export function ImportSection() {
             id="import-file"
             type="file"
             accept=".csv,text/csv"
+            disabled={!ready}
             onChange={(e) => handleFile(e.currentTarget.files?.[0])}
           />
         </div>

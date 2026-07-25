@@ -13,7 +13,7 @@ import { formatCents } from "~/lib/money";
 import { matchesAllTokens, tokenize } from "~/lib/search";
 import { makeLineItem } from "../_lib/invoice";
 import { lineItemSubtotalCents } from "../_lib/money";
-import { type CustomerTier, type InvoiceAction, type LineItem } from "../_lib/types";
+import { type InvoiceAction, type LineItem } from "../_lib/types";
 import { Highlight } from "~/components/highlight";
 import { NumberInput } from "./number-input";
 
@@ -42,7 +42,7 @@ interface LineItemsGridProps {
   items: LineItem[];
   savedItems: SavedItem[];
   /** The invoice's customer tier, which decides the price a picked catalog item comes in at. */
-  tier: CustomerTier | "";
+  tierId: string | null;
   invalidItemIds: string[];
   error?: string;
   dispatch: (action: InvoiceAction) => void;
@@ -51,7 +51,7 @@ interface LineItemsGridProps {
 export function LineItemsGrid({
   items,
   savedItems,
-  tier,
+  tierId,
   invalidItemIds,
   error,
   dispatch,
@@ -123,7 +123,11 @@ export function LineItemsGrid({
     dispatch({
       type: "updateLineItem",
       id,
-      patch: { sku: saved.sku, name: saved.name, unitPriceCents: tierUnitPriceCents(saved, tier) },
+      patch: {
+        sku: saved.sku,
+        name: saved.name,
+        unitPriceCents: tierUnitPriceCents(saved, tierId),
+      },
     });
   };
 
@@ -166,7 +170,7 @@ export function LineItemsGrid({
                 item={item}
                 index={index}
                 savedItems={savedItems}
-                tier={tier}
+                tierId={tierId}
                 cellRef={registerCell(item.id, "sku")}
                 onPatch={patchItem}
                 onPickSaved={(saved) => handlePickSaved(item.id, saved)}
@@ -177,7 +181,7 @@ export function LineItemsGrid({
                 item={item}
                 index={index}
                 savedItems={savedItems}
-                tier={tier}
+                tierId={tierId}
                 invalid={showInvalid && item.name.trim() === ""}
                 cellRef={registerCell(item.id, "name")}
                 onPatch={patchItem}
@@ -296,7 +300,7 @@ function ItemLookupCell({
   item,
   index,
   savedItems,
-  tier,
+  tierId,
   invalid = false,
   cellRef,
   onPatch,
@@ -307,7 +311,7 @@ function ItemLookupCell({
   item: LineItem;
   index: number;
   savedItems: SavedItem[];
-  tier: CustomerTier | "";
+  tierId: string | null;
   invalid?: boolean;
   cellRef: (el: CellElement | null) => void;
   onPatch: (patch: Partial<Omit<LineItem, "id">>) => void;
@@ -384,7 +388,7 @@ function ItemLookupCell({
               </span>
               {/* The price this invoice's customer tier would actually pay. */}
               <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-                {formatCents(tierUnitPriceCents(saved, tier))}
+                {formatCents(tierUnitPriceCents(saved, tierId))}
               </span>
             </button>
           ))}

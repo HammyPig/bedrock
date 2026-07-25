@@ -4,6 +4,7 @@ import { invoiceRouter } from "~/server/api/routers/invoice";
 import { itemRouter } from "~/server/api/routers/item";
 import { purchaseOrderRouter } from "~/server/api/routers/purchase-order";
 import { settingsRouter } from "~/server/api/routers/settings";
+import { tierRouter } from "~/server/api/routers/tier";
 import { vendorRouter } from "~/server/api/routers/vendor";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
 
@@ -19,6 +20,7 @@ export const appRouter = createTRPCRouter({
   item: itemRouter,
   purchaseOrder: purchaseOrderRouter,
   settings: settingsRouter,
+  tier: tierRouter,
   vendor: vendorRouter,
 });
 

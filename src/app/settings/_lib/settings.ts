@@ -2,6 +2,19 @@ import { emptyAddress } from "~/app/invoices/_lib/invoice";
 import { type Address } from "~/app/invoices/_lib/types";
 
 /**
+ * Optional-feature toggles, stored per business. Turning a module off hides
+ * its UI and suspends its behavior but never deletes its data.
+ */
+export interface Modules {
+  tieredPricing: boolean;
+}
+
+/** Modules are opt-in: everything starts off. */
+export function defaultModules(): Modules {
+  return { tieredPricing: false };
+}
+
+/**
  * Placeholders available in the invoice email templates. Each `{name}` is
  * replaced when the email is sent; unknown placeholders pass through as-is.
  */

@@ -23,22 +23,11 @@ import {
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "~/components/ui/select";
+import { TierSelect } from "~/components/tier-select";
 import { fieldMatchesAnyToken, matchesAllTokens, tokenize } from "~/lib/search";
 import { api } from "~/trpc/react";
-import {
-  billToHasContent,
-  billToMatchesCustomer,
-  CUSTOMER_TIER_OPTIONS,
-  customerDisplayName,
-} from "../_lib/invoice";
-import { type BillTo, type Customer, type CustomerTier, type InvoiceAction } from "../_lib/types";
+import { billToHasContent, billToMatchesCustomer, customerDisplayName } from "../_lib/invoice";
+import { type BillTo, type Customer, type InvoiceAction } from "../_lib/types";
 import { AddressField } from "./address-field";
 import { Highlight } from "~/components/highlight";
 
@@ -73,6 +62,7 @@ export function BillToSection({
   dispatch,
 }: BillToSectionProps) {
   const [customers] = api.customer.list.useSuspenseQuery();
+  const modules = api.settings.modules.useQuery();
   const utils = api.useUtils();
   const source = customers.find((customer) => customer.id === sourceCustomerId);
   const diverged = source !== undefined && !billToMatchesCustomer(billTo, source);
@@ -177,28 +167,18 @@ export function BillToSection({
             />
           </div>
         ))}
-        <div className="space-y-1.5">
-          <Label htmlFor="billto-tier" className="text-muted-foreground">
-            Tier
-          </Label>
-          <Select
-            value={billTo.tier}
-            onValueChange={(value) =>
-              dispatch({ type: "patchBillTo", patch: { tier: value as CustomerTier } })
-            }
-          >
-            <SelectTrigger id="billto-tier" className="w-full">
-              <SelectValue placeholder="Select tier" />
-            </SelectTrigger>
-            <SelectContent>
-              {CUSTOMER_TIER_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {modules.data?.tieredPricing && (
+          <div className="space-y-1.5">
+            <Label htmlFor="billto-tier" className="text-muted-foreground">
+              Tier
+            </Label>
+            <TierSelect
+              id="billto-tier"
+              value={billTo.tierId}
+              onChange={(tierId) => dispatch({ type: "patchBillTo", patch: { tierId } })}
+            />
+          </div>
+        )}
       </div>
       <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
         <div className="space-y-1.5">

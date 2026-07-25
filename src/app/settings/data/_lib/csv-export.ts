@@ -1,8 +1,8 @@
 import Papa from "papaparse";
 
-import { type Customer, type Invoice } from "~/app/invoices/_lib/types";
+import { type Customer, type Invoice, type Tier } from "~/app/invoices/_lib/types";
 import { type SavedItem } from "~/lib/items";
-import { CUSTOMER_FIELDS, ITEM_FIELDS } from "./csv-import";
+import { customerImportFields, ITEM_FIELDS, itemTierFields } from "./csv-import";
 
 function dollars(cents: number): string {
   return (cents / 100).toFixed(2);
@@ -25,34 +25,36 @@ export function downloadCsv(filename: string, csv: string) {
 
 /**
  * Export headers are the import field labels (in field order), so a Bedrock
- * export re-imports with every column auto-mapped.
+ * export re-imports with every column auto-mapped. Tier columns exist only
+ * while Tiered pricing is on — pass the tiers to export a price column each.
  */
-export function itemsCsv(items: SavedItem[]): string {
+export function itemsCsv(items: SavedItem[], tiers: Tier[]): string {
   return Papa.unparse({
-    fields: ITEM_FIELDS.map((field) => field.label),
+    fields: [...ITEM_FIELDS, ...itemTierFields(tiers)].map((field) => field.label),
     data: items.map((item) => [
       item.sku,
       item.name,
       item.vendor,
       item.barcode,
       dollars(item.unitPriceCents),
-      optionalDollars(item.tier1PriceCents),
-      optionalDollars(item.tier2PriceCents),
-      optionalDollars(item.tier3PriceCents),
       optionalDollars(item.costCents),
+      ...tiers.map((tier) => optionalDollars(item.tierPrices[tier.id] ?? 0)),
     ]),
   });
 }
 
-export function customersCsv(customers: Customer[]): string {
+/** tiers null = Tiered pricing off: the Tier column is omitted entirely. */
+export function customersCsv(customers: Customer[], tiers: Tier[] | null): string {
+  const tierName = (tierId: string | null) =>
+    tierId === null ? "" : (tiers?.find((tier) => tier.id === tierId)?.name ?? "");
   return Papa.unparse({
-    fields: CUSTOMER_FIELDS.map((field) => field.label),
+    fields: customerImportFields(tiers).map((field) => field.label),
     data: customers.map((customer) => [
       customer.name,
       customer.company,
       customer.phone,
       customer.email,
-      customer.tier === "" ? "" : customer.tier.replace("tier_", ""),
+      ...(tiers === null ? [] : [tierName(customer.tierId)]),
       customer.billingAddress.line1,
       customer.billingAddress.line2,
       customer.billingAddress.suburb,

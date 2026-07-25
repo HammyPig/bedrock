@@ -1,20 +1,25 @@
 import { type SavedItem } from "~/lib/items";
 
-/** Columns covered by the post-import database check, in display order. */
+/** Core item columns covered by the post-import database check, in display order. */
 export const ITEM_HASH_COLUMNS = [
   { key: "sku", label: "SKU" },
   { key: "name", label: "Name" },
   { key: "vendor", label: "Vendor" },
   { key: "barcode", label: "Barcode" },
   { key: "unitPriceCents", label: "Unit price" },
-  { key: "tier1PriceCents", label: "Tier 1 price" },
-  { key: "tier2PriceCents", label: "Tier 2 price" },
-  { key: "tier3PriceCents", label: "Tier 3 price" },
   { key: "costCents", label: "Cost" },
 ] as const satisfies readonly { key: keyof SavedItem; label: string }[];
 
-export type ItemHashKey = (typeof ITEM_HASH_COLUMNS)[number]["key"];
-export type ItemColumnHashes = Record<ItemHashKey, string>;
+/**
+ * Hashes keyed by column: the core columns above plus one "tier:<tierId>"
+ * entry per tier passed to hashItemColumns. Both sides derive the tier set
+ * from the business's tiers, so the keys line up.
+ */
+export type ItemColumnHashes = Record<string, string>;
+
+export function tierHashKey(tierId: string): string {
+  return `tier:${tierId}`;
+}
 
 /**
  * SHA-256 hex of one column: each row's value as a string, sorted, NUL-joined.
@@ -49,11 +54,20 @@ export function parseHashBlock(text: string): ParsedHashBlock {
   return { entries, badLines };
 }
 
-export async function hashItemColumns(rows: SavedItem[]): Promise<ItemColumnHashes> {
+export async function hashItemColumns(
+  rows: SavedItem[],
+  tierIds: string[],
+): Promise<ItemColumnHashes> {
+  const columns: { key: string; value: (row: SavedItem) => string }[] = [
+    ...ITEM_HASH_COLUMNS.map(({ key }) => ({ key, value: (row: SavedItem) => String(row[key]) })),
+    // Unset tier prices hash as "0" so a file with blanks matches the database's missing rows.
+    ...tierIds.map((tierId) => ({
+      key: tierHashKey(tierId),
+      value: (row: SavedItem) => String(row.tierPrices[tierId] ?? 0),
+    })),
+  ];
   const entries = await Promise.all(
-    ITEM_HASH_COLUMNS.map(
-      async ({ key }) => [key, await hashColumn(rows.map((row) => String(row[key])))] as const,
-    ),
+    columns.map(async ({ key, value }) => [key, await hashColumn(rows.map(value))] as const),
   );
-  return Object.fromEntries(entries) as ItemColumnHashes;
+  return Object.fromEntries(entries);
 }

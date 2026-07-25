@@ -1,4 +1,4 @@
-import { type Address, type BillTo, type CustomerTier } from "~/app/invoices/_lib/types";
+import { type Address, type BillTo, type Tier } from "~/app/invoices/_lib/types";
 import { type SavedItem } from "~/lib/items";
 import { parseMoneyInput } from "~/lib/money";
 
@@ -34,11 +34,19 @@ export const ITEM_FIELDS: ImportField[] = [
     required: true,
     synonyms: ["price", "sellprice", "saleprice", "retailprice"],
   },
-  { key: "tier1Price", label: "Tier 1 price", synonyms: ["tier1", "price1"] },
-  { key: "tier2Price", label: "Tier 2 price", synonyms: ["tier2", "price2"] },
-  { key: "tier3Price", label: "Tier 3 price", synonyms: ["tier3", "price3"] },
   { key: "cost", label: "Cost", synonyms: ["costprice", "buyprice", "purchaseprice", "unitcost"] },
 ];
+
+const TIER_FIELD_PREFIX = "tier:";
+
+/** One optional price field per tier (Tiered pricing module), keyed by tier id. */
+export function itemTierFields(tiers: Tier[]): ImportField[] {
+  return tiers.map((tier) => ({
+    key: `${TIER_FIELD_PREFIX}${tier.id}`,
+    label: `${tier.name} price`,
+    synonyms: [normalizeHeader(tier.name)],
+  }));
+}
 
 export const CUSTOMER_FIELDS: ImportField[] = [
   {
@@ -112,6 +120,11 @@ export const CUSTOMER_FIELDS: ImportField[] = [
   },
 ];
 
+/** Customer import fields; the Tier column only exists while Tiered pricing is on. */
+export function customerImportFields(tiers: Tier[] | null): ImportField[] {
+  return CUSTOMER_FIELDS.filter((field) => field.key !== "tier" || tiers !== null);
+}
+
 function normalizeHeader(header: string): string {
   return header.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
@@ -178,15 +191,21 @@ function readMoneyCents(
   return cents;
 }
 
-function readTier(row: string[], mapping: ColumnMapping, errors: string[]): CustomerTier | "" {
+/** Tier names in the file resolve to tier ids; unknown names fail the row. */
+function readTier(
+  row: string[],
+  mapping: ColumnMapping,
+  tiers: Tier[] | null,
+  errors: string[],
+): string | null {
   const text = cell(row, mapping, "tier");
-  if (text === "") return "";
-  const digit = /^(?:tier[\s_-]*)?([123])$/i.exec(text)?.[1];
-  if (!digit) {
-    errors.push(`Tier: "${text}" isn't a tier (use 1, 2, or 3).`);
-    return "";
+  if (tiers === null || text === "") return null;
+  const match = tiers.find((tier) => tier.name.trim().toLowerCase() === text.toLowerCase());
+  if (!match) {
+    errors.push(`Tier: "${text}" doesn't match any of your tiers.`);
+    return null;
   }
-  return `tier_${digit}` as CustomerTier;
+  return match.id;
 }
 
 function readAddress(
@@ -233,23 +252,34 @@ function readAddress(
   };
 }
 
-export function convertItemRow(row: string[], mapping: ColumnMapping): RowConversion<SavedItem> {
+export function convertItemRow(
+  row: string[],
+  mapping: ColumnMapping,
+  tierFields: ImportField[],
+): RowConversion<SavedItem> {
   const errors: string[] = [];
+  const tierPrices: Record<string, number> = {};
+  for (const field of tierFields) {
+    const cents = readMoneyCents(row, mapping, field.key, field.label, errors);
+    if (cents > 0) tierPrices[field.key.slice(TIER_FIELD_PREFIX.length)] = cents;
+  }
   const value: SavedItem = {
     sku: readText(row, mapping, "sku", "SKU", { required: true, maxLength: 64 }, errors),
     name: readText(row, mapping, "name", "Name", { required: true, maxLength: 256 }, errors),
     vendor: readText(row, mapping, "vendor", "Vendor", { maxLength: 256 }, errors),
     barcode: readText(row, mapping, "barcode", "Barcode", { maxLength: 64 }, errors),
     unitPriceCents: readMoneyCents(row, mapping, "unitPrice", "Unit price", errors),
-    tier1PriceCents: readMoneyCents(row, mapping, "tier1Price", "Tier 1 price", errors),
-    tier2PriceCents: readMoneyCents(row, mapping, "tier2Price", "Tier 2 price", errors),
-    tier3PriceCents: readMoneyCents(row, mapping, "tier3Price", "Tier 3 price", errors),
+    tierPrices,
     costCents: readMoneyCents(row, mapping, "cost", "Cost", errors),
   };
   return { value: errors.length > 0 ? null : value, errors };
 }
 
-export function convertCustomerRow(row: string[], mapping: ColumnMapping): RowConversion<BillTo> {
+export function convertCustomerRow(
+  row: string[],
+  mapping: ColumnMapping,
+  tiers: Tier[] | null,
+): RowConversion<BillTo> {
   const errors: string[] = [];
   const billingAddress = readAddress(row, mapping, "billing", "Billing", errors);
   const deliveryAddress = readAddress(row, mapping, "delivery", "Delivery", errors);
@@ -259,7 +289,7 @@ export function convertCustomerRow(row: string[], mapping: ColumnMapping): RowCo
     company: readText(row, mapping, "company", "Company", { maxLength: 255 }, errors),
     phone: readText(row, mapping, "phone", "Phone", { maxLength: 64 }, errors),
     email: readText(row, mapping, "email", "Email", { maxLength: 255 }, errors),
-    tier: readTier(row, mapping, errors),
+    tierId: readTier(row, mapping, tiers, errors),
     billingAddress,
     deliveryAddress: deliveryEmpty ? billingAddress : deliveryAddress,
   };
