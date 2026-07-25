@@ -1,7 +1,8 @@
 import { TRPCError } from "@trpc/server";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
+import { hashItemColumns, type ItemColumnHashes } from "~/lib/import-verify";
 import { businessProcedure, createTRPCRouter } from "~/server/api/trpc";
 import { items } from "~/server/db/schema";
 import { type db as database } from "~/server/db";
@@ -114,14 +115,29 @@ export const itemRouter = createTRPCRouter({
         toInsert.push({ ...item, businessId: ctx.businessId });
       });
 
+      const insertedIds: string[] = [];
       if (toInsert.length > 0) {
         await ctx.db.transaction(async (tx) => {
           for (let i = 0; i < toInsert.length; i += 500) {
-            await tx.insert(items).values(toInsert.slice(i, i + 500));
+            const created = await tx
+              .insert(items)
+              .values(toInsert.slice(i, i + 500))
+              .returning({ id: items.id });
+            insertedIds.push(...created.map((row) => row.id));
           }
         });
       }
-      return { importedCount: toInsert.length, skipped };
+
+      // Read the rows back post-commit and hash each column, so the client
+      // can prove what landed in the database matches what it sent.
+      let columnHashes: ItemColumnHashes | null = null;
+      if (insertedIds.length > 0) {
+        const inserted = await ctx.db.query.items.findMany({
+          where: and(eq(items.businessId, ctx.businessId), inArray(items.id, insertedIds)),
+        });
+        columnHashes = await hashItemColumns(inserted.map(toItemRow));
+      }
+      return { importedCount: toInsert.length, skipped, columnHashes };
     }),
 
   update: businessProcedure
