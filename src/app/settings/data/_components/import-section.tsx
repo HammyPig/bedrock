@@ -6,6 +6,7 @@ import Papa from "papaparse";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
+import { Textarea } from "~/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -13,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
+import { hashItemColumns, ITEM_HASH_COLUMNS, parseHashBlock } from "~/lib/import-verify";
 import { api } from "~/trpc/react";
 import {
   autoMapColumns,
@@ -48,6 +50,12 @@ interface ParsedFile {
   rows: string[][];
 }
 
+interface ColumnCheck {
+  label: string;
+  dbHash: string;
+  localHash: string;
+}
+
 interface ImportOutcome {
   kind: ImportKind;
   importedCount: number;
@@ -55,10 +63,17 @@ interface ImportOutcome {
   skipped: { rowNumber: number; reason: string }[];
   /** Rows that failed validation here and were never sent. */
   failed: { rowNumber: number; errors: string[] }[];
+  /** Items only: per-column hashes of the imported rows, from the database and from the file. */
+  verification: ColumnCheck[] | null;
 }
 
 function countLabel(count: number, kind: ImportKind): string {
   return `${count} ${NOUNS[kind][count === 1 ? 0 : 1]}`;
+}
+
+/** Comparison key for pasted column labels — forgiving about case and spacing. */
+function normalizeLabel(label: string): string {
+  return label.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
 function collectValid<T>(rows: string[][], convert: (row: string[]) => RowConversion<T>): T[] {
@@ -77,6 +92,9 @@ export function ImportSection() {
   const [parseError, setParseError] = useState<string | null>(null);
   const [mapping, setMapping] = useState<ColumnMapping>({});
   const [outcome, setOutcome] = useState<ImportOutcome | null>(null);
+  /** The "Label hash" block pasted back to confirm the database hashes. */
+  const [pastedHashes, setPastedHashes] = useState("");
+  const [copied, setCopied] = useState(false);
 
   const fields = KIND_FIELDS[kind];
 
@@ -128,6 +146,33 @@ export function ImportSection() {
     return file.rows.map((row) => convert(row, mapping));
   }, [file, kind, mapping]);
 
+  const pasteCheck = useMemo(() => {
+    if (!outcome?.verification || pastedHashes.trim() === "") return null;
+    const { entries, badLines } = parseHashBlock(pastedHashes);
+    const byLabel = new Map(entries.map((entry) => [normalizeLabel(entry.label), entry.hash]));
+    const known = new Set(outcome.verification.map((check) => normalizeLabel(check.label)));
+    const problems: string[] = [];
+    for (const check of outcome.verification) {
+      const pasted = byLabel.get(normalizeLabel(check.label));
+      if (pasted === undefined) problems.push(`${check.label} is missing from the pasted hashes.`);
+      else if (pasted !== check.dbHash.toLowerCase())
+        problems.push(`${check.label} doesn't match the database.`);
+    }
+    for (const entry of entries) {
+      if (!known.has(normalizeLabel(entry.label)))
+        problems.push(`"${entry.label}" isn't one of the imported columns.`);
+    }
+    for (const line of badLines) problems.push(`Line ${line} isn't a "Column hash" line.`);
+    return { matches: problems.length === 0, count: outcome.verification.length, problems };
+  }, [outcome, pastedHashes]);
+
+  const copyHashes = () => {
+    if (!outcome?.verification) return;
+    void navigator.clipboard
+      .writeText(outcome.verification.map((check) => `${check.label} ${check.dbHash}`).join("\n"))
+      .then(() => setCopied(true));
+  };
+
   const unmappedRequired = fields.filter((field) => field.required && mapping[field.key] == null);
   const invalidRows = conversions.flatMap((conversion, i) =>
     conversion.errors.length > 0 ? [{ rowNumber: i + 2, errors: conversion.errors }] : [],
@@ -144,14 +189,27 @@ export function ImportSection() {
       conversion.errors.length === 0 ? [i + 2] : [],
     );
     try {
-      const result =
-        kind === "items"
-          ? await importItems.mutateAsync({
-              items: collectValid(file.rows, (row) => convertItemRow(row, mapping)),
-            })
-          : await importCustomers.mutateAsync({
-              customers: collectValid(file.rows, (row) => convertCustomerRow(row, mapping)),
-            });
+      let result: { importedCount: number; skipped: { index: number; reason: string }[] };
+      let verification: ColumnCheck[] | null = null;
+      if (kind === "items") {
+        const sent = collectValid(file.rows, (row) => convertItemRow(row, mapping));
+        const itemResult = await importItems.mutateAsync({ items: sent });
+        result = itemResult;
+        if (itemResult.columnHashes) {
+          const dbHashes = itemResult.columnHashes;
+          const skippedIndexes = new Set(itemResult.skipped.map((skip) => skip.index));
+          const localHashes = await hashItemColumns(sent.filter((_, i) => !skippedIndexes.has(i)));
+          verification = ITEM_HASH_COLUMNS.map(({ key, label }) => ({
+            label,
+            dbHash: dbHashes[key],
+            localHash: localHashes[key],
+          }));
+        }
+      } else {
+        result = await importCustomers.mutateAsync({
+          customers: collectValid(file.rows, (row) => convertCustomerRow(row, mapping)),
+        });
+      }
       setOutcome({
         kind,
         importedCount: result.importedCount,
@@ -160,7 +218,10 @@ export function ImportSection() {
           reason: skip.reason,
         })),
         failed: invalidRows,
+        verification,
       });
+      setPastedHashes("");
+      setCopied(false);
       setFile(null);
       setFileKey((key) => key + 1);
     } catch {
@@ -311,6 +372,73 @@ export function ImportSection() {
                 <li>…and {outcome.failed.length - SHOWN_PROBLEMS} more rows with problems</li>
               )}
             </ul>
+          )}
+          {outcome.verification && (
+            <div className="mt-4">
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-medium">
+                  Database check —{" "}
+                  {outcome.verification.every((check) => check.dbHash === check.localHash)
+                    ? "every column matches your file"
+                    : "some columns don't match your file"}
+                </p>
+                <Button variant="outline" size="sm" onClick={copyHashes}>
+                  {copied ? "Copied" : "Copy hashes"}
+                </Button>
+              </div>
+              <p className="text-muted-foreground mt-1">
+                Each column&apos;s SHA-256 fingerprint (imported rows as strings, sorted, joined
+                with NUL), read back from the database and compared with the same hash of your
+                file&apos;s imported rows.
+              </p>
+              <div className="mt-2 space-y-1">
+                {outcome.verification.map((check) => {
+                  const matches = check.dbHash === check.localHash;
+                  return (
+                    <div key={check.label} className="flex items-baseline gap-2">
+                      <span className="w-28 shrink-0">{check.label}</span>
+                      <span
+                        className={
+                          matches ? "shrink-0 text-green-600" : "text-destructive shrink-0"
+                        }
+                      >
+                        {matches ? "✓" : "✗"}
+                      </span>
+                      <span className="text-muted-foreground min-w-0 font-mono text-xs break-all">
+                        {matches ? check.dbHash : `db ${check.dbHash} · file ${check.localHash}`}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-3 space-y-2">
+                <Label htmlFor="hash-paste">Confirm pasted hashes</Label>
+                <p className="text-muted-foreground">
+                  Paste a hash block — one &quot;Column hash&quot; per line, like the Copy hashes
+                  button produces — and it&apos;s checked against the database hashes above.
+                </p>
+                <Textarea
+                  id="hash-paste"
+                  rows={4}
+                  value={pastedHashes}
+                  onChange={(e) => setPastedHashes(e.target.value)}
+                  placeholder={"SKU 5016…\nName a98c…"}
+                  className="font-mono text-xs"
+                />
+                {pasteCheck &&
+                  (pasteCheck.matches ? (
+                    <p className="text-green-600">
+                      Pasted hashes match the database — all {pasteCheck.count} columns confirmed.
+                    </p>
+                  ) : (
+                    <ul className="text-destructive list-disc space-y-1 pl-5">
+                      {pasteCheck.problems.map((problem, i) => (
+                        <li key={i}>{problem}</li>
+                      ))}
+                    </ul>
+                  ))}
+              </div>
+            </div>
           )}
         </div>
       )}
