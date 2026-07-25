@@ -3,17 +3,17 @@
 import { useEffect, useRef, useState } from "react";
 import { GripVerticalIcon, PackageIcon, PercentIcon, PlusIcon, Trash2Icon } from "lucide-react";
 
-import { MoneyInput } from "~/components/money-input";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
 import { Input } from "~/components/ui/input";
 import { Textarea } from "~/components/ui/textarea";
 import { tierUnitPriceCents, type SavedItem } from "~/lib/items";
-import { formatCents } from "~/lib/money";
+import { formatCents, parseMoneyInput } from "~/lib/money";
 import { matchesAllTokens, tokenize } from "~/lib/search";
-import { makeLineItem } from "../_lib/invoice";
+import { api } from "~/trpc/react";
+import { makeLineItem, normalizeSku } from "../_lib/invoice";
 import { lineItemSubtotalCents } from "../_lib/money";
-import { type InvoiceAction, type LineItem } from "../_lib/types";
+import { type InvoiceAction, type LineItem, type Tier } from "../_lib/types";
 import { Highlight } from "~/components/highlight";
 import { NumberInput } from "./number-input";
 
@@ -56,6 +56,9 @@ export function LineItemsGrid({
   error,
   dispatch,
 }: LineItemsGridProps) {
+  // Names for the unit-price dropdown; harmlessly empty while Tiered pricing is off.
+  const tiersQuery = api.tier.list.useQuery();
+  const tiers = tiersQuery.data ?? [];
   const cellRefs = useRef(new Map<string, CellElement>());
   const [pendingFocus, setPendingFocus] = useState<{ id: string; field: CellField } | null>(null);
   // Discount and backorder columns are opt-in; each starts visible when the
@@ -197,11 +200,13 @@ export function LineItemsGrid({
                 onValueChange={(quantity) => patchItem({ quantity })}
                 onKeyDown={(e) => handleCellKeyDown(e, item.id, "quantity")}
               />
-              <MoneyInput
-                ref={registerCell(item.id, "unitPrice")}
-                valueCents={item.unitPriceCents}
-                aria-label={`Line ${index + 1} unit price`}
-                onValueCentsChange={(cents) => patchItem({ unitPriceCents: cents })}
+              <UnitPriceCell
+                item={item}
+                index={index}
+                savedItems={savedItems}
+                tiers={tiers}
+                cellRef={registerCell(item.id, "unitPrice")}
+                onPatch={patchItem}
                 onKeyDown={(e) => handleCellKeyDown(e, item.id, "unitPrice")}
               />
               {showDiscount && (
@@ -291,6 +296,105 @@ function ColumnToggle({
       {icon}
       {label}
     </Button>
+  );
+}
+
+/**
+ * Unit price cell: edits as free text like MoneyInput, plus a dropdown of the
+ * matched catalog item's prices — unit price and each tier's — to hand-pick
+ * from regardless of the invoice's tier. Not built on MoneyInput because a
+ * pick must land inside the editing session; MoneyInput would overwrite it
+ * when its own text committed on blur.
+ */
+function UnitPriceCell({
+  item,
+  index,
+  savedItems,
+  tiers,
+  cellRef,
+  onPatch,
+  onKeyDown,
+}: {
+  item: LineItem;
+  index: number;
+  savedItems: SavedItem[];
+  tiers: Tier[];
+  cellRef: (el: CellElement | null) => void;
+  onPatch: (patch: Partial<Omit<LineItem, "id">>) => void;
+  onKeyDown: (e: React.KeyboardEvent<CellElement>) => void;
+}) {
+  const [text, setText] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+
+  const saved =
+    item.sku.trim() === ""
+      ? undefined
+      : savedItems.find((s) => normalizeSku(s.sku) === normalizeSku(item.sku));
+  // Only offer a pick list when the item actually has tier prices; a bare
+  // "Unit price" entry would just be noise.
+  const options =
+    saved && Object.keys(saved.tierPrices).length > 0
+      ? [
+          { id: "unit", label: "Unit price", cents: saved.unitPriceCents },
+          ...tiers.flatMap((tier) => {
+            const cents = saved.tierPrices[tier.id] ?? 0;
+            return cents > 0 ? [{ id: tier.id, label: tier.name, cents }] : [];
+          }),
+        ]
+      : [];
+
+  const handlePick = (cents: number) => {
+    onPatch({ unitPriceCents: cents });
+    // Replace the in-progress text so the later blur commits the same amount.
+    setText((cents / 100).toFixed(2));
+    setOpen(false);
+  };
+
+  return (
+    <div className="relative">
+      <Input
+        ref={cellRef}
+        inputMode="decimal"
+        className="text-right tabular-nums"
+        value={text ?? formatCents(item.unitPriceCents)}
+        aria-label={`Line ${index + 1} unit price`}
+        onFocus={(e) => {
+          setText(item.unitPriceCents === 0 ? "" : (item.unitPriceCents / 100).toFixed(2));
+          setOpen(true);
+          e.currentTarget.select();
+        }}
+        onChange={(e) => setText(e.currentTarget.value)}
+        onBlur={() => {
+          if (text !== null) {
+            const parsed = parseMoneyInput(text);
+            if (parsed !== null) onPatch({ unitPriceCents: parsed });
+          }
+          setText(null);
+          setOpen(false);
+        }}
+        onKeyDown={onKeyDown}
+      />
+      {open && options.length > 0 && (
+        <div className="bg-popover ring-foreground/10 absolute right-0 z-10 mt-1 w-44 overflow-hidden rounded-lg p-1 shadow-md ring-1">
+          {options.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              className="hover:bg-muted flex w-full items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-left text-sm"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                handlePick(option.cents);
+              }}
+            >
+              <span className="truncate">{option.label}</span>
+              <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                {formatCents(option.cents)}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

@@ -59,7 +59,7 @@ export function makeLineItem(): LineItem {
 }
 
 /** Comparison key only — mirrors the server's SKU uniqueness check. */
-function normalizeSku(sku: string): string {
+export function normalizeSku(sku: string): string {
   return sku.trim().toUpperCase();
 }
 
