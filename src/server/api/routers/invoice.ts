@@ -1,8 +1,8 @@
 import { TRPCError } from "@trpc/server";
-import { and, asc, eq, ne } from "drizzle-orm";
+import { and, asc, eq, inArray, ne } from "drizzle-orm";
 import { z } from "zod";
 
-import { paymentsTotalCents } from "~/app/invoices/_lib/money";
+import { computeTotals, paymentsTotalCents } from "~/app/invoices/_lib/money";
 import { type Invoice, type InvoiceDraft } from "~/app/invoices/_lib/types";
 import { billToInput } from "~/server/api/routers/customer";
 import { loadEffectiveSettings } from "~/server/api/routers/settings";
@@ -207,6 +207,26 @@ export const invoiceRouter = createTRPCRouter({
         throw new TRPCError({ code: "NOT_FOUND" });
       }
       await ctx.db.delete(payments).where(eq(payments.id, input.id));
+    }),
+
+  /** Records each invoice's remaining balance as a payment — the bulk "customer paid up" action. */
+  recordFullPayments: businessProcedure
+    .input(z.object({ invoiceIds: z.array(z.string()).min(1).max(500), paidDate: isoDate }))
+    .mutation(async ({ ctx, input }) => {
+      const rows = await ctx.db.query.invoices.findMany({
+        where: and(eq(invoices.businessId, ctx.businessId), inArray(invoices.id, input.invoiceIds)),
+        with: invoiceWith,
+      });
+      // Balances come from the database, not the client, so a stale page can't over-record.
+      const values = rows.flatMap((row) => {
+        if (row.documentType === "quote") return [];
+        const { balanceCents } = computeTotals(row, paymentsTotalCents(row.payments));
+        return balanceCents > 0
+          ? [{ invoiceId: row.id, amountCents: balanceCents, paidDate: input.paidDate }]
+          : [];
+      });
+      if (values.length > 0) await ctx.db.insert(payments).values(values);
+      return { recorded: values.length };
     }),
 
   /** Emails the saved invoice, PDF attached, to the bill-to email address. */

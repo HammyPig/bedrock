@@ -16,6 +16,7 @@ export default async function CustomersPage() {
   if (!(await resolveBusinessId(session.user))) redirect("/");
 
   void api.customer.list.prefetch();
+  void api.invoice.list.prefetch();
 
   return (
     <HydrateClient>

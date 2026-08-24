@@ -119,47 +119,9 @@ export function CustomerForm({ initialCustomer, customerId }: CustomerFormProps)
       <div className={cn("mb-4", initialCustomer && "xl:hidden")}>
         <BackLink href="/customers">All customers</BackLink>
       </div>
-      <div className="mb-6 flex items-start justify-between gap-4">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {initialCustomer ? `Edit ${customerDisplayName(initialCustomer)}` : "New customer"}
-        </h1>
-        {customerId && initialCustomer && (
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button
-                variant="ghost"
-                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-              >
-                <Trash2Icon />
-                Delete
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Delete this customer?</DialogTitle>
-                <DialogDescription>
-                  {`“${customerDisplayName(initialCustomer)}” will be removed from your customers. Invoices that already bill them keep their own copy.`}
-                </DialogDescription>
-              </DialogHeader>
-              {deleteCustomer.error && (
-                <p className="text-destructive text-sm">{deleteCustomer.error.message}</p>
-              )}
-              <DialogFooter>
-                <DialogClose asChild>
-                  <Button variant="outline">Cancel</Button>
-                </DialogClose>
-                <Button
-                  variant="destructive"
-                  disabled={deleteCustomer.isPending}
-                  onClick={() => deleteCustomer.mutate({ id: customerId })}
-                >
-                  {deleteCustomer.isPending ? "Deleting…" : "Delete customer"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        )}
-      </div>
+      <h1 className="mb-6 text-2xl font-semibold tracking-tight">
+        {initialCustomer ? `Edit ${customerDisplayName(initialCustomer)}` : "New customer"}
+      </h1>
       <div className="bg-card rounded-xl border shadow-sm">
         <div className="space-y-6 p-8 sm:p-10">
           <div className="grid gap-6 sm:grid-cols-2">
@@ -206,12 +168,52 @@ export function CustomerForm({ initialCustomer, customerId }: CustomerFormProps)
             </section>
           </div>
           {error && <p className="text-destructive text-sm">{error}</p>}
+          {/* Kept out of the header so a stray click can't land on it while editing. */}
+          {customerId && initialCustomer && (
+            <div className="border-t pt-6">
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <Trash2Icon />
+                    Delete customer
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Delete this customer?</DialogTitle>
+                    <DialogDescription>
+                      {`“${customerDisplayName(initialCustomer)}” will be removed from your customers. Invoices that already bill them keep their own copy.`}
+                    </DialogDescription>
+                  </DialogHeader>
+                  {deleteCustomer.error && (
+                    <p className="text-destructive text-sm">{deleteCustomer.error.message}</p>
+                  )}
+                  <DialogFooter>
+                    <DialogClose asChild>
+                      <Button variant="outline">Cancel</Button>
+                    </DialogClose>
+                    <Button
+                      variant="destructive"
+                      disabled={deleteCustomer.isPending}
+                      onClick={() => deleteCustomer.mutate({ id: customerId })}
+                    >
+                      {deleteCustomer.isPending ? "Deleting…" : "Delete customer"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+          )}
         </div>
         <SaveBar
           summary={dirty ? (customerId ? "Unsaved changes" : "Not saved yet") : null}
           justSaved={justSaved}
           saving={saving}
           saveError={saveError}
+          cancelHref={customerId ? `/customers/${customerId}` : "/customers"}
           onSave={handleSave}
         />
       </div>

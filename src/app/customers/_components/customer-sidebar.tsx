@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 
 import { customerDisplayName } from "~/app/invoices/_lib/invoice";
 import { Highlight } from "~/components/highlight";
@@ -22,6 +22,8 @@ import { api } from "~/trpc/react";
 export function CustomerSidebar() {
   const { customerId: activeCustomerId } = useParams<{ customerId: string }>();
   const router = useRouter();
+  // Switching customers keeps you in the same mode: profile to profile, edit form to edit form.
+  const editing = usePathname().endsWith("/edit");
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [query, setQuery] = useState("");
   const tokens = tokenize(query);
@@ -61,7 +63,9 @@ export function CustomerSidebar() {
                       key={customer.id}
                       value={customer.id}
                       data-checked={isActive}
-                      onSelect={() => router.push(`/customers/${customer.id}/edit`)}
+                      onSelect={() =>
+                        router.push(`/customers/${customer.id}${editing ? "/edit" : ""}`)
+                      }
                       // The shared look replaces cmdk's filled hover bar and check icon: the
                       // current customer keeps its fill, other rows only brighten their text.
                       className={cn(

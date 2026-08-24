@@ -9,13 +9,18 @@ import { customerDisplayName } from "~/app/invoices/_lib/invoice";
 import { BackLink } from "~/components/back-link";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
+import { formatCents } from "~/lib/money";
 import { matchesAllTokens, tokenize } from "~/lib/search";
 import { api } from "~/trpc/react";
+import { openInvoicesByCustomer, outstandingCents } from "../_lib/balances";
 
 export function CustomersList() {
   const router = useRouter();
   const [customers] = api.customer.list.useSuspenseQuery();
+  const [invoices] = api.invoice.list.useSuspenseQuery();
   const [query, setQuery] = useState("");
+
+  const openByCustomer = openInvoicesByCustomer(invoices);
 
   const tokens = tokenize(query);
   const rows = customers.filter((customer) =>
@@ -72,38 +77,46 @@ export function CustomersList() {
                   <th className="pr-4 pb-2 font-medium">Name</th>
                   <th className="pr-4 pb-2 font-medium">Company</th>
                   <th className="pr-4 pb-2 font-medium">Phone</th>
-                  <th className="pb-2 font-medium">Email</th>
+                  <th className="pr-4 pb-2 font-medium">Email</th>
+                  <th className="pb-2 text-right font-medium">Balance</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((customer) => (
-                  <tr
-                    key={customer.id}
-                    className="hover:bg-muted/50 cursor-pointer border-b transition-colors last:border-0"
-                    onClick={() => router.push(`/customers/${customer.id}/edit`)}
-                  >
-                    <td className="max-w-48 truncate py-3 pr-4 font-medium">
-                      {/* Real link inside the clickable row, for middle-click and keyboard users. */}
-                      <Link
-                        href={`/customers/${customer.id}/edit`}
-                        className="hover:underline"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {customerDisplayName(customer)}
-                      </Link>
-                    </td>
-                    {/* The display name already falls back to company when the name is empty. */}
-                    <td className="text-muted-foreground max-w-40 truncate py-3 pr-4">
-                      {customer.name.trim() === "" ? "" : customer.company}
-                    </td>
-                    <td className="text-muted-foreground py-3 pr-4 whitespace-nowrap">
-                      {customer.phone}
-                    </td>
-                    <td className="text-muted-foreground max-w-48 truncate py-3">
-                      {customer.email}
-                    </td>
-                  </tr>
-                ))}
+                {rows.map((customer) => {
+                  const owedCents = outstandingCents(openByCustomer.get(customer.id) ?? []);
+
+                  return (
+                    <tr
+                      key={customer.id}
+                      className="hover:bg-muted/50 cursor-pointer border-b transition-colors last:border-0"
+                      onClick={() => router.push(`/customers/${customer.id}`)}
+                    >
+                      <td className="max-w-48 truncate py-3 pr-4 font-medium">
+                        {/* Real link inside the clickable row, for middle-click and keyboard users. */}
+                        <Link
+                          href={`/customers/${customer.id}`}
+                          className="hover:underline"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {customerDisplayName(customer)}
+                        </Link>
+                      </td>
+                      {/* The display name already falls back to company when the name is empty. */}
+                      <td className="text-muted-foreground max-w-40 truncate py-3 pr-4">
+                        {customer.name.trim() === "" ? "" : customer.company}
+                      </td>
+                      <td className="text-muted-foreground py-3 pr-4 whitespace-nowrap">
+                        {customer.phone}
+                      </td>
+                      <td className="text-muted-foreground max-w-48 truncate py-3 pr-4">
+                        {customer.email}
+                      </td>
+                      <td className="py-3 text-right tabular-nums">
+                        {owedCents > 0 ? formatCents(owedCents) : "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}

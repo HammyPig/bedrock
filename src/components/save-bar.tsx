@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { CheckIcon } from "lucide-react";
 
 import { Button } from "~/components/ui/button";
@@ -10,11 +11,20 @@ interface SaveBarProps {
   justSaved: boolean;
   saving: boolean;
   saveError?: string;
+  /** Where Cancel goes; omitted when the page has no natural place to return to. */
+  cancelHref?: string;
   onSave: () => void;
 }
 
 /** Sticky footer for card-style editor pages: change summary, save state, Save button. */
-export function SaveBar({ summary, justSaved, saving, saveError, onSave }: SaveBarProps) {
+export function SaveBar({
+  summary,
+  justSaved,
+  saving,
+  saveError,
+  cancelHref,
+  onSave,
+}: SaveBarProps) {
   const dirty = summary !== null;
 
   return (
@@ -40,9 +50,16 @@ export function SaveBar({ summary, justSaved, saving, saveError, onSave }: SaveB
           )}
         </p>
       )}
-      <Button disabled={!dirty || saving} onClick={onSave}>
-        Save
-      </Button>
+      <div className="flex items-center gap-3">
+        {cancelHref && (
+          <Button asChild variant="outline">
+            <Link href={cancelHref}>Cancel</Link>
+          </Button>
+        )}
+        <Button disabled={!dirty || saving} onClick={onSave}>
+          Save
+        </Button>
+      </div>
     </div>
   );
 }
