@@ -43,7 +43,7 @@ export function vendorDisplayName(vendor: Pick<Vendor, "name" | "company">): str
 export function purchaseOrderTotals(
   draft: Pick<PurchaseOrderDraft, "lineItems" | "discount" | "freightCents" | "taxRatePercent">,
 ): Totals {
-  return computeTotals({ ...draft, paidCents: 0 });
+  return computeTotals(draft);
 }
 
 export function validateDraft(draft: PurchaseOrderDraft): PurchaseOrderDraftErrors | null {

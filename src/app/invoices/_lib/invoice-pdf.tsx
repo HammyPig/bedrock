@@ -124,10 +124,12 @@ function TotalsRow({
 interface InvoicePdfProps {
   draft: InvoiceDraft;
   settings: BusinessSettings;
+  /** Sum of the invoice's recorded payments — not part of the draft. */
+  paidCents: number;
 }
 
-export function InvoicePdf({ draft, settings }: InvoicePdfProps) {
-  const totals = computeTotals(draft);
+export function InvoicePdf({ draft, settings, paidCents }: InvoicePdfProps) {
+  const totals = computeTotals(draft, paidCents);
   const dueDate = draftDueDate(draft);
   const items = draft.lineItems.filter((item) => item.name.trim() !== "" || item.sku.trim() !== "");
   const showSku = items.some((item) => item.sku.trim() !== "");
@@ -277,9 +279,9 @@ export function InvoicePdf({ draft, settings }: InvoicePdfProps) {
               bold
               ruleColor={accent}
             />
-            {draft.paidCents > 0 && (
+            {paidCents > 0 && (
               <>
-                <TotalsRow label="Paid" value={`-${formatCents(draft.paidCents)}`} />
+                <TotalsRow label="Paid" value={`-${formatCents(paidCents)}`} />
                 <TotalsRow label="Balance due" value={formatCents(totals.balanceCents)} bold />
               </>
             )}
@@ -306,6 +308,7 @@ export function InvoicePdf({ draft, settings }: InvoicePdfProps) {
 export async function invoicePdfBlob(
   draft: InvoiceDraft,
   settings: BusinessSettings,
+  paidCents: number,
 ): Promise<Blob> {
-  return pdf(<InvoicePdf draft={draft} settings={settings} />).toBlob();
+  return pdf(<InvoicePdf draft={draft} settings={settings} paidCents={paidCents} />).toBlob();
 }

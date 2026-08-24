@@ -1,5 +1,6 @@
 import Papa from "papaparse";
 
+import { paymentsTotalCents } from "~/app/invoices/_lib/money";
 import { type Customer, type Invoice, type Tier } from "~/app/invoices/_lib/types";
 import { type SavedItem } from "~/lib/items";
 import { customerImportFields, ITEM_FIELDS, itemTierFields } from "./csv-import";
@@ -100,7 +101,7 @@ export function invoicesCsv(invoices: Invoice[]): string {
       a.draft.issueDate.localeCompare(b.draft.issueDate) ||
       a.draft.invoiceNumber.localeCompare(b.draft.invoiceNumber),
   );
-  const data = sorted.flatMap(({ draft }) =>
+  const data = sorted.flatMap(({ draft, payments }) =>
     draft.lineItems.map((line) => [
       draft.invoiceNumber,
       draft.documentType,
@@ -125,7 +126,7 @@ export function invoicesCsv(invoices: Invoice[]): string {
         : draft.discount.mode === "fixed"
           ? dollars(draft.discount.value)
           : String(draft.discount.value),
-      dollars(draft.paidCents),
+      dollars(paymentsTotalCents(payments)),
       draft.notes,
     ]),
   );

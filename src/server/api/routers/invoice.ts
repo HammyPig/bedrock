@@ -2,12 +2,13 @@ import { TRPCError } from "@trpc/server";
 import { and, asc, eq, ne } from "drizzle-orm";
 import { z } from "zod";
 
+import { paymentsTotalCents } from "~/app/invoices/_lib/money";
 import { type Invoice, type InvoiceDraft } from "~/app/invoices/_lib/types";
 import { billToInput } from "~/server/api/routers/customer";
 import { loadEffectiveSettings } from "~/server/api/routers/settings";
 import { businessProcedure, createTRPCRouter } from "~/server/api/trpc";
 import { sendInvoiceEmail } from "~/server/email";
-import { invoiceLineItems, invoices } from "~/server/db/schema";
+import { invoiceLineItems, invoices, payments } from "~/server/db/schema";
 import { type db as database } from "~/server/db";
 
 export const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Expected an ISO date (YYYY-MM-DD)");
@@ -45,12 +46,18 @@ const draftInput = z.object({
   discount: z.object({ mode: z.enum(["percent", "fixed"]), value: z.number().min(0) }).nullable(),
   freightCents: z.number().int().min(0),
   taxRatePercent: z.number().min(0),
-  paidCents: z.number().int().min(0),
   notes: z.string(),
 }) satisfies z.ZodType<InvoiceDraft>;
 
 type InvoiceRow = typeof invoices.$inferSelect & {
   lineItems: (typeof invoiceLineItems.$inferSelect)[];
+  payments: (typeof payments.$inferSelect)[];
+};
+
+/** Shared by list/get/sendEmail so every read returns the same Invoice shape. */
+const invoiceWith = {
+  lineItems: { orderBy: [asc(invoiceLineItems.position)] },
+  payments: { orderBy: [asc(payments.paidDate), asc(payments.createdAt)] },
 };
 
 function toInvoice(row: InvoiceRow): Invoice {
@@ -79,9 +86,13 @@ function toInvoice(row: InvoiceRow): Invoice {
       discount: row.discount,
       freightCents: row.freightCents,
       taxRatePercent: row.taxRatePercent,
-      paidCents: row.paidCents,
       notes: row.notes,
     },
+    payments: row.payments.map((payment) => ({
+      id: payment.id,
+      amountCents: payment.amountCents,
+      paidDate: payment.paidDate,
+    })),
   };
 }
 
@@ -111,7 +122,7 @@ export const invoiceRouter = createTRPCRouter({
   list: businessProcedure.query(async ({ ctx }) => {
     const rows = await ctx.db.query.invoices.findMany({
       where: eq(invoices.businessId, ctx.businessId),
-      with: { lineItems: { orderBy: [asc(invoiceLineItems.position)] } },
+      with: invoiceWith,
     });
     return rows.map(toInvoice);
   }),
@@ -119,7 +130,7 @@ export const invoiceRouter = createTRPCRouter({
   get: businessProcedure.input(z.object({ id: z.string() })).query(async ({ ctx, input }) => {
     const row = await ctx.db.query.invoices.findFirst({
       where: and(eq(invoices.id, input.id), eq(invoices.businessId, ctx.businessId)),
-      with: { lineItems: { orderBy: [asc(invoiceLineItems.position)] } },
+      with: invoiceWith,
     });
     return row ? toInvoice(row) : null;
   }),
@@ -164,18 +175,52 @@ export const invoiceRouter = createTRPCRouter({
       return { id: input.id };
     }),
 
+  /** Records a payment received against an invoice. */
+  addPayment: businessProcedure
+    .input(
+      z.object({
+        invoiceId: z.string(),
+        amountCents: z.number().int().positive(),
+        paidDate: isoDate,
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const invoice = await ctx.db.query.invoices.findFirst({
+        columns: { id: true },
+        where: and(eq(invoices.id, input.invoiceId), eq(invoices.businessId, ctx.businessId)),
+      });
+      if (!invoice) throw new TRPCError({ code: "NOT_FOUND" });
+      const [created] = await ctx.db.insert(payments).values(input).returning({ id: payments.id });
+      if (!created) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      return { id: created.id };
+    }),
+
+  deletePayment: businessProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const payment = await ctx.db.query.payments.findFirst({
+        columns: { id: true },
+        where: eq(payments.id, input.id),
+        with: { invoice: { columns: { businessId: true } } },
+      });
+      if (payment?.invoice.businessId !== ctx.businessId) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      await ctx.db.delete(payments).where(eq(payments.id, input.id));
+    }),
+
   /** Emails the saved invoice, PDF attached, to the bill-to email address. */
   sendEmail: businessProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const row = await ctx.db.query.invoices.findFirst({
         where: and(eq(invoices.id, input.id), eq(invoices.businessId, ctx.businessId)),
-        with: { lineItems: { orderBy: [asc(invoiceLineItems.position)] } },
+        with: invoiceWith,
       });
       if (!row) throw new TRPCError({ code: "NOT_FOUND" });
 
-      const { draft } = toInvoice(row);
-      const to = draft.billTo.email.trim();
+      const invoice = toInvoice(row);
+      const to = invoice.draft.billTo.email.trim();
       if (to === "") {
         throw new TRPCError({
           code: "BAD_REQUEST",
@@ -184,7 +229,7 @@ export const invoiceRouter = createTRPCRouter({
       }
 
       const settings = await loadEffectiveSettings(ctx.db, ctx.businessId);
-      await sendInvoiceEmail(to, draft, settings);
+      await sendInvoiceEmail(to, invoice.draft, settings, paymentsTotalCents(invoice.payments));
       return { sentTo: to };
     }),
 

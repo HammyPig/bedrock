@@ -19,8 +19,12 @@ function renderTemplate(template: string, vars: Record<string, string>): string 
 }
 
 /** Values for the placeholders listed in EMAIL_TEMPLATE_PLACEHOLDERS. */
-function templateVars(draft: InvoiceDraft, settings: BusinessSettings): Record<string, string> {
-  const totals = computeTotals(draft);
+function templateVars(
+  draft: InvoiceDraft,
+  settings: BusinessSettings,
+  paidCents: number,
+): Record<string, string> {
+  const totals = computeTotals(draft, paidCents);
   return {
     customerName: customerDisplayName(draft.billTo),
     invoiceNumber: draft.invoiceNumber,
@@ -36,6 +40,7 @@ export async function sendInvoiceEmail(
   to: string,
   draft: InvoiceDraft,
   settings: BusinessSettings,
+  paidCents: number,
 ) {
   if (!env.RESEND_API_KEY || !env.EMAIL_FROM) {
     throw new TRPCError({
@@ -47,9 +52,11 @@ export async function sendInvoiceEmail(
   // The PDF renderer is heavy, so it only loads when an email is sent.
   const { renderToBuffer } = await import("@react-pdf/renderer");
   const { InvoicePdf } = await import("~/app/invoices/_lib/invoice-pdf");
-  const pdf = await renderToBuffer(<InvoicePdf draft={draft} settings={settings} />);
+  const pdf = await renderToBuffer(
+    <InvoicePdf draft={draft} settings={settings} paidCents={paidCents} />,
+  );
 
-  const vars = templateVars(draft, settings);
+  const vars = templateVars(draft, settings, paidCents);
   const resend = new Resend(env.RESEND_API_KEY);
   const { error } = await resend.emails.send({
     from: env.EMAIL_FROM,

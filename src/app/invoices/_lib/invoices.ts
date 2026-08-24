@@ -1,5 +1,5 @@
 import { customerDisplayName, deriveDueDate } from "./invoice";
-import { computeTotals } from "./money";
+import { computeTotals, paymentsTotalCents } from "./money";
 import { type Invoice, type InvoiceStatus, type InvoiceSummary } from "./types";
 
 /** What the list's status column shows: quotes get their own badge instead of a payment status. */
@@ -22,7 +22,7 @@ export const STATUS_FILTER_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: "quote", label: "Quotes" },
 ];
 
-export function summarizeInvoice({ id, draft }: Invoice): InvoiceSummary {
+export function summarizeInvoice({ id, draft, payments }: Invoice): InvoiceSummary {
   return {
     id,
     documentType: draft.documentType,
@@ -34,7 +34,7 @@ export function summarizeInvoice({ id, draft }: Invoice): InvoiceSummary {
         ? (draft.customDueDate ?? draft.issueDate)
         : deriveDueDate(draft.issueDate, draft.terms),
     totalCents: computeTotals(draft).totalCents,
-    paidCents: draft.paidCents,
+    paidCents: paymentsTotalCents(payments),
   };
 }
 

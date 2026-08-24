@@ -347,7 +347,6 @@ export const invoices = createTable(
     discount: d.jsonb().$type<Discount>(),
     freightCents: d.integer().notNull(),
     taxRatePercent: d.doublePrecision().notNull(),
-    paidCents: d.integer().notNull(),
     notes: d.text().notNull(),
     createdAt: d
       .timestamp({ withTimezone: true })
@@ -420,12 +419,43 @@ export const invoiceLineItems = createTable(
   (t) => [index("invoice_line_item_invoice_id_idx").on(t.invoiceId)],
 );
 
+/**
+ * One row per payment received against an invoice; the invoice's paid amount
+ * is always the sum of its payments, never stored on the invoice itself.
+ */
+export const payments = createTable(
+  "payment",
+  (d) => ({
+    id: d
+      .varchar({ length: 255 })
+      .notNull()
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    invoiceId: d
+      .varchar({ length: 255 })
+      .notNull()
+      .references(() => invoices.id, { onDelete: "cascade" }),
+    amountCents: d.integer().notNull(),
+    paidDate: d.date({ mode: "string" }).notNull(),
+    createdAt: d
+      .timestamp({ withTimezone: true })
+      .$defaultFn(() => new Date())
+      .notNull(),
+  }),
+  (t) => [index("payment_invoice_id_idx").on(t.invoiceId)],
+);
+
 export const invoicesRelations = relations(invoices, ({ many }) => ({
   lineItems: many(invoiceLineItems),
+  payments: many(payments),
 }));
 
 export const invoiceLineItemsRelations = relations(invoiceLineItems, ({ one }) => ({
   invoice: one(invoices, { fields: [invoiceLineItems.invoiceId], references: [invoices.id] }),
+}));
+
+export const paymentsRelations = relations(payments, ({ one }) => ({
+  invoice: one(invoices, { fields: [payments.invoiceId], references: [invoices.id] }),
 }));
 
 /**

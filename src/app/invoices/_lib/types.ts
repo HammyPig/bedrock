@@ -77,8 +77,15 @@ export interface InvoiceDraft {
   discount: Discount | null;
   freightCents: number;
   taxRatePercent: number;
-  paidCents: number;
   notes: string;
+}
+
+/** A payment received against an invoice; the invoice's paid total is the sum of these. */
+export interface Payment {
+  id: string;
+  amountCents: number;
+  /** ISO date, YYYY-MM-DD. */
+  paidDate: string;
 }
 
 export interface Totals {
@@ -110,10 +117,11 @@ export type InvoiceAction =
       toTierId: string | null;
     };
 
-/** A stored invoice: the id is the URL key; everything else lives in the draft. */
+/** A stored invoice: the id is the URL key; the editable fields live in the draft. */
 export interface Invoice {
   id: string;
   draft: InvoiceDraft;
+  payments: Payment[];
 }
 
 export type InvoiceStatus = "unpaid" | "overdue" | "paid";
