@@ -6,15 +6,26 @@ import { MoneyInput } from "~/components/money-input";
 import { Button } from "~/components/ui/button";
 import { formatCents } from "~/lib/money";
 import { cn } from "~/lib/utils";
-import { type Discount, type DiscountMode, type InvoiceAction, type Totals } from "../_lib/types";
+import {
+  type Discount,
+  type DiscountMode,
+  type DocumentType,
+  type InvoiceAction,
+  type Payment,
+  type Totals,
+} from "../_lib/types";
 import { NumberInput } from "./number-input";
+import { PaymentsSection } from "./payments-section";
 
 interface TotalsPanelProps {
   totals: Totals;
   discount: Discount | null;
   freightCents: number;
   taxRatePercent: number;
-  paidCents: number;
+  /** Undefined on the create page — payments only attach to a saved invoice. */
+  invoiceId?: string;
+  documentType: DocumentType;
+  payments: Payment[];
   dispatch: (action: InvoiceAction) => void;
 }
 
@@ -23,7 +34,9 @@ export function TotalsPanel({
   discount,
   freightCents,
   taxRatePercent,
-  paidCents,
+  invoiceId,
+  documentType,
+  payments,
   dispatch,
 }: TotalsPanelProps) {
   const setDiscountMode = (mode: DiscountMode) => {
@@ -140,17 +153,12 @@ export function TotalsPanel({
         <span className="text-sm font-medium tabular-nums">{formatCents(totals.totalCents)}</span>
       </div>
 
-      <div className="flex items-center justify-between gap-2">
-        <label htmlFor="paid" className="text-muted-foreground text-sm">
-          Paid
-        </label>
-        <MoneyInput
-          id="paid"
-          className="h-7 w-24 px-1.5 text-sm"
-          valueCents={paidCents}
-          onValueCentsChange={(cents) => dispatch({ type: "patch", patch: { paidCents: cents } })}
-        />
-      </div>
+      <PaymentsSection
+        invoiceId={invoiceId}
+        documentType={documentType}
+        payments={payments}
+        balanceCents={totals.balanceCents}
+      />
 
       <div className="border-t pt-2.5">
         <div className="flex items-baseline justify-between">

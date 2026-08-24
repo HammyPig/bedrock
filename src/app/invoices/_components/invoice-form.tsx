@@ -16,8 +16,8 @@ import {
   repriceLineItems,
   validateDraft,
 } from "../_lib/invoice";
-import { computeTotals } from "../_lib/money";
-import { type InvoiceAction, type InvoiceDraft } from "../_lib/types";
+import { computeTotals, paymentsTotalCents } from "../_lib/money";
+import { type InvoiceAction, type InvoiceDraft, type Payment } from "../_lib/types";
 import { BillToSection } from "./bill-to-section";
 import { InvoiceMeta } from "./invoice-meta";
 import { LineItemsGrid } from "./line-items-grid";
@@ -40,7 +40,6 @@ function createInitialDraft(invoiceNumber: string): InvoiceDraft {
     discount: null,
     freightCents: 0,
     taxRatePercent: 10,
-    paidCents: 0,
     notes: "",
   };
 }
@@ -84,11 +83,18 @@ interface InvoiceFormProps {
   initialDraft?: InvoiceDraft;
   /** Database id of the invoice being edited; omitted on the create page. */
   invoiceId?: string;
+  /** The saved invoice's recorded payments, until the client-side query takes over. */
+  initialPayments?: Payment[];
   /** Next free invoice number, pre-filled on the create page. */
   suggestedInvoiceNumber?: string;
 }
 
-export function InvoiceForm({ initialDraft, invoiceId, suggestedInvoiceNumber }: InvoiceFormProps) {
+export function InvoiceForm({
+  initialDraft,
+  invoiceId,
+  initialPayments,
+  suggestedInvoiceNumber,
+}: InvoiceFormProps) {
   const router = useRouter();
   const utils = api.useUtils();
   const [savedItems] = api.item.list.useSuspenseQuery();
@@ -150,7 +156,16 @@ export function InvoiceForm({ initialDraft, invoiceId, suggestedInvoiceNumber }:
   const saving = createInvoice.isPending || updateInvoice.isPending;
   const saveError = (createInvoice.error ?? updateInvoice.error)?.message;
 
-  const totals = computeTotals(draft);
+  // Payments live outside the draft: recording one mutates immediately, and the
+  // query refetch (via invalidation) is what updates this list.
+  const invoiceQuery = api.invoice.get.useQuery(
+    { id: invoiceId ?? "" },
+    { enabled: invoiceId !== undefined },
+  );
+  const payments = invoiceQuery.data?.payments ?? initialPayments ?? [];
+  const paidCents = paymentsTotalCents(payments);
+
+  const totals = computeTotals(draft, paidCents);
   const errors = showErrors ? validateDraft(draft) : null;
 
   const persist = (onSaved?: (id: string) => void) => {
@@ -176,7 +191,7 @@ export function InvoiceForm({ initialDraft, invoiceId, suggestedInvoiceNumber }:
         import("../_lib/invoice-pdf"),
         utils.settings.get.ensureData(),
       ]);
-      const blob = await invoicePdfBlob(draft, settings);
+      const blob = await invoicePdfBlob(draft, settings, paidCents);
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
@@ -265,7 +280,9 @@ export function InvoiceForm({ initialDraft, invoiceId, suggestedInvoiceNumber }:
               discount={draft.discount}
               freightCents={draft.freightCents}
               taxRatePercent={draft.taxRatePercent}
-              paidCents={draft.paidCents}
+              invoiceId={invoiceId}
+              documentType={draft.documentType}
+              payments={payments}
               dispatch={dispatch}
             />
           </div>

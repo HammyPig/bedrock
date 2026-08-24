@@ -40,7 +40,11 @@ export default async function EditInvoicePage({ params }: EditInvoicePageProps) 
 
   return (
     <HydrateClient>
-      <InvoiceForm initialDraft={invoice.draft} invoiceId={invoice.id} />
+      <InvoiceForm
+        initialDraft={invoice.draft}
+        invoiceId={invoice.id}
+        initialPayments={invoice.payments}
+      />
     </HydrateClient>
   );
 }
