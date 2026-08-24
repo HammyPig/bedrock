@@ -162,7 +162,7 @@ export function validateDraft(draft: InvoiceDraft): DraftErrors | null {
       draft.documentType === "quote" ? "Quote number is required." : "Invoice number is required.";
   }
   if (draft.billTo.name.trim() === "" && draft.billTo.company.trim() === "") {
-    errors.billTo = "Billing details need at least a name or company.";
+    errors.billTo = "Select a customer to bill.";
   }
   if (invalidLineItemIds.length > 0) {
     errors.lineItems = "Each line item needs a name and a quantity above zero.";

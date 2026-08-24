@@ -10,6 +10,7 @@ import { todayIsoDate } from "~/lib/dates";
 import { cn } from "~/lib/utils";
 import { api } from "~/trpc/react";
 import {
+  addressHasContent,
   DOCUMENT_TYPE_OPTIONS,
   emptyBillTo,
   makeLineItem,
@@ -48,12 +49,22 @@ function invoiceReducer(draft: InvoiceDraft, action: InvoiceAction): InvoiceDraf
   switch (action.type) {
     case "patch":
       return { ...draft, ...action.patch };
-    case "patchBillTo":
-      return { ...draft, billTo: { ...draft.billTo, ...action.patch } };
     case "fillBillToFromCustomer": {
       const { id, ...billTo } = action.customer;
-      return { ...draft, billTo, sourceCustomerId: id };
+      // Switching customer (a new id, not an in-place edit) re-defaults the delivery
+      // choice: their saved delivery address when they have one, else same as billing.
+      const switched = id !== draft.sourceCustomerId;
+      return {
+        ...draft,
+        billTo,
+        sourceCustomerId: id,
+        deliverySameAsBilling: switched
+          ? !addressHasContent(billTo.deliveryAddress)
+          : draft.deliverySameAsBilling,
+      };
     }
+    case "setDeliveryAddress":
+      return { ...draft, billTo: { ...draft.billTo, deliveryAddress: action.address } };
     case "updateLineItem":
       return {
         ...draft,
@@ -119,20 +130,14 @@ export function InvoiceForm({
       // A stale "Sent to …" confirmation shouldn't outlive the edit it predates.
       resetSendEmail();
       rawDispatch(action);
-      // Any action that lands on a different tier re-prices the lines already on
+      // Landing on a customer with a different tier re-prices the lines already on
       // the invoice (only those still at the old tier's catalog price).
-      const newTierId =
-        action.type === "patchBillTo"
-          ? action.patch.tierId
-          : action.type === "fillBillToFromCustomer"
-            ? action.customer.tierId
-            : undefined;
-      if (newTierId !== undefined && newTierId !== tierId) {
+      if (action.type === "fillBillToFromCustomer" && action.customer.tierId !== tierId) {
         rawDispatch({
           type: "repriceLineItems",
           savedItems,
           fromTierId: tierId,
-          toTierId: newTierId,
+          toTierId: action.customer.tierId,
         });
       }
     },
