@@ -18,24 +18,15 @@ import {
 import { formatIsoDate, todayIsoDate } from "~/lib/dates";
 import { formatCents } from "~/lib/money";
 import { matchesAllTokens, tokenize } from "~/lib/search";
-import { cn } from "~/lib/utils";
 import { api } from "~/trpc/react";
 import {
   balanceCents,
   listStatus,
   STATUS_FILTER_OPTIONS,
-  STATUS_LABELS,
   summarizeInvoice,
-  type ListStatus,
   type StatusFilter,
 } from "../_lib/invoices";
-
-const STATUS_BADGE: Record<ListStatus, string> = {
-  unpaid: "bg-muted text-muted-foreground",
-  overdue: "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400",
-  paid: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400",
-  quote: "bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-400",
-};
+import { InvoiceStatusBadge } from "./invoice-status-badge";
 
 export function InvoicesList() {
   const router = useRouter();
@@ -173,14 +164,7 @@ export function InvoicesList() {
                         {balance > 0 ? formatCents(balance) : "—"}
                       </td>
                       <td className="py-3 text-right">
-                        <span
-                          className={cn(
-                            "inline-block rounded-full px-2 py-0.5 text-xs font-medium",
-                            STATUS_BADGE[status],
-                          )}
-                        >
-                          {STATUS_LABELS[status]}
-                        </span>
+                        <InvoiceStatusBadge status={status} />
                       </td>
                     </tr>
                   );
