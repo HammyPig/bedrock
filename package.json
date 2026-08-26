@@ -13,6 +13,7 @@
     "dev": "next dev --turbo",
     "e2e": "playwright test",
     "e2e:fresh": "E2E_FRESH_DB=1 playwright test",
+    "e2e:unit": "E2E_UNIT_ONLY=1 playwright test --project=unit",
     "e2e:ui": "playwright test --ui",
     "format:check": "oxfmt --check",
     "format:write": "oxfmt",
