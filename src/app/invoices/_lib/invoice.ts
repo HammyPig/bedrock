@@ -144,11 +144,23 @@ export function billToHasContent(billTo: BillTo): boolean {
   );
 }
 
-/** Display label for a customer or bill-to snapshot: contact name, falling back to company. */
-export function customerDisplayName(customer: Pick<Customer, "name" | "company">): string {
-  if (customer.name.trim() !== "") return customer.name;
-  if (customer.company.trim() !== "") return customer.company;
-  return "Unnamed customer";
+/**
+ * The fields that can identify a customer, in the order they stand in for each
+ * other. This is exactly the set the customer picker searches, which is the
+ * point: a customer exists if you could find them again. An address cannot.
+ */
+export const IDENTITY_FIELDS = ["name", "company", "phone", "email"] as const;
+
+type Identity = Pick<Customer, (typeof IDENTITY_FIELDS)[number]>;
+
+export function billToHasIdentity(billTo: Identity): boolean {
+  return IDENTITY_FIELDS.some((field) => billTo[field].trim() !== "");
+}
+
+/** Display label for a customer or bill-to snapshot: whichever identity they have. */
+export function customerDisplayName(customer: Identity): string {
+  const field = IDENTITY_FIELDS.find((name) => customer[name].trim() !== "");
+  return field === undefined ? "Unnamed customer" : customer[field].trim();
 }
 
 export function validateDraft(draft: InvoiceDraft): DraftErrors | null {
@@ -161,8 +173,8 @@ export function validateDraft(draft: InvoiceDraft): DraftErrors | null {
     errors.invoiceNumber =
       draft.documentType === "quote" ? "Quote number is required." : "Invoice number is required.";
   }
-  if (draft.billTo.name.trim() === "" && draft.billTo.company.trim() === "") {
-    errors.billTo = "Billing details need at least a name or company.";
+  if (!billToHasIdentity(draft.billTo)) {
+    errors.billTo = "Select a customer to bill.";
   }
   if (invalidLineItemIds.length > 0) {
     errors.lineItems = "Each line item needs a name and a quantity above zero.";
