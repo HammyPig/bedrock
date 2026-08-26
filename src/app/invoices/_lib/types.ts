@@ -105,9 +105,8 @@ export interface DraftErrors {
 
 export type InvoiceAction =
   | { type: "patch"; patch: Partial<InvoiceDraft> }
+  | { type: "patchBillTo"; patch: Partial<BillTo> }
   | { type: "fillBillToFromCustomer"; customer: Customer }
-  /** The delivery address is the order's, not the customer's — the only bill-to field edited in place. */
-  | { type: "setDeliveryAddress"; address: Address }
   | { type: "updateLineItem"; id: string; patch: Partial<Omit<LineItem, "id">> }
   | { type: "appendLineItem"; item: LineItem }
   | { type: "removeLineItem"; id: string }
