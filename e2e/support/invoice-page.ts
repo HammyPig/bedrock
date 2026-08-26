@@ -16,12 +16,13 @@ export function billToSection(page: Page): Locator {
   return page.locator("section").filter({ has: page.getByText("Bill to", { exact: true }) });
 }
 
-/** The read-only value shown against a labelled bill-to detail. */
-export function billToDetail(page: Page, label: string): Locator {
-  return billToSection(page)
-    .locator("dl > div")
-    .filter({ has: page.locator("dt", { hasText: new RegExp(`^${label}$`) }) })
-    .locator("dd");
+/**
+ * A bill-to contact field. They are always editable once a customer is chosen —
+ * there is no read-only mode to toggle out of, so this is both how a test reads
+ * a value back and how it changes one.
+ */
+export function billToField(page: Page, label: string): Locator {
+  return billToSection(page).getByLabel(label, { exact: true });
 }
 
 /**
@@ -46,9 +47,43 @@ export async function startNewCustomer(page: Page, query?: string) {
   await page.getByRole("option", { name: /^New customer/ }).click();
 }
 
-/** Save inside the bill-to editor — not the invoice's own Save in the action bar. */
-export function billToSave(page: Page): Locator {
-  return billToSection(page).getByRole("button", { name: /^Sav(e|ing)/ });
+/**
+ * The "Edited" menu, which appears only once a chosen customer's details differ
+ * from their saved record. Its absence is as meaningful as its presence: no menu
+ * means nothing has diverged.
+ */
+export function editedMenu(page: Page): Locator {
+  return billToSection(page).getByRole("button", { name: "Edited" });
+}
+
+/** The ✓ note the section flashes after it writes to a customer record. */
+export function billToFlash(page: Page): Locator {
+  return billToSection(page).getByText(/^(Saved|Updated)$/);
+}
+
+/**
+ * The prompt shown when an invoice is saved while its customer's details are
+ * diverged. Saving is what resolves the divergence, so `saveNewInvoice` cannot
+ * be used on that path — it waits for a redirect this dialog is holding up.
+ */
+export function updateCustomerPrompt(page: Page): Locator {
+  return page.getByRole("dialog", { name: "Update customer?" });
+}
+
+/**
+ * Resolves when the browser issues a call to a tRPC procedure. The customer
+ * writes fire on blur, so this is what says "it saved" — the request leaving is
+ * the app's side of the bargain, and it happens the moment focus moves.
+ *
+ * Deliberately the *request*, not the response: `httpBatchStreamLink` flushes
+ * headers before the procedure resolves and holds the stream open afterwards,
+ * so `waitForResponse` returns too early, `response.body()` throws once
+ * anything navigates, and `response.finished()` never settles.
+ *
+ * Start it *before* the interaction, then await it after.
+ */
+export function trpcRequest(page: Page, procedure: string) {
+  return page.waitForRequest((request) => request.url().includes(`/api/trpc/${procedure}`));
 }
 
 export function deliveryCheckbox(page: Page): Locator {

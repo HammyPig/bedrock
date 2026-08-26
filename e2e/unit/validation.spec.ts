@@ -26,22 +26,44 @@ test.describe("V1 the document number is required", () => {
 });
 
 test.describe("V2 the invoice needs someone to bill", () => {
-  test("neither a name nor a company is rejected", () => {
-    expect(validateDraft(draft({ billTo: billTo({ name: "", company: "" }) }))?.billTo).toBe(
+  /** Nobody: the four fields that could identify a customer are all empty. */
+  const nobody = { name: "", company: "", phone: "", email: "" };
+
+  test("no name, company, phone or email is rejected", () => {
+    expect(validateDraft(draft({ billTo: billTo(nobody) }))?.billTo).toBe(
       "Select a customer to bill.",
     );
   });
 
-  test("a company alone is enough", () => {
-    expect(
-      validateDraft(draft({ billTo: billTo({ name: "", company: "Reyes Building" }) })),
-    ).toBeNull();
-  });
+  /**
+   * A customer exists if you could find them again, and the picker searches
+   * exactly these four. A phone number alone is a thin record, but it is a real
+   * one — it is how a cash job gets invoiced without inventing a name.
+   */
+  const enough = [
+    { what: "a name", override: { name: "Dana Reyes" } },
+    { what: "a company", override: { company: "Reyes Building" } },
+    { what: "a phone number", override: { phone: "0433 777 888" } },
+    { what: "an email address", override: { email: "dana@reyes.example" } },
+  ];
 
-  test("a name alone is enough", () => {
-    expect(
-      validateDraft(draft({ billTo: billTo({ name: "Dana Reyes", company: "" }) })),
-    ).toBeNull();
+  for (const { what, override } of enough) {
+    test(`${what} alone is enough`, () => {
+      expect(validateDraft(draft({ billTo: billTo({ ...nobody, ...override }) }))).toBeNull();
+    });
+  }
+
+  test("an address is not an identity", () => {
+    const billingAddress = {
+      line1: "9 Bay Street",
+      line2: "",
+      suburb: "Ultimo",
+      state: "NSW",
+      postcode: "2007",
+    };
+    expect(validateDraft(draft({ billTo: billTo({ ...nobody, billingAddress }) }))?.billTo).toBe(
+      "Select a customer to bill.",
+    );
   });
 });
 

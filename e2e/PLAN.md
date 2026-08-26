@@ -113,14 +113,25 @@ Two traps, both already handled in `invoice-page.ts`:
   insert that make up a fill, landing new text beside the old
   (`"ReplacedOriginal"`). Retrying the fill and its check together rides it out.
   Use it wherever a test overwrites a field that already holds something.
+- **`trpcRequest`** — the customer writes fire on blur, so they are in flight by
+  the time focus has moved, and a database read straight afterwards races them.
+  It waits on the **request**, never the response: `httpBatchStreamLink` flushes
+  headers before the procedure resolves and holds the stream open after it, so
+  `waitForResponse` returns too early, `response.body()` throws once anything
+  navigates, and `response.finished()` never settles. The request leaving is the
+  app's half of the bargain. That a record now _exists_ is a separate claim, read
+  back through the picker, which lists what the server has — and anything that
+  navigates or reloads must wait for that readback first, or it aborts the very
+  write it was about to check for.
 - **`saveNewInvoice`** — creating an invoice redirects to its own edit page.
   Without waiting for that, the next navigation races it and lands back on
   `/invoices/new`.
 
 ## Deliberate disagreements with the code
 
-Nine gaps, ordered by how much they change. Four are `test.fail` (the behaviour
-exists and is wrong); the rest are `test.fixme` (it does not exist yet).
+Eleven gaps, ordered by how much they change. Four are `test.fail` (the
+behaviour exists and is wrong); the rest are `test.fixme` (it does not exist
+yet).
 
 1. **Live duplicate invoice number warning** (Mt6-Mt8) — a client-side check
    against `api.invoice.list`, excluding the invoice being edited. Today the only
@@ -131,9 +142,9 @@ exists and is wrong); the rest are `test.fixme` (it does not exist yet).
 3. **Locked toggle message** (L12) — the button is `disabled`, which makes it
    unhoverable, unfocusable and untestable. Keep it interactive with
    `aria-disabled` and an inline message on click.
-4. **Switching customer resets the delivery checkbox** (C9) — one line in the
-   `fillBillToFromCustomer` branch of the reducer, which today re-defaults
-   `deliverySameAsBilling` but leaves `delivery` alone.
+4. **Switching customer resets the delivery checkbox** (C15) — one line in the
+   `fillBillToFromCustomer` branch of the reducer, which today replaces the
+   whole bill-to but leaves both delivery flags where they were.
 5. **"Delivery" label on invoices** (T4b, X6) — relabel the invoice totals row
    _and_ its PDF line; they have to change together, which is why it is spec'd
    twice. `freightCents` stays as the internal name and the purchase order keeps
@@ -146,7 +157,7 @@ exists and is wrong); the rest are `test.fixme` (it does not exist yet).
    dies with the old one, so neither a confirmation nor a failure reaches the
    person who pressed the button. Only the already-saved path, which updates in
    place, reports anything.
-8. **An accessible name on the customer picker** (C19) — `role="combobox"` is not
+8. **An accessible name on the customer picker** (C25) — `role="combobox"` is not
    a name-from-content role, so the trigger's visible "Search customers…" never
    reaches the accessibility tree and it announces as an unlabelled combobox. It
    needs an `aria-label`; the compact switcher that replaces it has the same
@@ -155,8 +166,51 @@ exists and is wrong); the rest are `test.fixme` (it does not exist yet).
    (`lineItems` is `.min(1)`) but `validateDraft` lets it through, so that path
    would meet a raw Zod error rather than a written message. Unreachable from the
    grid today, which always keeps one row (L8), so it is latent rather than live.
+10. **The customer's saved delivery address as the default** (C17) — picking a
+    customer who has one should preselect it rather than "same as billing".
+11. **Restoring that address once it is changed** (C20) — a "Use saved address"
+    button, shown only while the delivery address differs from the customer's.
+
+Both delivery gaps were briefly built in 60d85ba and went out with its revert.
+They are spec'd rather than rebuilt because delivery was explicitly out of scope
+for the customer-section rework — see the decision below.
 
 ## Decisions
+
+- **The customer section** — every invoice bills a **saved** customer, and a
+  customer exists if you could find them again: one of name, company, phone or
+  email, which is exactly the set the picker searches. An address is not an
+  identity. That rule replaces the older name-or-company check (V2), and it is
+  what lets a cash job be billed to a phone number instead of an invented name.
+
+  Creating and editing are deliberately asymmetric, because they answer
+  different questions. A new customer has no record to contradict, so it saves
+  itself on blur (C5) — but only once it has an identity (C7). The search text
+  is the decision, and the focus that lands in the field it was routed into is
+  the chance to refine it, not a condition of keeping it (C6): what was typed
+  survives even if the invoice ends up billed to somebody else. That does leave
+  pairs to tidy up, which is the merge feature's job rather than the front
+  door's. An existing customer does have a record, and the invoice keeps
+  its own snapshot of them (P4), so an edit raises the "Edited" menu and waits
+  (C9). Saving the invoice is the last moment they are demonstrably finished, so
+  it asks once there (C12) and does not ask again (C13).
+
+  There is no "save as new customer". It is the control that manufactures
+  duplicates, and merging them back is the expensive half. Duplicates are
+  expected — a one-field identity bar guarantees them — and the answer is a
+  merge feature, not a narrower front door.
+
+  A read-only view with an Edit/Cancel toggle was built (60d85ba) and reverted.
+  It made the write-back unambiguous, which was the right instinct, but it
+  charged a round trip for every one-character fix and spent a third of the
+  section on four labelled rows restating details the user already knew.
+  Divergence is now resolved at save time instead, which costs the common path
+  nothing.
+
+- **Delivery is out of scope of that rework** — it is the order's, not the
+  customer's, and it was left exactly as it is rather than moved or re-tangled.
+  C17 and C20 above say what it should do; nothing in the customer rework
+  touches it.
 
 - **Native date input** (Mt5) — the issue date stays an `<input type="date">`.
   Tests set its value; they never drive the browser's calendar popup.

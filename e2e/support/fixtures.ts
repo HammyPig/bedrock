@@ -55,6 +55,18 @@ export const CUSTOMERS = {
     },
     deliveryAddress: EMPTY_ADDRESS,
   },
+  /**
+   * A phone number and nothing else — the thinnest customer the identity rule
+   * allows, so the display-name fallback has to reach past name and company.
+   */
+  cashJob: {
+    name: "",
+    company: "",
+    phone: "0433 777 888",
+    email: "",
+    billingAddress: EMPTY_ADDRESS,
+    deliveryAddress: EMPTY_ADDRESS,
+  },
   /** No email at all — the "add an email address first" path (E2). */
   walkUp: {
     name: "Jo Mitchell",

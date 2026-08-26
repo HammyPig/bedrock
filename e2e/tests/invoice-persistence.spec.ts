@@ -9,11 +9,11 @@ import { CUSTOMERS, seedCustomer, seedInvoice } from "../support/fixtures";
 import {
   addressInput,
   balanceDue,
-  billToDetail,
-  billToSave,
+  billToField,
   billToSection,
   deliveryCheckbox,
   dueDateText,
+  editedMenu,
   fillAndCommit,
   fillMinimalInvoice,
   gotoNewInvoice,
@@ -57,6 +57,9 @@ test("P2 everything entered comes back the same", async ({ page }) => {
 
   await pickCustomer(page, /Priya Nair/);
   await deliveryCheckbox(page).check();
+  // Spelled out rather than left to the default: which address delivery starts
+  // on is C17's to specify, and this test is about what survives a round trip.
+  await billToSection(page).getByRole("button", { name: "Use different address" }).click();
   await replaceText(page.getByLabel("Invoice no."), "INV-2201");
   await page.getByLabel("Issue date").fill("2026-03-15");
   await setTerms(page, "Net 14");
@@ -83,7 +86,7 @@ test("P2 everything entered comes back the same", async ({ page }) => {
   await saveNewInvoice(page);
   await page.reload();
 
-  await expect(billToDetail(page, "Name")).toHaveText("Priya Nair");
+  await expect(billToField(page, "Name")).toHaveValue("Priya Nair");
   await expect(deliveryCheckbox(page)).toBeChecked();
   await expect(addressInput(page, "Delivery")).toHaveValue("88 Depot Lane, Alexandria NSW 2015");
 
@@ -137,14 +140,14 @@ test("P4 changing a customer leaves invoices already sent alone", async ({ page 
   // A later invoice edits the customer, which writes through to their record.
   await gotoNewInvoice(page);
   await pickCustomer(page, /Priya Nair/);
-  await billToSection(page).getByRole("button", { name: "Edit" }).click();
-  await replaceText(billToSection(page).getByLabel("Phone", { exact: true }), "02 9333 4444");
-  await billToSave(page).click();
-  await expect(billToDetail(page, "Phone")).toHaveText("02 9333 4444");
+  await replaceText(billToField(page, "Phone"), "02 9333 4444");
+  await editedMenu(page).click();
+  await page.getByRole("menuitem", { name: "Update saved customer" }).click();
+  await expect(billToField(page, "Phone")).toHaveValue("02 9333 4444");
 
   // The invoice already issued keeps the details it was issued with.
   await page.goto(firstInvoice);
-  await expect(billToDetail(page, "Phone")).toHaveText("02 9111 2222");
+  await expect(billToField(page, "Phone")).toHaveValue("02 9111 2222");
 });
 
 test("P5 an invoice outlives the customer it was billed to", async ({ page }) => {
@@ -161,8 +164,8 @@ test("P5 an invoice outlives the customer it was billed to", async ({ page }) =>
   await testDb.delete(schema.customers).where(eq(schema.customers.id, customer.id));
 
   await page.goto(`/invoices/${invoice.id}/edit`);
-  await expect(billToDetail(page, "Name")).toHaveText("Priya Nair");
-  await expect(billToDetail(page, "Phone")).toHaveText("02 9111 2222");
+  await expect(billToField(page, "Name")).toHaveValue("Priya Nair");
+  await expect(billToField(page, "Phone")).toHaveValue("02 9111 2222");
   await expect(balanceDue(page)).toHaveText("$110.00");
 });
 
