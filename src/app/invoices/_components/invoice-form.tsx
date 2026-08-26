@@ -4,12 +4,23 @@ import { useCallback, useReducer, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { BackLink } from "~/components/back-link";
+import { Button } from "~/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "~/components/ui/dialog";
 import { Label } from "~/components/ui/label";
 import { Textarea } from "~/components/ui/textarea";
 import { todayIsoDate } from "~/lib/dates";
 import { cn } from "~/lib/utils";
 import { api } from "~/trpc/react";
 import {
+  billToMatchesCustomer,
+  customerDisplayName,
   DOCUMENT_TYPE_OPTIONS,
   emptyBillTo,
   makeLineItem,
@@ -105,6 +116,14 @@ export function InvoiceForm({
     (existing) => existing ?? createInitialDraft(suggestedInvoiceNumber ?? "INV-0001"),
   );
   const [showErrors, setShowErrors] = useState(false);
+  /**
+   * Whether the customer's details were edited in place during this sitting. An
+   * invoice reopened later still differs from the customer record — that is the
+   * snapshot doing its job — and re-asking about a decision already made is how
+   * people learn to dismiss the prompt without reading it.
+   */
+  const [billToTouched, setBillToTouched] = useState(false);
+  const [pendingSave, setPendingSave] = useState<{ onSaved?: (id: string) => void } | null>(null);
   const [exporting, setExporting] = useState(false);
   // An existing invoice starts in sync with the database; any edit marks it dirty.
   const [saved, setSaved] = useState(initialDraft !== undefined);
@@ -118,6 +137,8 @@ export function InvoiceForm({
       setSaved(false);
       // A stale "Sent to …" confirmation shouldn't outlive the edit it predates.
       resetSendEmail();
+      if (action.type === "patchBillTo") setBillToTouched(true);
+      if (action.type === "fillBillToFromCustomer") setBillToTouched(false);
       rawDispatch(action);
       // Any action that lands on a different tier re-prices the lines already on
       // the invoice (only those still at the old tier's catalog price).
@@ -168,18 +189,56 @@ export function InvoiceForm({
   const totals = computeTotals(draft, paidCents);
   const errors = showErrors ? validateDraft(draft) : null;
 
-  const persist = (onSaved?: (id: string) => void) => {
-    if (saving) return;
-    if (validateDraft(draft)) {
-      setShowErrors(true);
-      return;
-    }
+  const customers = api.customer.list.useQuery().data ?? [];
+  const updateCustomer = api.customer.update.useMutation();
+  const billToCustomer = customers.find((customer) => customer.id === draft.sourceCustomerId);
+  const customerDiverged =
+    billToCustomer !== undefined && !billToMatchesCustomer(draft.billTo, billToCustomer);
+  // Named the way the picker lists them, so it is unambiguous which record is
+  // about to change when two customers share a contact name.
+  const billToLabel = (() => {
+    if (billToCustomer === undefined) return "";
+    const display = customerDisplayName(billToCustomer);
+    const company = billToCustomer.company.trim();
+    return company === "" || company === display ? display : `${display} · ${company}`;
+  })();
+
+  const commit = (onSaved?: (id: string) => void) => {
     setShowErrors(false);
     if (invoiceId) {
       updateInvoice.mutate({ id: invoiceId, draft }, { onSuccess: ({ id }) => onSaved?.(id) });
     } else {
       createInvoice.mutate(draft, { onSuccess: ({ id }) => onSaved?.(id) });
     }
+  };
+
+  const persist = (onSaved?: (id: string) => void) => {
+    if (saving) return;
+    if (validateDraft(draft)) {
+      setShowErrors(true);
+      return;
+    }
+    // The edit menu in the bill-to section is easy to walk past while looking at
+    // line items. Saving is the moment they are demonstrably finished with the
+    // invoice, so it is the last honest place to ask where the change belongs.
+    if (billToTouched && customerDiverged) {
+      setPendingSave({ onSaved });
+      return;
+    }
+    commit(onSaved);
+  };
+
+  const resolveBillToDivergence = (updateRecord: boolean) => {
+    const pending = pendingSave;
+    setPendingSave(null);
+    setBillToTouched(false);
+    if (updateRecord && billToCustomer !== undefined) {
+      updateCustomer.mutate(
+        { id: billToCustomer.id, details: draft.billTo },
+        { onSuccess: () => void utils.customer.list.invalidate() },
+      );
+    }
+    commit(pending?.onSaved);
   };
 
   const handleExportPdf = async () => {
@@ -300,6 +359,29 @@ export function InvoiceForm({
           onSaveAndEmail={() => persist((id) => sendEmail.mutate({ id }))}
         />
       </div>
+
+      <Dialog
+        open={pendingSave !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingSave(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update customer?</DialogTitle>
+            <DialogDescription>
+              This invoice has different details for {billToLabel}. Save them to that customer as
+              well, or keep the change on this invoice only?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => resolveBillToDivergence(false)}>
+              Just this invoice
+            </Button>
+            <Button onClick={() => resolveBillToDivergence(true)}>Update customer</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
