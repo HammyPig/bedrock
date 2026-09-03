@@ -107,6 +107,8 @@ export type InvoiceAction =
   | { type: "patch"; patch: Partial<InvoiceDraft> }
   | { type: "patchBillTo"; patch: Partial<BillTo> }
   | { type: "fillBillToFromCustomer"; customer: Customer }
+  /** "New customer" chosen in the picker, seeded with whatever was searched for. */
+  | { type: "startNewCustomer"; billTo: BillTo }
   | { type: "updateLineItem"; id: string; patch: Partial<Omit<LineItem, "id">> }
   | { type: "appendLineItem"; item: LineItem }
   | { type: "removeLineItem"; id: string }

@@ -65,6 +65,8 @@ function invoiceReducer(draft: InvoiceDraft, action: InvoiceAction): InvoiceDraf
       const { id, ...billTo } = action.customer;
       return { ...draft, billTo, sourceCustomerId: id };
     }
+    case "startNewCustomer":
+      return { ...draft, billTo: action.billTo, sourceCustomerId: null };
     case "updateLineItem":
       return {
         ...draft,
@@ -123,6 +125,12 @@ export function InvoiceForm({
    * people learn to dismiss the prompt without reading it.
    */
   const [billToTouched, setBillToTouched] = useState(false);
+  /**
+   * Whether the bill-to fields describe a customer who does not exist yet. They
+   * are written on the way through the invoice's own save, so an invoice that is
+   * abandoned half-filled leaves no customer behind.
+   */
+  const [creatingCustomer, setCreatingCustomer] = useState(false);
   const [pendingSave, setPendingSave] = useState<{ onSaved?: (id: string) => void } | null>(null);
   const [exporting, setExporting] = useState(false);
   // An existing invoice starts in sync with the database; any edit marks it dirty.
@@ -138,7 +146,14 @@ export function InvoiceForm({
       // A stale "Sent to …" confirmation shouldn't outlive the edit it predates.
       resetSendEmail();
       if (action.type === "patchBillTo") setBillToTouched(true);
-      if (action.type === "fillBillToFromCustomer") setBillToTouched(false);
+      if (action.type === "fillBillToFromCustomer") {
+        setBillToTouched(false);
+        setCreatingCustomer(false);
+      }
+      if (action.type === "startNewCustomer") {
+        setBillToTouched(false);
+        setCreatingCustomer(true);
+      }
       rawDispatch(action);
       // Any action that lands on a different tier re-prices the lines already on
       // the invoice (only those still at the old tier's catalog price).
@@ -174,8 +189,10 @@ export function InvoiceForm({
     },
   });
 
-  const saving = createInvoice.isPending || updateInvoice.isPending;
-  const saveError = (createInvoice.error ?? updateInvoice.error)?.message;
+  const createCustomer = api.customer.create.useMutation();
+
+  const saving = createInvoice.isPending || updateInvoice.isPending || createCustomer.isPending;
+  const saveError = (createInvoice.error ?? updateInvoice.error ?? createCustomer.error)?.message;
 
   // Payments live outside the draft: recording one mutates immediately, and the
   // query refetch (via invalidation) is what updates this list.
@@ -203,13 +220,37 @@ export function InvoiceForm({
     return company === "" || company === display ? display : `${display} · ${company}`;
   })();
 
-  const commit = (onSaved?: (id: string) => void) => {
+  const commit = (toSave: InvoiceDraft, onSaved?: (id: string) => void) => {
     setShowErrors(false);
     if (invoiceId) {
-      updateInvoice.mutate({ id: invoiceId, draft }, { onSuccess: ({ id }) => onSaved?.(id) });
+      updateInvoice.mutate(
+        { id: invoiceId, draft: toSave },
+        { onSuccess: ({ id }) => onSaved?.(id) },
+      );
     } else {
-      createInvoice.mutate(draft, { onSuccess: ({ id }) => onSaved?.(id) });
+      createInvoice.mutate(toSave, { onSuccess: ({ id }) => onSaved?.(id) });
     }
+  };
+
+  /**
+   * A customer typed straight into the invoice gets their record here, and the
+   * invoice is billed to it. Validation has already run, so they are guaranteed
+   * an identity to be found by again.
+   */
+  const save = (onSaved?: (id: string) => void) => {
+    if (!creatingCustomer) {
+      commit(draft, onSaved);
+      return;
+    }
+    createCustomer.mutate(draft.billTo, {
+      onSuccess: ({ id }) => {
+        setCreatingCustomer(false);
+        // Not a user edit, so it must not mark the invoice unsaved again.
+        rawDispatch({ type: "patch", patch: { sourceCustomerId: id } });
+        void utils.customer.list.invalidate();
+        commit({ ...draft, sourceCustomerId: id }, onSaved);
+      },
+    });
   };
 
   const persist = (onSaved?: (id: string) => void) => {
@@ -225,7 +266,7 @@ export function InvoiceForm({
       setPendingSave({ onSaved });
       return;
     }
-    commit(onSaved);
+    save(onSaved);
   };
 
   const resolveBillToDivergence = (updateRecord: boolean) => {
@@ -238,7 +279,7 @@ export function InvoiceForm({
         { onSuccess: () => void utils.customer.list.invalidate() },
       );
     }
-    commit(pending?.onSaved);
+    save(pending?.onSaved);
   };
 
   const handleExportPdf = async () => {
@@ -303,6 +344,7 @@ export function InvoiceForm({
           <BillToSection
             billTo={draft.billTo}
             sourceCustomerId={draft.sourceCustomerId}
+            creating={creatingCustomer}
             delivery={draft.delivery}
             deliverySameAsBilling={draft.deliverySameAsBilling}
             error={errors?.billTo}

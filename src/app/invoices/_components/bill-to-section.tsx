@@ -34,7 +34,6 @@ import { fieldMatchesAnyToken, matchesAllTokens, tokenize } from "~/lib/search";
 import { api } from "~/trpc/react";
 import {
   billToHasContent,
-  billToHasIdentity,
   billToMatchesCustomer,
   customerDisplayName,
   emptyBillTo,
@@ -46,6 +45,8 @@ import { Highlight } from "~/components/highlight";
 interface BillToSectionProps {
   billTo: BillTo;
   sourceCustomerId: string | null;
+  /** "New customer" was chosen: these fields describe a record that does not exist yet. */
+  creating: boolean;
   delivery: boolean;
   deliverySameAsBilling: boolean;
   error?: string;
@@ -82,6 +83,7 @@ function fieldForQuery(query: string): "name" | "phone" | "email" {
 export function BillToSection({
   billTo,
   sourceCustomerId,
+  creating,
   delivery,
   deliverySameAsBilling,
   error,
@@ -91,13 +93,10 @@ export function BillToSection({
   const modules = api.settings.modules.useQuery();
   const utils = api.useUtils();
   const source = customers.find((customer) => customer.id === sourceCustomerId);
-  // "New customer" was chosen but nothing typed yet, so there is no content to go by.
-  const [creating, setCreating] = useState(false);
+  // `creating` carries the case where "New customer" was chosen but nothing has
+  // been typed yet, so there is no content to go by.
   const showFields = source !== undefined || billToHasContent(billTo) || creating;
-  // A customer still being created has no record to contradict — every blur is
-  // writing it — so there is nothing for the Edited menu to offer until it is
-  // one of the saved customers like any other.
-  const diverged = !creating && source !== undefined && !billToMatchesCustomer(billTo, source);
+  const diverged = source !== undefined && !billToMatchesCustomer(billTo, source);
 
   /** The field to put the caret in once the fields it belongs to have rendered. */
   const [focusField, setFocusField] = useState<string | null>(null);
@@ -107,32 +106,18 @@ export function BillToSection({
     setFocusField(null);
   }, [focusField]);
 
-  const [flash, setFlash] = useState<string | null>(null);
+  /** Brief confirmation that an edit reached the customer's own record. */
+  const [updated, setUpdated] = useState(false);
   useEffect(() => {
-    if (flash === null) return;
-    const timeout = setTimeout(() => setFlash(null), 2500);
+    if (!updated) return;
+    const timeout = setTimeout(() => setUpdated(false), 2500);
     return () => clearTimeout(timeout);
-  }, [flash]);
+  }, [updated]);
 
-  // Read inside the mutation callback below, which resolves long after the
-  // render that started it.
-  const linkedId = useRef(sourceCustomerId);
-  linkedId.current = sourceCustomerId;
-
-  const createCustomer = api.customer.create.useMutation({
-    onSuccess: async ({ id }) => {
-      await utils.customer.list.invalidate();
-      // The write is in flight while the invoice can still be pointed at
-      // somebody else, and it does not get to undo that: adopting this id after
-      // the fact would bill an invoice to a customer it is not showing.
-      if (linkedId.current === null) dispatch({ type: "patch", patch: { sourceCustomerId: id } });
-      setFlash("Saved");
-    },
-  });
   const updateCustomer = api.customer.update.useMutation({
     onSuccess: async () => {
       await utils.customer.list.invalidate();
-      setFlash("Updated");
+      setUpdated(true);
     },
   });
 
@@ -143,32 +128,12 @@ export function BillToSection({
 
   const handleCreateNew = (query: string) => {
     const field = fieldForQuery(query);
-    dispatch({
-      type: "patch",
-      patch: { billTo: { ...emptyBillTo(), [field]: query }, sourceCustomerId: null },
-    });
-    setCreating(true);
+    dispatch({ type: "startNewCustomer", billTo: { ...emptyBillTo(), [field]: query } });
     setFocusField(field);
   };
 
   const handlePickCustomer = (customer: Customer) => {
-    setCreating(false);
     dispatch({ type: "fillBillToFromCustomer", customer });
-  };
-
-  /**
-   * A customer being created saves itself as it is filled in: the record and
-   * this invoice's copy are the same thing until it exists, so there is nothing
-   * to confirm. Fires on the way out of a field rather than on the keystroke, so
-   * a half-typed phone number is not what gets written.
-   */
-  const handleFieldBlur = () => {
-    if (!creating || createCustomer.isPending || updateCustomer.isPending) return;
-    if (!billToHasIdentity(billTo)) return;
-    if (sourceCustomerId === null) createCustomer.mutate(billTo);
-    else if (source && !billToMatchesCustomer(billTo, source)) {
-      updateCustomer.mutate({ id: sourceCustomerId, details: billTo });
-    }
   };
 
   const setField = (field: "name" | "company" | "phone" | "email", value: string) =>
@@ -190,10 +155,10 @@ export function BillToSection({
           )}
         </div>
         <div className="flex items-center gap-3">
-          {flash !== null && !diverged && (
+          {updated && !diverged && (
             <span className="text-muted-foreground flex items-center gap-1.5 text-sm">
               <CheckIcon className="size-3.5" />
-              {flash}
+              Updated
             </span>
           )}
           {diverged && (
@@ -219,7 +184,7 @@ export function BillToSection({
         </div>
       </div>
       {showFields ? (
-        <div className="space-y-3" onBlur={handleFieldBlur}>
+        <div className="space-y-3">
           <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
             {CONTACT_FIELDS.map(({ field, label, type, invalid }) => (
               <div key={field} className="space-y-1.5">
