@@ -104,7 +104,7 @@ export function invoicesCsv(invoices: Invoice[]): string {
   const data = sorted.flatMap(({ draft, payments }) =>
     draft.lineItems.map((line) => [
       draft.invoiceNumber,
-      draft.documentType,
+      draft.isQuote ? "quote" : "invoice",
       draft.issueDate,
       draft.billTo.name,
       draft.billTo.company,
