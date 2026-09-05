@@ -2,7 +2,7 @@ import { relations } from "drizzle-orm";
 import { index, pgTableCreator, primaryKey, uniqueIndex } from "drizzle-orm/pg-core";
 import { type AdapterAccount } from "next-auth/adapters";
 
-import type { Address, BillTo, Discount, PaymentTerms } from "~/app/invoices/_lib/types";
+import type { Address, CustomerDetails, Discount, PaymentTerms } from "~/app/invoices/_lib/types";
 import type { VendorDetails } from "~/app/purchase-orders/_lib/types";
 import {
   DEFAULT_EMAIL_BODY,
@@ -311,8 +311,8 @@ export const vendors = createTable(
 );
 
 /**
- * Columns mirror InvoiceDraft minus lineItems. billTo is a jsonb snapshot of
- * the customer details at invoice time; sourceCustomerId is a soft pointer
+ * Columns mirror InvoiceDraft minus lineItems. customerDetails is a jsonb snapshot of
+ * the customer details at invoice time; customerId is a soft pointer
  * (no FK) so a missing customer degrades to "unsaved" in the UI. Due date,
  * status, and totals stay derived — never stored.
  */
@@ -330,8 +330,8 @@ export const invoices = createTable(
       .references(() => businesses.id),
     isQuote: d.boolean().notNull().default(false),
     invoiceNumber: d.varchar({ length: 64 }).notNull(),
-    billTo: d.jsonb().$type<BillTo>().notNull(),
-    sourceCustomerId: d.varchar({ length: 255 }),
+    customerDetails: d.jsonb().$type<CustomerDetails>().notNull(),
+    customerId: d.varchar({ length: 255 }),
     delivery: d.boolean().notNull(),
     deliverySameAsBilling: d.boolean().notNull(),
     poNumber: d.varchar({ length: 64 }).notNull(),

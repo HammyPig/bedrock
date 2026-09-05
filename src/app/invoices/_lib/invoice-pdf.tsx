@@ -181,18 +181,19 @@ export function InvoicePdf({ draft, settings, paidCents }: InvoicePdfProps) {
         <View style={styles.parties}>
           <View style={styles.partyBlock}>
             <Text style={styles.sectionLabel}>Bill to</Text>
-            <Text style={styles.bold}>{customerDisplayName(draft.billTo)}</Text>
-            {draft.billTo.name.trim() !== "" && draft.billTo.company.trim() !== "" && (
-              <Text>{draft.billTo.company}</Text>
-            )}
-            {addressLines(draft.billTo.billingAddress).map((line, i) => (
+            <Text style={styles.bold}>{customerDisplayName(draft.customerDetails)}</Text>
+            {draft.customerDetails.name.trim() !== "" &&
+              draft.customerDetails.company.trim() !== "" && (
+                <Text>{draft.customerDetails.company}</Text>
+              )}
+            {addressLines(draft.customerDetails.billingAddress).map((line, i) => (
               <Text key={i}>{line}</Text>
             ))}
-            {draft.billTo.email.trim() !== "" && (
-              <Text style={styles.muted}>{draft.billTo.email}</Text>
+            {draft.customerDetails.email.trim() !== "" && (
+              <Text style={styles.muted}>{draft.customerDetails.email}</Text>
             )}
-            {draft.billTo.phone.trim() !== "" && (
-              <Text style={styles.muted}>{draft.billTo.phone}</Text>
+            {draft.customerDetails.phone.trim() !== "" && (
+              <Text style={styles.muted}>{draft.customerDetails.phone}</Text>
             )}
           </View>
           {draft.delivery && (
@@ -201,7 +202,7 @@ export function InvoicePdf({ draft, settings, paidCents }: InvoicePdfProps) {
               {draft.deliverySameAsBilling ? (
                 <Text>Same as billing address</Text>
               ) : (
-                addressLines(draft.billTo.deliveryAddress).map((line, i) => (
+                addressLines(draft.customerDetails.deliveryAddress).map((line, i) => (
                   <Text key={i}>{line}</Text>
                 ))
               )}

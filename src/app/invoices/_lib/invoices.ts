@@ -27,7 +27,7 @@ export function summarizeInvoice({ id, draft, payments }: Invoice): InvoiceSumma
     id,
     isQuote: draft.isQuote,
     invoiceNumber: draft.invoiceNumber,
-    customerName: customerDisplayName(draft.billTo),
+    customerName: customerDisplayName(draft.customerDetails),
     issueDate: draft.issueDate,
     dueDate:
       draft.terms === "custom"

@@ -32,16 +32,22 @@ export function InvoiceSidebar() {
       id,
       invoiceNumber: draft.invoiceNumber,
       issueDate: draft.issueDate,
-      billTo: draft.billTo,
+      customerDetails: draft.customerDetails,
     }))
     .sort(
       (a, b) =>
         b.issueDate.localeCompare(a.issueDate) || b.invoiceNumber.localeCompare(a.invoiceNumber),
     );
 
-  const filtered = sidebarInvoices.filter(({ invoiceNumber, billTo }) =>
+  const filtered = sidebarInvoices.filter(({ invoiceNumber, customerDetails }) =>
     matchesAllTokens(
-      [invoiceNumber, billTo.name, billTo.company, billTo.phone, billTo.email],
+      [
+        invoiceNumber,
+        customerDetails.name,
+        customerDetails.company,
+        customerDetails.phone,
+        customerDetails.email,
+      ],
       tokens,
     ),
   );
@@ -71,10 +77,10 @@ export function InvoiceSidebar() {
                   const isActive = invoice.id === activeInvoiceId;
                   // Second line: whichever customer details matched the search, like the customer picker.
                   const matchedDetails = [
-                    invoice.billTo.name,
-                    invoice.billTo.company,
-                    invoice.billTo.phone,
-                    invoice.billTo.email,
+                    invoice.customerDetails.name,
+                    invoice.customerDetails.company,
+                    invoice.customerDetails.phone,
+                    invoice.customerDetails.email,
                   ].filter((field) => field.trim() !== "" && fieldMatchesAnyToken(field, tokens));
 
                   return (

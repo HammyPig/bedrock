@@ -19,17 +19,17 @@ import { todayIsoDate } from "~/lib/dates";
 import { cn } from "~/lib/utils";
 import { api } from "~/trpc/react";
 import {
-  billToMatchesCustomer,
+  customerDetailsMatchesCustomer,
   customerDisplayName,
   DOCUMENT_TYPE_OPTIONS,
-  emptyBillTo,
+  emptyCustomerDetails,
   makeLineItem,
   repriceLineItems,
   validateDraft,
 } from "../_lib/invoice";
 import { computeTotals, paymentsTotalCents } from "../_lib/money";
 import { type InvoiceAction, type InvoiceDraft, type Payment } from "../_lib/types";
-import { BillToSection } from "./bill-to-section";
+import { CustomerDetailsSection } from "./customer-details-section";
 import { InvoiceMeta } from "./invoice-meta";
 import { LineItemsGrid } from "./line-items-grid";
 import { StickyActionBar } from "./sticky-action-bar";
@@ -39,8 +39,8 @@ function createInitialDraft(invoiceNumber: string): InvoiceDraft {
   return {
     isQuote: false,
     invoiceNumber,
-    billTo: emptyBillTo(),
-    sourceCustomerId: null,
+    customerDetails: emptyCustomerDetails(),
+    customerId: null,
     delivery: false,
     deliverySameAsBilling: true,
     poNumber: "",
@@ -59,14 +59,14 @@ function invoiceReducer(draft: InvoiceDraft, action: InvoiceAction): InvoiceDraf
   switch (action.type) {
     case "patch":
       return { ...draft, ...action.patch };
-    case "patchBillTo":
-      return { ...draft, billTo: { ...draft.billTo, ...action.patch } };
-    case "fillBillToFromCustomer": {
-      const { id, ...billTo } = action.customer;
-      return { ...draft, billTo, sourceCustomerId: id };
+    case "patchCustomerDetails":
+      return { ...draft, customerDetails: { ...draft.customerDetails, ...action.patch } };
+    case "fillDetailsFromCustomer": {
+      const { id, ...customerDetails } = action.customer;
+      return { ...draft, customerDetails, customerId: id };
     }
     case "startNewCustomer":
-      return { ...draft, billTo: action.billTo, sourceCustomerId: null };
+      return { ...draft, customerDetails: action.customerDetails, customerId: null };
     case "updateLineItem":
       return {
         ...draft,
@@ -124,7 +124,7 @@ export function InvoiceForm({
    * snapshot doing its job — and re-asking about a decision already made is how
    * people learn to dismiss the prompt without reading it.
    */
-  const [billToTouched, setBillToTouched] = useState(false);
+  const [customerDetailsTouched, setCustomerDetailsTouched] = useState(false);
   /**
    * Whether the bill-to fields describe a customer who does not exist yet. They
    * are written on the way through the invoice's own save, so an invoice that is
@@ -139,28 +139,28 @@ export function InvoiceForm({
   const sendEmail = api.invoice.sendEmail.useMutation();
   const resetSendEmail = sendEmail.reset;
 
-  const tierId = draft.billTo.tierId;
+  const tierId = draft.customerDetails.tierId;
   const dispatch = useCallback(
     (action: InvoiceAction) => {
       setSaved(false);
       // A stale "Sent to …" confirmation shouldn't outlive the edit it predates.
       resetSendEmail();
-      if (action.type === "patchBillTo") setBillToTouched(true);
-      if (action.type === "fillBillToFromCustomer") {
-        setBillToTouched(false);
+      if (action.type === "patchCustomerDetails") setCustomerDetailsTouched(true);
+      if (action.type === "fillDetailsFromCustomer") {
+        setCustomerDetailsTouched(false);
         setCreatingCustomer(false);
       }
       if (action.type === "startNewCustomer") {
-        setBillToTouched(false);
+        setCustomerDetailsTouched(false);
         setCreatingCustomer(true);
       }
       rawDispatch(action);
       // Any action that lands on a different tier re-prices the lines already on
       // the invoice (only those still at the old tier's catalog price).
       const newTierId =
-        action.type === "patchBillTo"
+        action.type === "patchCustomerDetails"
           ? action.patch.tierId
-          : action.type === "fillBillToFromCustomer"
+          : action.type === "fillDetailsFromCustomer"
             ? action.customer.tierId
             : undefined;
       if (newTierId !== undefined && newTierId !== tierId) {
@@ -208,15 +208,16 @@ export function InvoiceForm({
 
   const customers = api.customer.list.useQuery().data ?? [];
   const updateCustomer = api.customer.update.useMutation();
-  const billToCustomer = customers.find((customer) => customer.id === draft.sourceCustomerId);
+  const selectedCustomer = customers.find((customer) => customer.id === draft.customerId);
   const customerDiverged =
-    billToCustomer !== undefined && !billToMatchesCustomer(draft.billTo, billToCustomer);
+    selectedCustomer !== undefined &&
+    !customerDetailsMatchesCustomer(draft.customerDetails, selectedCustomer);
   // Named the way the picker lists them, so it is unambiguous which record is
   // about to change when two customers share a contact name.
-  const billToLabel = (() => {
-    if (billToCustomer === undefined) return "";
-    const display = customerDisplayName(billToCustomer);
-    const company = billToCustomer.company.trim();
+  const selectedCustomerLabel = (() => {
+    if (selectedCustomer === undefined) return "";
+    const display = customerDisplayName(selectedCustomer);
+    const company = selectedCustomer.company.trim();
     return company === "" || company === display ? display : `${display} · ${company}`;
   })();
 
@@ -242,13 +243,13 @@ export function InvoiceForm({
       commit(draft, onSaved);
       return;
     }
-    createCustomer.mutate(draft.billTo, {
+    createCustomer.mutate(draft.customerDetails, {
       onSuccess: ({ id }) => {
         setCreatingCustomer(false);
         // Not a user edit, so it must not mark the invoice unsaved again.
-        rawDispatch({ type: "patch", patch: { sourceCustomerId: id } });
+        rawDispatch({ type: "patch", patch: { customerId: id } });
         void utils.customer.list.invalidate();
-        commit({ ...draft, sourceCustomerId: id }, onSaved);
+        commit({ ...draft, customerId: id }, onSaved);
       },
     });
   };
@@ -262,20 +263,20 @@ export function InvoiceForm({
     // The edit menu in the bill-to section is easy to walk past while looking at
     // line items. Saving is the moment they are demonstrably finished with the
     // invoice, so it is the last honest place to ask where the change belongs.
-    if (billToTouched && customerDiverged) {
+    if (customerDetailsTouched && customerDiverged) {
       setPendingSave({ onSaved });
       return;
     }
     save(onSaved);
   };
 
-  const resolveBillToDivergence = (updateRecord: boolean) => {
+  const resolveCustomerDetailsDivergence = (updateRecord: boolean) => {
     const pending = pendingSave;
     setPendingSave(null);
-    setBillToTouched(false);
-    if (updateRecord && billToCustomer !== undefined) {
+    setCustomerDetailsTouched(false);
+    if (updateRecord && selectedCustomer !== undefined) {
       updateCustomer.mutate(
-        { id: billToCustomer.id, details: draft.billTo },
+        { id: selectedCustomer.id, details: draft.customerDetails },
         { onSuccess: () => void utils.customer.list.invalidate() },
       );
     }
@@ -341,13 +342,13 @@ export function InvoiceForm({
       </div>
       <div className="bg-card rounded-xl border shadow-sm">
         <div className="space-y-8 p-8 sm:p-10">
-          <BillToSection
-            billTo={draft.billTo}
-            sourceCustomerId={draft.sourceCustomerId}
+          <CustomerDetailsSection
+            customerDetails={draft.customerDetails}
+            customerId={draft.customerId}
             creating={creatingCustomer}
             delivery={draft.delivery}
             deliverySameAsBilling={draft.deliverySameAsBilling}
-            error={errors?.billTo}
+            error={errors?.customerDetails}
             dispatch={dispatch}
           />
           <InvoiceMeta
@@ -358,7 +359,7 @@ export function InvoiceForm({
           <LineItemsGrid
             items={draft.lineItems}
             savedItems={savedItems}
-            tierId={draft.billTo.tierId}
+            tierId={draft.customerDetails.tierId}
             invalidItemIds={errors?.invalidLineItemIds ?? []}
             error={errors?.lineItems}
             dispatch={dispatch}
@@ -412,15 +413,15 @@ export function InvoiceForm({
           <DialogHeader>
             <DialogTitle>Update customer?</DialogTitle>
             <DialogDescription>
-              This invoice has different details for {billToLabel}. Save them to that customer as
-              well, or keep the change on this invoice only?
+              This invoice has different details for {selectedCustomerLabel}. Save them to that
+              customer as well, or keep the change on this invoice only?
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => resolveBillToDivergence(false)}>
+            <Button variant="outline" onClick={() => resolveCustomerDetailsDivergence(false)}>
               Just this invoice
             </Button>
-            <Button onClick={() => resolveBillToDivergence(true)}>Update customer</Button>
+            <Button onClick={() => resolveCustomerDetailsDivergence(true)}>Update customer</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

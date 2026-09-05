@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import { computeTotals, paymentsTotalCents } from "~/app/invoices/_lib/money";
 import { type Invoice, type InvoiceDraft } from "~/app/invoices/_lib/types";
-import { billToInput } from "~/server/api/routers/customer";
+import { customerDetailsInput } from "~/server/api/routers/customer";
 import { loadEffectiveSettings } from "~/server/api/routers/settings";
 import { businessProcedure, createTRPCRouter } from "~/server/api/trpc";
 import { sendInvoiceEmail } from "~/server/email";
@@ -28,8 +28,8 @@ const lineItemInput = lineItemBaseInput.extend({ backordered: z.boolean() });
 const draftInput = z.object({
   isQuote: z.boolean(),
   invoiceNumber: z.string().min(1).max(64),
-  billTo: billToInput,
-  sourceCustomerId: z.string().max(255).nullable(),
+  customerDetails: customerDetailsInput,
+  customerId: z.string().max(255).nullable(),
   delivery: z.boolean(),
   deliverySameAsBilling: z.boolean(),
   poNumber: z.string().max(64),
@@ -66,8 +66,8 @@ function toInvoice(row: InvoiceRow): Invoice {
     draft: {
       isQuote: row.isQuote,
       invoiceNumber: row.invoiceNumber,
-      billTo: row.billTo,
-      sourceCustomerId: row.sourceCustomerId,
+      customerDetails: row.customerDetails,
+      customerId: row.customerId,
       delivery: row.delivery,
       deliverySameAsBilling: row.deliverySameAsBilling,
       poNumber: row.poNumber,
@@ -240,7 +240,7 @@ export const invoiceRouter = createTRPCRouter({
       if (!row) throw new TRPCError({ code: "NOT_FOUND" });
 
       const invoice = toInvoice(row);
-      const to = invoice.draft.billTo.email.trim();
+      const to = invoice.draft.customerDetails.email.trim();
       if (to === "") {
         throw new TRPCError({
           code: "BAD_REQUEST",

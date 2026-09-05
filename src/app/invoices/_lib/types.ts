@@ -53,15 +53,15 @@ export interface Customer {
 }
 
 /** The invoice's own billing-details snapshot — editing it never touches the saved customer. */
-export type BillTo = Omit<Customer, "id">;
+export type CustomerDetails = Omit<Customer, "id">;
 
 export interface InvoiceDraft {
   /** A quote rather than an invoice: not payable, and switchable to an invoice (and back). */
   isQuote: boolean;
   invoiceNumber: string;
-  billTo: BillTo;
+  customerDetails: CustomerDetails;
   /** Saved customer these details were filled from; null for walk-up/manual entry. */
-  sourceCustomerId: string | null;
+  customerId: string | null;
   /** Per-invoice fulfillment flags — not part of the customer snapshot. */
   delivery: boolean;
   deliverySameAsBilling: boolean;
@@ -96,17 +96,17 @@ export interface Totals {
 
 export interface DraftErrors {
   invoiceNumber?: string;
-  billTo?: string;
+  customerDetails?: string;
   lineItems?: string;
   invalidLineItemIds: string[];
 }
 
 export type InvoiceAction =
   | { type: "patch"; patch: Partial<InvoiceDraft> }
-  | { type: "patchBillTo"; patch: Partial<BillTo> }
-  | { type: "fillBillToFromCustomer"; customer: Customer }
+  | { type: "patchCustomerDetails"; patch: Partial<CustomerDetails> }
+  | { type: "fillDetailsFromCustomer"; customer: Customer }
   /** "New customer" chosen in the picker, seeded with whatever was searched for. */
-  | { type: "startNewCustomer"; billTo: BillTo }
+  | { type: "startNewCustomer"; customerDetails: CustomerDetails }
   | { type: "updateLineItem"; id: string; patch: Partial<Omit<LineItem, "id">> }
   | { type: "appendLineItem"; item: LineItem }
   | { type: "removeLineItem"; id: string }

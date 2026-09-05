@@ -2,7 +2,7 @@ import { addDaysIso } from "~/lib/dates";
 import { tierUnitPriceCents, type SavedItem } from "~/lib/items";
 import {
   type Address,
-  type BillTo,
+  type CustomerDetails,
   type Customer,
   type DraftErrors,
   type InvoiceDraft,
@@ -108,7 +108,7 @@ export function formatAddressOneLine(address: Address): string {
   return [address.line1, address.line2, locality].filter((part) => part.trim() !== "").join(", ");
 }
 
-export function emptyBillTo(): BillTo {
+export function emptyCustomerDetails(): CustomerDetails {
   return {
     name: "",
     company: "",
@@ -120,26 +120,32 @@ export function emptyBillTo(): BillTo {
   };
 }
 
-export function billToMatchesCustomer(billTo: BillTo, customer: Customer): boolean {
+export function customerDetailsMatchesCustomer(
+  customerDetails: CustomerDetails,
+  customer: Customer,
+): boolean {
   return (
-    billTo.name === customer.name &&
-    billTo.company === customer.company &&
-    billTo.phone === customer.phone &&
-    billTo.email === customer.email &&
-    billTo.tierId === customer.tierId &&
-    addressesEqual(billTo.billingAddress, customer.billingAddress) &&
-    addressesEqual(billTo.deliveryAddress, customer.deliveryAddress)
+    customerDetails.name === customer.name &&
+    customerDetails.company === customer.company &&
+    customerDetails.phone === customer.phone &&
+    customerDetails.email === customer.email &&
+    customerDetails.tierId === customer.tierId &&
+    addressesEqual(customerDetails.billingAddress, customer.billingAddress) &&
+    addressesEqual(customerDetails.deliveryAddress, customer.deliveryAddress)
   );
 }
 
-export function billToHasContent(billTo: BillTo): boolean {
+export function customerDetailsHasContent(customerDetails: CustomerDetails): boolean {
   return (
-    [billTo.name, billTo.company, billTo.phone, billTo.email].some(
-      (value) => value.trim() !== "",
-    ) ||
-    billTo.tierId !== null ||
-    addressHasContent(billTo.billingAddress) ||
-    addressHasContent(billTo.deliveryAddress)
+    [
+      customerDetails.name,
+      customerDetails.company,
+      customerDetails.phone,
+      customerDetails.email,
+    ].some((value) => value.trim() !== "") ||
+    customerDetails.tierId !== null ||
+    addressHasContent(customerDetails.billingAddress) ||
+    addressHasContent(customerDetails.deliveryAddress)
   );
 }
 
@@ -152,8 +158,8 @@ export const IDENTITY_FIELDS = ["name", "company", "phone", "email"] as const;
 
 type Identity = Pick<Customer, (typeof IDENTITY_FIELDS)[number]>;
 
-export function billToHasIdentity(billTo: Identity): boolean {
-  return IDENTITY_FIELDS.some((field) => billTo[field].trim() !== "");
+export function customerDetailsHasIdentity(customerDetails: Identity): boolean {
+  return IDENTITY_FIELDS.some((field) => customerDetails[field].trim() !== "");
 }
 
 /** Display label for a customer or bill-to snapshot: whichever identity they have. */
@@ -173,12 +179,12 @@ export function validateDraft(draft: InvoiceDraft): DraftErrors | null {
       ? "Quote number is required."
       : "Invoice number is required.";
   }
-  if (!billToHasIdentity(draft.billTo)) {
-    errors.billTo = "Select a customer to bill.";
+  if (!customerDetailsHasIdentity(draft.customerDetails)) {
+    errors.customerDetails = "Select a customer to bill.";
   }
   if (invalidLineItemIds.length > 0) {
     errors.lineItems = "Each line item needs a name and a quantity above zero.";
   }
 
-  return errors.invoiceNumber || errors.billTo || errors.lineItems ? errors : null;
+  return errors.invoiceNumber || errors.customerDetails || errors.lineItems ? errors : null;
 }

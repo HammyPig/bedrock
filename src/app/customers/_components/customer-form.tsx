@@ -6,11 +6,11 @@ import { Trash2Icon } from "lucide-react";
 
 import { AddressField } from "~/app/invoices/_components/address-field";
 import {
-  billToMatchesCustomer,
+  customerDetailsMatchesCustomer,
   customerDisplayName,
-  emptyBillTo,
+  emptyCustomerDetails,
 } from "~/app/invoices/_lib/invoice";
-import { type BillTo, type Customer } from "~/app/invoices/_lib/types";
+import { type Customer, type CustomerDetails } from "~/app/invoices/_lib/types";
 import { BackLink } from "~/components/back-link";
 import { SaveBar } from "~/components/save-bar";
 import { Button } from "~/components/ui/button";
@@ -55,7 +55,7 @@ export function CustomerForm({ initialCustomer, customerId }: CustomerFormProps)
   const utils = api.useUtils();
   const modules = api.settings.modules.useQuery();
 
-  const [draft, setDraft] = useState<BillTo>(initialCustomer ?? emptyBillTo());
+  const [draft, setDraft] = useState<CustomerDetails>(initialCustomer ?? emptyCustomerDetails());
   /** Last-saved snapshot; null until a new customer is first saved. */
   const [savedCustomer, setSavedCustomer] = useState<Customer | null>(initialCustomer ?? null);
   const [showErrors, setShowErrors] = useState(false);
@@ -91,9 +91,9 @@ export function CustomerForm({ initialCustomer, customerId }: CustomerFormProps)
 
   const missingIdentity = draft.name.trim() === "" && draft.company.trim() === "";
   const error = showErrors && missingIdentity ? "Every customer needs a name or company." : null;
-  const dirty = savedCustomer === null || !billToMatchesCustomer(draft, savedCustomer);
+  const dirty = savedCustomer === null || !customerDetailsMatchesCustomer(draft, savedCustomer);
 
-  const patch = (fields: Partial<BillTo>) => setDraft((prev) => ({ ...prev, ...fields }));
+  const patch = (fields: Partial<CustomerDetails>) => setDraft((prev) => ({ ...prev, ...fields }));
 
   const handleSave = () => {
     if (saving) return;

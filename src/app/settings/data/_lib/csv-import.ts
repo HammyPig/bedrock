@@ -1,4 +1,4 @@
-import { type Address, type BillTo, type Tier } from "~/app/invoices/_lib/types";
+import { type Address, type CustomerDetails, type Tier } from "~/app/invoices/_lib/types";
 import { type SavedItem } from "~/lib/items";
 import { parseMoneyInput } from "~/lib/money";
 
@@ -279,12 +279,12 @@ export function convertCustomerRow(
   row: string[],
   mapping: ColumnMapping,
   tiers: Tier[] | null,
-): RowConversion<BillTo> {
+): RowConversion<CustomerDetails> {
   const errors: string[] = [];
   const billingAddress = readAddress(row, mapping, "billing", "Billing", errors);
   const deliveryAddress = readAddress(row, mapping, "delivery", "Delivery", errors);
   const deliveryEmpty = Object.values(deliveryAddress).every((part) => part === "");
-  const value: BillTo = {
+  const value: CustomerDetails = {
     name: readText(row, mapping, "name", "Name", { required: true, maxLength: 255 }, errors),
     company: readText(row, mapping, "company", "Company", { maxLength: 255 }, errors),
     phone: readText(row, mapping, "phone", "Phone", { maxLength: 64 }, errors),

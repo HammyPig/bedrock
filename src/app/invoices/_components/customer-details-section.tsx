@@ -33,18 +33,18 @@ import { TierSelect } from "~/components/tier-select";
 import { fieldMatchesAnyToken, matchesAllTokens, tokenize } from "~/lib/search";
 import { api } from "~/trpc/react";
 import {
-  billToHasContent,
-  billToMatchesCustomer,
+  customerDetailsHasContent,
+  customerDetailsMatchesCustomer,
   customerDisplayName,
-  emptyBillTo,
+  emptyCustomerDetails,
 } from "../_lib/invoice";
-import { type BillTo, type Customer, type InvoiceAction } from "../_lib/types";
+import { type Customer, type CustomerDetails, type InvoiceAction } from "../_lib/types";
 import { AddressField } from "./address-field";
 import { Highlight } from "~/components/highlight";
 
-interface BillToSectionProps {
-  billTo: BillTo;
-  sourceCustomerId: string | null;
+interface CustomerDetailsSectionProps {
+  customerDetails: CustomerDetails;
+  customerId: string | null;
   /** "New customer" was chosen: these fields describe a record that does not exist yet. */
   creating: boolean;
   delivery: boolean;
@@ -80,23 +80,23 @@ function fieldForQuery(query: string): "name" | "phone" | "email" {
   return "name";
 }
 
-export function BillToSection({
-  billTo,
-  sourceCustomerId,
+export function CustomerDetailsSection({
+  customerDetails,
+  customerId,
   creating,
   delivery,
   deliverySameAsBilling,
   error,
   dispatch,
-}: BillToSectionProps) {
+}: CustomerDetailsSectionProps) {
   const [customers] = api.customer.list.useSuspenseQuery();
   const modules = api.settings.modules.useQuery();
   const utils = api.useUtils();
-  const source = customers.find((customer) => customer.id === sourceCustomerId);
+  const source = customers.find((customer) => customer.id === customerId);
   // `creating` carries the case where "New customer" was chosen but nothing has
   // been typed yet, so there is no content to go by.
-  const showFields = source !== undefined || billToHasContent(billTo) || creating;
-  const diverged = source !== undefined && !billToMatchesCustomer(billTo, source);
+  const showFields = source !== undefined || customerDetailsHasContent(customerDetails) || creating;
+  const diverged = source !== undefined && !customerDetailsMatchesCustomer(customerDetails, source);
 
   /** The field to put the caret in once the fields it belongs to have rendered. */
   const [focusField, setFocusField] = useState<string | null>(null);
@@ -122,22 +122,25 @@ export function BillToSection({
   });
 
   const handleUpdateSavedCustomer = () => {
-    if (sourceCustomerId === null) return;
-    updateCustomer.mutate({ id: sourceCustomerId, details: billTo });
+    if (customerId === null) return;
+    updateCustomer.mutate({ id: customerId, details: customerDetails });
   };
 
   const handleCreateNew = (query: string) => {
     const field = fieldForQuery(query);
-    dispatch({ type: "startNewCustomer", billTo: { ...emptyBillTo(), [field]: query } });
+    dispatch({
+      type: "startNewCustomer",
+      customerDetails: { ...emptyCustomerDetails(), [field]: query },
+    });
     setFocusField(field);
   };
 
   const handlePickCustomer = (customer: Customer) => {
-    dispatch({ type: "fillBillToFromCustomer", customer });
+    dispatch({ type: "fillDetailsFromCustomer", customer });
   };
 
   const setField = (field: "name" | "company" | "phone" | "email", value: string) =>
-    dispatch({ type: "patchBillTo", patch: { [field]: value } });
+    dispatch({ type: "patchCustomerDetails", patch: { [field]: value } });
 
   return (
     <section className="space-y-3">
@@ -194,7 +197,7 @@ export function BillToSection({
                 <Input
                   id={`billto-${field}`}
                   type={type}
-                  value={billTo[field]}
+                  value={customerDetails[field]}
                   aria-invalid={invalid ? error !== undefined : undefined}
                   onChange={(e) => setField(field, e.currentTarget.value)}
                 />
@@ -207,8 +210,10 @@ export function BillToSection({
                 </Label>
                 <TierSelect
                   id="billto-tier"
-                  value={billTo.tierId}
-                  onChange={(tierId) => dispatch({ type: "patchBillTo", patch: { tierId } })}
+                  value={customerDetails.tierId}
+                  onChange={(tierId) =>
+                    dispatch({ type: "patchCustomerDetails", patch: { tierId } })
+                  }
                 />
               </div>
             )}
@@ -220,9 +225,9 @@ export function BillToSection({
               </div>
               <AddressField
                 labelPrefix="Billing"
-                value={billTo.billingAddress}
+                value={customerDetails.billingAddress}
                 onChange={(address) =>
-                  dispatch({ type: "patchBillTo", patch: { billingAddress: address } })
+                  dispatch({ type: "patchCustomerDetails", patch: { billingAddress: address } })
                 }
               />
             </div>
@@ -264,9 +269,12 @@ export function BillToSection({
                 ) : (
                   <AddressField
                     labelPrefix="Delivery"
-                    value={billTo.deliveryAddress}
+                    value={customerDetails.deliveryAddress}
                     onChange={(address) =>
-                      dispatch({ type: "patchBillTo", patch: { deliveryAddress: address } })
+                      dispatch({
+                        type: "patchCustomerDetails",
+                        patch: { deliveryAddress: address },
+                      })
                     }
                   />
                 ))}

@@ -26,7 +26,7 @@ function templateVars(
 ): Record<string, string> {
   const totals = computeTotals(draft, paidCents);
   return {
-    customerName: customerDisplayName(draft.billTo),
+    customerName: customerDisplayName(draft.customerDetails),
     invoiceNumber: draft.invoiceNumber,
     businessName: settings.businessName,
     total: formatCents(totals.totalCents),

@@ -9,7 +9,7 @@ import { type Invoice, type InvoiceSummary } from "~/app/invoices/_lib/types";
 export function openInvoicesByCustomer(invoices: Invoice[]): Map<string, InvoiceSummary[]> {
   const byCustomer = new Map<string, InvoiceSummary[]>();
   for (const invoice of invoices) {
-    const customerId = invoice.draft.sourceCustomerId;
+    const customerId = invoice.draft.customerId;
     if (customerId === null) continue;
     const summary = summarizeInvoice(invoice);
     if (balanceCents(summary) <= 0) continue;

@@ -2,7 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { type BillTo, type Customer } from "~/app/invoices/_lib/types";
+import { type Customer, type CustomerDetails } from "~/app/invoices/_lib/types";
 import { businessProcedure, createTRPCRouter } from "~/server/api/trpc";
 import { customers, tiers } from "~/server/db/schema";
 import { type db as database } from "~/server/db";
@@ -16,7 +16,7 @@ export const addressInput = z.object({
 });
 
 /** Customer details without an id — also the invoice's bill-to snapshot shape. */
-export const billToInput = z.object({
+export const customerDetailsInput = z.object({
   name: z.string().max(255),
   company: z.string().max(255),
   phone: z.string().max(64),
@@ -24,7 +24,7 @@ export const billToInput = z.object({
   tierId: z.string().max(255).nullable(),
   billingAddress: addressInput,
   deliveryAddress: addressInput,
-}) satisfies z.ZodType<BillTo>;
+}) satisfies z.ZodType<CustomerDetails>;
 
 /** Tier ids that don't belong to this business (stale or foreign) store as unassigned. */
 async function resolveTierId(
@@ -74,7 +74,7 @@ export const customerRouter = createTRPCRouter({
     return row ? toCustomer(row) : null;
   }),
 
-  create: businessProcedure.input(billToInput).mutation(async ({ ctx, input }) => {
+  create: businessProcedure.input(customerDetailsInput).mutation(async ({ ctx, input }) => {
     const tierId = await resolveTierId(ctx.db, ctx.businessId, input.tierId);
     const [created] = await ctx.db
       .insert(customers)
@@ -89,7 +89,7 @@ export const customerRouter = createTRPCRouter({
     .input(
       z.object({
         customers: z
-          .array(billToInput.extend({ name: z.string().min(1).max(255) }))
+          .array(customerDetailsInput.extend({ name: z.string().min(1).max(255) }))
           .min(1)
           .max(10000),
       }),
@@ -146,7 +146,7 @@ export const customerRouter = createTRPCRouter({
     }),
 
   update: businessProcedure
-    .input(z.object({ id: z.string(), details: billToInput }))
+    .input(z.object({ id: z.string(), details: customerDetailsInput }))
     .mutation(async ({ ctx, input }) => {
       const tierId = await resolveTierId(ctx.db, ctx.businessId, input.details.tierId);
       const [updated] = await ctx.db
