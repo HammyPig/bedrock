@@ -641,7 +641,7 @@ test.describe("invoice metadata section", () => {
   //   });
 
   //   test("a quote is not payable", async ({ page }) => {
-  //     const quote = await seedInvoice(draft({ documentType: "quote", invoiceNumber: "QUO-0001" }));
+  //     const quote = await seedInvoice(draft({ isQuote: true, invoiceNumber: "QUO-0001" }));
   //     const invoice = await seedInvoice(draft({ invoiceNumber: "INV-0900" }));
 
   //     await page.goto(`/invoices/${quote.id}/edit`);
@@ -667,7 +667,7 @@ test.describe("invoice metadata section", () => {
   //   test("a saved quote can become an invoice", async ({ page }) => {
   //     await seedCustomer(CUSTOMERS.acme);
   //     const quote = await seedInvoice(
-  //       draft({ documentType: "quote", invoiceNumber: "QUO-0001", lineItems: [line()] }),
+  //       draft({ isQuote: true, invoiceNumber: "QUO-0001", lineItems: [line()] }),
   //     );
 
   //     await page.goto(`/invoices/${quote.id}/edit`);

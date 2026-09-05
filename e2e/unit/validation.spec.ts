@@ -19,7 +19,7 @@ test.describe("V1 the document number is required", () => {
   });
 
   test("a quote is told it needs a quote number", () => {
-    expect(validateDraft(draft({ invoiceNumber: "", documentType: "quote" }))?.invoiceNumber).toBe(
+    expect(validateDraft(draft({ invoiceNumber: "", isQuote: true }))?.invoiceNumber).toBe(
       "Quote number is required.",
     );
   });

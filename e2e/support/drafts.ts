@@ -34,7 +34,7 @@ export function line(overrides: Partial<LineItem> = {}): LineItem {
 /** A draft that passes validation, so a test only has to state what it changes. */
 export function draft(overrides: Partial<InvoiceDraft> = {}): InvoiceDraft {
   return {
-    documentType: "invoice",
+    isQuote: false,
     invoiceNumber: "INV-1001",
     billTo: billTo(),
     sourceCustomerId: null,
