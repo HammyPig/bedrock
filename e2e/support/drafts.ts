@@ -1,5 +1,5 @@
 import { emptyAddress, makeLineItem } from "~/app/invoices/_lib/invoice";
-import { type BillTo, type InvoiceDraft, type LineItem } from "~/app/invoices/_lib/types";
+import { type CustomerDetails, type InvoiceDraft, type LineItem } from "~/app/invoices/_lib/types";
 
 /**
  * Draft builders for the unit specs. Deliberately separate from `db.ts`, which
@@ -7,7 +7,7 @@ import { type BillTo, type InvoiceDraft, type LineItem } from "~/app/invoices/_l
  * of both a browser and a database.
  */
 
-export function billTo(overrides: Partial<BillTo> = {}): BillTo {
+export function customerDetails(overrides: Partial<CustomerDetails> = {}): CustomerDetails {
   return {
     name: "Dana Reyes",
     company: "Reyes Building",
@@ -36,8 +36,8 @@ export function draft(overrides: Partial<InvoiceDraft> = {}): InvoiceDraft {
   return {
     isQuote: false,
     invoiceNumber: "INV-1001",
-    billTo: billTo(),
-    sourceCustomerId: null,
+    customerDetails: customerDetails(),
+    customerId: null,
     delivery: false,
     deliverySameAsBilling: true,
     poNumber: "",

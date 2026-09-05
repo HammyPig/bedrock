@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { validateDraft } from "~/app/invoices/_lib/invoice";
-import { billTo, draft, line } from "../support/drafts";
+import { customerDetails, draft, line } from "../support/drafts";
 
 /** V1-V4. What stops an invoice being saved, and the wording the user sees. */
 
@@ -30,9 +30,9 @@ test.describe("V2 the invoice needs someone to bill", () => {
   const nobody = { name: "", company: "", phone: "", email: "" };
 
   test("no name, company, phone or email is rejected", () => {
-    expect(validateDraft(draft({ billTo: billTo(nobody) }))?.billTo).toBe(
-      "Select a customer to bill.",
-    );
+    expect(
+      validateDraft(draft({ customerDetails: customerDetails(nobody) }))?.customerDetails,
+    ).toBe("Select a customer to bill.");
   });
 
   /**
@@ -49,7 +49,9 @@ test.describe("V2 the invoice needs someone to bill", () => {
 
   for (const { what, override } of enough) {
     test(`${what} alone is enough`, () => {
-      expect(validateDraft(draft({ billTo: billTo({ ...nobody, ...override }) }))).toBeNull();
+      expect(
+        validateDraft(draft({ customerDetails: customerDetails({ ...nobody, ...override }) })),
+      ).toBeNull();
     });
   }
 
@@ -61,9 +63,10 @@ test.describe("V2 the invoice needs someone to bill", () => {
       state: "NSW",
       postcode: "2007",
     };
-    expect(validateDraft(draft({ billTo: billTo({ ...nobody, billingAddress }) }))?.billTo).toBe(
-      "Select a customer to bill.",
-    );
+    expect(
+      validateDraft(draft({ customerDetails: customerDetails({ ...nobody, billingAddress }) }))
+        ?.customerDetails,
+    ).toBe("Select a customer to bill.");
   });
 });
 

@@ -7,15 +7,15 @@ import { computeTotals } from "~/app/invoices/_lib/money";
 import { addDaysIso, formatIsoDate, todayIsoDate } from "~/lib/dates";
 import { formatCents } from "~/lib/money";
 import { resetBusinessData, TEST_BUSINESS_ID, testDb } from "../support/db";
-import { billTo, draft, line, payment } from "../support/drafts";
+import { customerDetails, draft, line, payment } from "../support/drafts";
 import { CUSTOMERS, ITEMS, seedCatalog, seedCustomer, seedInvoice } from "../support/fixtures";
 import {
   actionBar,
   addressInput,
   balanceDue,
-  billToField,
-  billToFlash,
-  billToSection,
+  customerDetailsField,
+  customerDetailsFlash,
+  customerDetailsSection,
   deliveryCheckbox,
   documentType,
   dueDateText,
@@ -63,11 +63,11 @@ test.describe("customer section", () => {
   test("opens as a search and nothing else", async ({ page }) => {
     await gotoNewInvoice(page);
 
-    const picker = billToSection(page).getByRole("combobox");
+    const picker = customerDetailsSection(page).getByRole("combobox");
     await expect(picker).toBeVisible();
     await expect(picker).toHaveText("Search customers...");
     await expect(picker).toHaveAttribute("aria-expanded", "false");
-    await expect(billToField(page, "Name")).toBeHidden();
+    await expect(customerDetailsField(page, "Name")).toBeHidden();
     await expect(deliveryCheckbox(page)).toBeHidden();
   });
 
@@ -120,8 +120,8 @@ test.describe("customer section", () => {
     await expect(page.getByRole("option", { name: "Unnamed customer", exact: true })).toBeVisible();
 
     await page.getByRole("option", { name: "0433 777 888", exact: true }).click();
-    await expect(billToField(page, "Phone")).toHaveValue("0433 777 888");
-    await expect(billToSection(page).getByRole("combobox")).toHaveText(/0433 777 888/);
+    await expect(customerDetailsField(page, "Phone")).toHaveValue("0433 777 888");
+    await expect(customerDetailsSection(page).getByRole("combobox")).toHaveText(/0433 777 888/);
   });
 
   test("a search matching nobody still offers to create one", async ({ page }) => {
@@ -160,12 +160,12 @@ test.describe("customer section", () => {
         await expect(page.getByRole("option", { name: `New customer “${query}”` })).toBeVisible();
         await page.getByRole("option", { name: /^New customer/ }).click();
 
-        await expect(billToField(page, field)).toHaveValue(query);
-        await expect(billToField(page, field)).toBeFocused();
+        await expect(customerDetailsField(page, field)).toHaveValue(query);
+        await expect(customerDetailsField(page, field)).toBeFocused();
         for (const other of ["Name", "Company", "Phone", "Email"].filter((f) => f !== field)) {
-          await expect(billToField(page, other)).toHaveValue("");
+          await expect(customerDetailsField(page, other)).toHaveValue("");
         }
-        await expect(billToSection(page).getByRole("combobox")).toHaveText("New customer");
+        await expect(customerDetailsSection(page).getByRole("combobox")).toHaveText("New customer");
       });
     }
 
@@ -174,9 +174,9 @@ test.describe("customer section", () => {
       await openCustomerPicker(page);
       await page.getByRole("option", { name: "New customer", exact: true }).click();
 
-      await expect(billToField(page, "Name")).toBeVisible();
-      await expect(billToField(page, "Name")).toHaveValue("");
-      await expect(billToField(page, "Name")).toBeFocused();
+      await expect(customerDetailsField(page, "Name")).toBeVisible();
+      await expect(customerDetailsField(page, "Name")).toHaveValue("");
+      await expect(customerDetailsField(page, "Name")).toBeFocused();
     });
 
     /**
@@ -187,7 +187,7 @@ test.describe("customer section", () => {
     test("is only saved when the invoice is saved", async ({ page }) => {
       await gotoNewInvoice(page);
       await startNewCustomer(page, "Kelly Brooks");
-      await billToField(page, "Company").fill("Brooks Joinery");
+      await customerDetailsField(page, "Company").fill("Brooks Joinery");
       await page.getByLabel("Line 1 name").fill("Callout fee");
       await fillAndCommit(page.getByLabel("Line 1 unit price"), "150.00");
 
@@ -214,14 +214,14 @@ test.describe("customer section", () => {
 
       await pickCustomer(page, /Priya Nair/, "Acme");
 
-      await expect(billToField(page, "Name")).toHaveValue("Priya Nair");
-      await expect(billToField(page, "Company")).toHaveValue("Acme Constructions");
-      await expect(billToField(page, "Phone")).toHaveValue("02 9111 2222");
-      await expect(billToField(page, "Email")).toHaveValue("priya@acme.example");
+      await expect(customerDetailsField(page, "Name")).toHaveValue("Priya Nair");
+      await expect(customerDetailsField(page, "Company")).toHaveValue("Acme Constructions");
+      await expect(customerDetailsField(page, "Phone")).toHaveValue("02 9111 2222");
+      await expect(customerDetailsField(page, "Email")).toHaveValue("priya@acme.example");
       await expect(addressInput(page, "Billing")).toHaveValue(
         "14 Wharf Road, Level 3, Pyrmont NSW 2009",
       );
-      await expect(billToField(page, "Name")).toBeEditable();
+      await expect(customerDetailsField(page, "Name")).toBeEditable();
       await expect(editedMenu(page)).toBeHidden();
     });
 
@@ -230,8 +230,8 @@ test.describe("customer section", () => {
       await gotoNewInvoice(page);
       await pickCustomer(page, /Priya Nair/);
 
-      await replaceText(billToField(page, "Phone"), "02 9333 4444");
-      await billToField(page, "Email").click();
+      await replaceText(customerDetailsField(page, "Phone"), "02 9333 4444");
+      await customerDetailsField(page, "Email").click();
 
       expect(await savedCustomers()).toMatchObject([{ phone: "02 9111 2222" }]);
     });
@@ -242,10 +242,10 @@ test.describe("customer section", () => {
       await pickCustomer(page, /Priya Nair/);
       await expect(editedMenu(page)).toBeHidden();
 
-      await replaceText(billToField(page, "Phone"), "02 9333 4444");
+      await replaceText(customerDetailsField(page, "Phone"), "02 9333 4444");
       await expect(editedMenu(page)).toBeVisible();
 
-      await replaceText(billToField(page, "Phone"), "02 9111 2222");
+      await replaceText(customerDetailsField(page, "Phone"), "02 9111 2222");
       await expect(editedMenu(page)).toBeHidden();
     });
 
@@ -253,7 +253,7 @@ test.describe("customer section", () => {
       const customer = await seedCustomer(CUSTOMERS.acme);
       await gotoNewInvoice(page);
       await pickCustomer(page, /Priya Nair/);
-      await replaceText(billToField(page, "Phone"), "02 9333 4444");
+      await replaceText(customerDetailsField(page, "Phone"), "02 9333 4444");
 
       await editedMenu(page).click();
       await expect(page.getByRole("menuitem", { name: "Update saved customer" })).toBeVisible();
@@ -261,7 +261,7 @@ test.describe("customer section", () => {
       await expect(page.getByRole("menuitem", { name: /Save as new/ })).toBeHidden();
       await page.getByRole("menuitem", { name: "Update saved customer" }).click();
 
-      await expect(billToFlash(page)).toHaveText("Updated");
+      await expect(customerDetailsFlash(page)).toHaveText("Updated");
       await expect(editedMenu(page)).toBeHidden();
       expect(await savedCustomers()).toMatchObject([{ id: customer.id, phone: "02 9333 4444" }]);
     });
@@ -270,12 +270,12 @@ test.describe("customer section", () => {
       await seedCustomer(CUSTOMERS.acme);
       await gotoNewInvoice(page);
       await pickCustomer(page, /Priya Nair/);
-      await replaceText(billToField(page, "Phone"), "02 9333 4444");
+      await replaceText(customerDetailsField(page, "Phone"), "02 9333 4444");
 
       await editedMenu(page).click();
       await page.getByRole("menuitem", { name: "Reset to saved" }).click();
 
-      await expect(billToField(page, "Phone")).toHaveValue("02 9111 2222");
+      await expect(customerDetailsField(page, "Phone")).toHaveValue("02 9111 2222");
       await expect(editedMenu(page)).toBeHidden();
       expect(await savedCustomers()).toMatchObject([{ phone: "02 9111 2222" }]);
     });
@@ -284,7 +284,7 @@ test.describe("customer section", () => {
       const customer = await seedCustomer(CUSTOMERS.acme);
       await gotoNewInvoice(page);
       await fillMinimalInvoice(page, /Priya Nair/);
-      await replaceText(billToField(page, "Phone"), "02 9333 4444");
+      await replaceText(customerDetailsField(page, "Phone"), "02 9333 4444");
 
       await saveInvoice(page).click();
 
@@ -318,17 +318,19 @@ test.describe("customer section", () => {
       await gotoNewInvoice(page);
       await startNewCustomer(page, "Kelly Brooks");
 
-      await billToField(page, "Email").fill("kelly@brooks.example");
+      await customerDetailsField(page, "Email").fill("kelly@brooks.example");
       await page.keyboard.press("Space");
       await expect(
-        billToSection(page).getByRole("button", { name: "Remove kelly@brooks.example" }),
+        customerDetailsSection(page).getByRole("button", { name: "Remove kelly@brooks.example" }),
       ).toBeVisible();
-      await expect(billToField(page, "Email")).toHaveValue("");
+      await expect(customerDetailsField(page, "Email")).toHaveValue("");
 
-      await billToField(page, "Email").fill("accounts@brooks.example");
+      await customerDetailsField(page, "Email").fill("accounts@brooks.example");
       await page.keyboard.press("Space");
       await expect(
-        billToSection(page).getByRole("button", { name: "Remove accounts@brooks.example" }),
+        customerDetailsSection(page).getByRole("button", {
+          name: "Remove accounts@brooks.example",
+        }),
       ).toBeVisible();
     });
 
@@ -337,14 +339,14 @@ test.describe("customer section", () => {
       await gotoNewInvoice(page);
       await startNewCustomer(page, "Kelly Brooks");
 
-      await billToField(page, "Email").fill("kelly@brooks.example");
+      await customerDetailsField(page, "Email").fill("kelly@brooks.example");
       await page.keyboard.press("Space");
-      await billToSection(page)
+      await customerDetailsSection(page)
         .getByRole("button", { name: "Remove kelly@brooks.example" })
         .click();
 
       await expect(
-        billToSection(page).getByRole("button", { name: "Remove kelly@brooks.example" }),
+        customerDetailsSection(page).getByRole("button", { name: "Remove kelly@brooks.example" }),
       ).toBeHidden();
     });
   });
@@ -362,10 +364,10 @@ test.describe("customer section", () => {
       await deliveryCheckbox(page).check();
 
       await pickCustomer(page, /0433 777 888/);
-      await expect(billToField(page, "Phone")).toHaveValue("0433 777 888");
-      await expect(billToField(page, "Name")).toHaveValue("");
-      await expect(billToField(page, "Company")).toHaveValue("");
-      await expect(billToField(page, "Email")).toHaveValue("");
+      await expect(customerDetailsField(page, "Phone")).toHaveValue("0433 777 888");
+      await expect(customerDetailsField(page, "Name")).toHaveValue("");
+      await expect(customerDetailsField(page, "Company")).toHaveValue("");
+      await expect(customerDetailsField(page, "Email")).toHaveValue("");
       await expect(page.getByLabel("Billing address search")).toBeVisible();
       await expect(deliveryCheckbox(page)).not.toBeChecked();
 
@@ -373,9 +375,9 @@ test.describe("customer section", () => {
       await deliveryCheckbox(page).check();
 
       await pickCustomer(page, /Priya Nair/);
-      await expect(billToField(page, "Name")).toHaveValue("Priya Nair");
-      await expect(billToField(page, "Company")).toHaveValue("Acme Constructions");
-      await expect(billToField(page, "Email")).toHaveValue("priya@acme.example");
+      await expect(customerDetailsField(page, "Name")).toHaveValue("Priya Nair");
+      await expect(customerDetailsField(page, "Company")).toHaveValue("Acme Constructions");
+      await expect(customerDetailsField(page, "Email")).toHaveValue("priya@acme.example");
       await expect(addressInput(page, "Billing")).toHaveValue(
         "14 Wharf Road, Level 3, Pyrmont NSW 2009",
       );
@@ -392,7 +394,7 @@ test.describe("customer section", () => {
 
       await startNewCustomer(page);
       for (const field of ["Name", "Company", "Phone", "Email"]) {
-        await expect(billToField(page, field)).toHaveValue("");
+        await expect(customerDetailsField(page, field)).toHaveValue("");
       }
       await expect(page.getByLabel("Billing address search")).toBeVisible();
       await expect(deliveryCheckbox(page)).not.toBeChecked();
@@ -406,20 +408,20 @@ test.describe("customer section", () => {
       await gotoNewInvoice(page);
 
       await startNewCustomer(page, "Kelly Brooks");
-      await billToField(page, "Company").fill("Brooks Joinery");
+      await customerDetailsField(page, "Company").fill("Brooks Joinery");
       await deliveryCheckbox(page).check();
 
       await startNewCustomer(page);
-      await expect(billToField(page, "Name")).toHaveValue("Kelly Brooks");
-      await expect(billToField(page, "Company")).toHaveValue("Brooks Joinery");
+      await expect(customerDetailsField(page, "Name")).toHaveValue("Kelly Brooks");
+      await expect(customerDetailsField(page, "Company")).toHaveValue("Brooks Joinery");
       await expect(deliveryCheckbox(page)).toBeChecked();
 
       await pickCustomer(page, /Priya Nair/);
-      await replaceText(billToField(page, "Phone"), "02 9333 4444");
+      await replaceText(customerDetailsField(page, "Phone"), "02 9333 4444");
       await deliveryCheckbox(page).check();
 
       await pickCustomer(page, /Priya Nair/);
-      await expect(billToField(page, "Phone")).toHaveValue("02 9333 4444");
+      await expect(customerDetailsField(page, "Phone")).toHaveValue("02 9333 4444");
       await expect(editedMenu(page)).toBeVisible();
       await expect(deliveryCheckbox(page)).toBeChecked();
     });
@@ -448,7 +450,7 @@ test.describe("customer section", () => {
       await page.getByLabel("Billing state").fill("NSW");
       await page.getByLabel("Billing postcode").fill("2007");
 
-      await billToField(page, "Company").click();
+      await customerDetailsField(page, "Company").click();
       await expect(addressInput(page, "Billing")).toHaveValue("9 Bay Street, Ultimo NSW 2007");
     });
 
@@ -467,7 +469,7 @@ test.describe("customer section", () => {
       await expect(page.getByLabel("Billing state")).toHaveValue("NSW");
       await expect(page.getByLabel("Billing postcode")).toHaveValue("2009");
 
-      await billToField(page, "Company").click();
+      await customerDetailsField(page, "Company").click();
       await expect(oneLine).toBeVisible();
       await expect(page.getByLabel("Billing address line 1")).toBeHidden();
     });
@@ -502,7 +504,7 @@ test.describe("customer section", () => {
       await pickCustomer(page, /Sam Okafor/);
       await deliveryCheckbox(page).check();
 
-      await expect(billToSection(page).getByText("Same as billing address")).toBeVisible();
+      await expect(customerDetailsSection(page).getByText("Same as billing address")).toBeVisible();
     });
 
     test("defaults to a separate address when the customer has one", async ({ page }) => {
@@ -512,7 +514,7 @@ test.describe("customer section", () => {
       await pickCustomer(page, /Priya Nair/);
       await deliveryCheckbox(page).check();
 
-      await expect(billToSection(page).getByText("Same as billing address")).toBeHidden();
+      await expect(customerDetailsSection(page).getByText("Same as billing address")).toBeHidden();
       await expect(addressInput(page, "Delivery")).toHaveValue(
         "88 Depot Lane, Alexandria NSW 2015",
       );
@@ -524,12 +526,16 @@ test.describe("customer section", () => {
       await pickCustomer(page, /Sam Okafor/);
       await deliveryCheckbox(page).check();
 
-      await billToSection(page).getByRole("button", { name: "Use different address" }).click();
-      await expect(billToSection(page).getByText("Same as billing address")).toBeHidden();
+      await customerDetailsSection(page)
+        .getByRole("button", { name: "Use different address" })
+        .click();
+      await expect(customerDetailsSection(page).getByText("Same as billing address")).toBeHidden();
       await expect(page.getByLabel("Delivery address search")).toBeVisible();
 
-      await billToSection(page).getByRole("button", { name: "Use billing address" }).click();
-      await expect(billToSection(page).getByText("Same as billing address")).toBeVisible();
+      await customerDetailsSection(page)
+        .getByRole("button", { name: "Use billing address" })
+        .click();
+      await expect(customerDetailsSection(page).getByText("Same as billing address")).toBeVisible();
     });
   });
 });
@@ -1147,7 +1153,7 @@ test.describe("the action bar", () => {
   // test.describe("sending the invoice", { tag: "@tbd" }, () => {
   //   function emailableInvoice(email = "priya@acme.example") {
   //     return seedInvoice(
-  //       draft({ invoiceNumber: "INV-0900", billTo: billTo({ email }), lineItems: [line()] }),
+  //       draft({ invoiceNumber: "INV-0900", customerDetails: customerDetails({ email }), lineItems: [line()] }),
   //     );
   //   }
 
@@ -1238,7 +1244,7 @@ test.describe("the action bar", () => {
       return seedInvoice(
         draft({
           invoiceNumber: "INV-0900",
-          billTo: billTo({
+          customerDetails: customerDetails({
             name: "Priya Nair",
             company: "Acme Constructions",
             email: "priya@acme.example",

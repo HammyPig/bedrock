@@ -12,7 +12,7 @@ export async function gotoNewInvoice(page: Page) {
 }
 
 /** The bill-to section, anchored on its own label. */
-export function billToSection(page: Page): Locator {
+export function customerDetailsSection(page: Page): Locator {
   return page.locator("section").filter({ has: page.getByText("Bill to", { exact: true }) });
 }
 
@@ -21,8 +21,8 @@ export function billToSection(page: Page): Locator {
  * there is no read-only mode to toggle out of, so this is both how a test reads
  * a value back and how it changes one.
  */
-export function billToField(page: Page, label: string): Locator {
-  return billToSection(page).getByLabel(label, { exact: true });
+export function customerDetailsField(page: Page, label: string): Locator {
+  return customerDetailsSection(page).getByLabel(label, { exact: true });
 }
 
 /**
@@ -31,7 +31,7 @@ export function billToField(page: Page, label: string): Locator {
  * popover portals out of the section, so this stays unambiguous while open.
  */
 export async function openCustomerPicker(page: Page) {
-  await billToSection(page).getByRole("combobox").click();
+  await customerDetailsSection(page).getByRole("combobox").click();
 }
 
 export async function pickCustomer(page: Page, name: string | RegExp, query?: string) {
@@ -53,12 +53,12 @@ export async function startNewCustomer(page: Page, query?: string) {
  * means nothing has diverged.
  */
 export function editedMenu(page: Page): Locator {
-  return billToSection(page).getByRole("button", { name: "Edited" });
+  return customerDetailsSection(page).getByRole("button", { name: "Edited" });
 }
 
 /** The ✓ note the section flashes after it writes to a customer record. */
-export function billToFlash(page: Page): Locator {
-  return billToSection(page).getByText(/^(Saved|Updated)$/);
+export function customerDetailsFlash(page: Page): Locator {
+  return customerDetailsSection(page).getByText(/^(Saved|Updated)$/);
 }
 
 /**
