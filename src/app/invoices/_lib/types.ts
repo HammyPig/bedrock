@@ -2,9 +2,6 @@ import { type SavedItem } from "~/lib/items";
 
 export type PaymentTerms = "due_on_receipt" | "net_7" | "net_14" | "net_30" | "custom";
 
-/** What the document is: a quote can later be switched to an invoice (and back). */
-export type DocumentType = "invoice" | "quote";
-
 /** A pricing tier as the UI needs it (Tiered pricing module). */
 export interface Tier {
   id: string;
@@ -59,7 +56,8 @@ export interface Customer {
 export type BillTo = Omit<Customer, "id">;
 
 export interface InvoiceDraft {
-  documentType: DocumentType;
+  /** A quote rather than an invoice: not payable, and switchable to an invoice (and back). */
+  isQuote: boolean;
   invoiceNumber: string;
   billTo: BillTo;
   /** Saved customer these details were filled from; null for walk-up/manual entry. */
@@ -131,7 +129,7 @@ export type InvoiceStatus = "unpaid" | "overdue" | "paid";
 /** Row shape for the invoice list, derived from an Invoice. */
 export interface InvoiceSummary {
   id: string;
-  documentType: DocumentType;
+  isQuote: boolean;
   invoiceNumber: string;
   customerName: string;
   /** ISO date, YYYY-MM-DD. */

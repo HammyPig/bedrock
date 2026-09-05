@@ -25,7 +25,7 @@ export const STATUS_FILTER_OPTIONS: { value: StatusFilter; label: string }[] = [
 export function summarizeInvoice({ id, draft, payments }: Invoice): InvoiceSummary {
   return {
     id,
-    documentType: draft.documentType,
+    isQuote: draft.isQuote,
     invoiceNumber: draft.invoiceNumber,
     customerName: customerDisplayName(draft.billTo),
     issueDate: draft.issueDate,
@@ -40,7 +40,7 @@ export function summarizeInvoice({ id, draft, payments }: Invoice): InvoiceSumma
 
 /** Quotes aren't payable, so nothing is owing on them. */
 export function balanceCents(invoice: InvoiceSummary): number {
-  return invoice.documentType === "quote" ? 0 : invoice.totalCents - invoice.paidCents;
+  return invoice.isQuote ? 0 : invoice.totalCents - invoice.paidCents;
 }
 
 /**
@@ -54,5 +54,5 @@ export function invoiceStatus(invoice: InvoiceSummary, todayIso: string): Invoic
 
 /** Status shown in the list: quotes get a flat "quote" badge instead of a payment status. */
 export function listStatus(invoice: InvoiceSummary, todayIso: string): ListStatus {
-  return invoice.documentType === "quote" ? "quote" : invoiceStatus(invoice, todayIso);
+  return invoice.isQuote ? "quote" : invoiceStatus(invoice, todayIso);
 }

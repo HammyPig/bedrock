@@ -26,7 +26,7 @@ export const lineItemBaseInput = z.object({
 const lineItemInput = lineItemBaseInput.extend({ backordered: z.boolean() });
 
 const draftInput = z.object({
-  documentType: z.enum(["invoice", "quote"]),
+  isQuote: z.boolean(),
   invoiceNumber: z.string().min(1).max(64),
   billTo: billToInput,
   sourceCustomerId: z.string().max(255).nullable(),
@@ -64,7 +64,7 @@ function toInvoice(row: InvoiceRow): Invoice {
   return {
     id: row.id,
     draft: {
-      documentType: row.documentType,
+      isQuote: row.isQuote,
       invoiceNumber: row.invoiceNumber,
       billTo: row.billTo,
       sourceCustomerId: row.sourceCustomerId,
@@ -219,7 +219,7 @@ export const invoiceRouter = createTRPCRouter({
       });
       // Balances come from the database, not the client, so a stale page can't over-record.
       const values = rows.flatMap((row) => {
-        if (row.documentType === "quote") return [];
+        if (row.isQuote) return [];
         const { balanceCents } = computeTotals(row, paymentsTotalCents(row.payments));
         return balanceCents > 0
           ? [{ invoiceId: row.id, amountCents: balanceCents, paidDate: input.paidDate }]

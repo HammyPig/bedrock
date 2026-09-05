@@ -4,7 +4,6 @@ import {
   type Address,
   type BillTo,
   type Customer,
-  type DocumentType,
   type DraftErrors,
   type InvoiceDraft,
   type LineItem,
@@ -12,9 +11,9 @@ import {
   type PaymentTerms,
 } from "./types";
 
-export const DOCUMENT_TYPE_OPTIONS: { value: DocumentType; label: string }[] = [
-  { value: "invoice", label: "Invoice" },
-  { value: "quote", label: "Quote" },
+export const DOCUMENT_TYPE_OPTIONS: { isQuote: boolean; label: string }[] = [
+  { isQuote: false, label: "Invoice" },
+  { isQuote: true, label: "Quote" },
 ];
 
 export const PAYMENT_TERMS_OPTIONS: { value: PaymentTerms; label: string }[] = [
@@ -170,8 +169,9 @@ export function validateDraft(draft: InvoiceDraft): DraftErrors | null {
 
   const errors: DraftErrors = { invalidLineItemIds };
   if (draft.invoiceNumber.trim() === "") {
-    errors.invoiceNumber =
-      draft.documentType === "quote" ? "Quote number is required." : "Invoice number is required.";
+    errors.invoiceNumber = draft.isQuote
+      ? "Quote number is required."
+      : "Invoice number is required.";
   }
   if (!billToHasIdentity(draft.billTo)) {
     errors.billTo = "Select a customer to bill.";

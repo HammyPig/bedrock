@@ -2,13 +2,7 @@ import { relations } from "drizzle-orm";
 import { index, pgTableCreator, primaryKey, uniqueIndex } from "drizzle-orm/pg-core";
 import { type AdapterAccount } from "next-auth/adapters";
 
-import type {
-  Address,
-  BillTo,
-  Discount,
-  DocumentType,
-  PaymentTerms,
-} from "~/app/invoices/_lib/types";
+import type { Address, BillTo, Discount, PaymentTerms } from "~/app/invoices/_lib/types";
 import type { VendorDetails } from "~/app/purchase-orders/_lib/types";
 import {
   DEFAULT_EMAIL_BODY,
@@ -334,7 +328,7 @@ export const invoices = createTable(
       .varchar({ length: 255 })
       .notNull()
       .references(() => businesses.id),
-    documentType: d.varchar({ length: 16 }).$type<DocumentType>().notNull().default("invoice"),
+    isQuote: d.boolean().notNull().default(false),
     invoiceNumber: d.varchar({ length: 64 }).notNull(),
     billTo: d.jsonb().$type<BillTo>().notNull(),
     sourceCustomerId: d.varchar({ length: 255 }),
