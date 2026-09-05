@@ -236,8 +236,8 @@ export function PurchaseOrderPdf({ draft, settings }: PurchaseOrderPdfProps) {
                 value={`-${formatCents(totals.discountCents)}`}
               />
             )}
-            {draft.freightCents > 0 && (
-              <TotalsRow label="Freight" value={formatCents(draft.freightCents)} />
+            {draft.deliveryCents > 0 && (
+              <TotalsRow label="Delivery" value={formatCents(draft.deliveryCents)} />
             )}
             {draft.taxRatePercent > 0 && (
               <TotalsRow

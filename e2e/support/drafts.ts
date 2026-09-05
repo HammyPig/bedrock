@@ -45,7 +45,7 @@ export function draft(overrides: Partial<InvoiceDraft> = {}): InvoiceDraft {
     customDueDate: null,
     lineItems: [line()],
     discount: null,
-    freightCents: 0,
+    deliveryCents: 0,
     taxRatePercent: 10,
     notes: "",
     ...overrides,

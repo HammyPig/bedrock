@@ -24,7 +24,7 @@ export interface PurchaseOrderDraft {
   expectedDate: string | null;
   lineItems: LineItemBase[];
   discount: Discount | null;
-  freightCents: number;
+  deliveryCents: number;
   taxRatePercent: number;
   notes: string;
 }

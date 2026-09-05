@@ -951,7 +951,7 @@ test.describe("balance section", () => {
   //   await gotoNewInvoice(page);
   //   await page.getByLabel("Line 1 name").fill("Widget");
   //   await fillAndCommit(page.getByLabel("Line 1 unit price"), "100");
-  //   await fillAndCommit(page.getByLabel("Freight"), "20");
+  //   await fillAndCommit(page.getByLabel("Delivery", { exact: true }), "20");
 
   //   await expect(totalsAmount(page, "GST")).toHaveText("$12.00");
   // });
@@ -960,7 +960,7 @@ test.describe("balance section", () => {
   //   await gotoNewInvoice(page);
   //   await page.getByLabel("Line 1 name").fill("Widget");
   //   await fillAndCommit(page.getByLabel("Line 1 unit price"), "100");
-  //   await fillAndCommit(page.getByLabel("Freight"), "20");
+  //   await fillAndCommit(page.getByLabel("Delivery", { exact: true }), "20");
 
   //   await expect(totalsAmount(page, "Total")).toHaveText("$132.00");
   // });
@@ -972,12 +972,12 @@ test.describe("balance section", () => {
   //   await fillAndCommit(page.getByLabel("Line 1 unit price"), "19.99");
   //   await totalsPanel(page).getByRole("button", { name: "Add discount" }).click();
   //   await fillAndCommit(page.getByLabel("Discount percent"), "15");
-  //   await fillAndCommit(page.getByLabel("Freight"), "12.50");
+  //   await fillAndCommit(page.getByLabel("Delivery", { exact: true }), "12.50");
 
   //   const expected = computeTotals({
   //     lineItems: [line({ quantity: 3, unitPriceCents: 1999 })],
   //     discount: { mode: "percent", percent: 15 },
-  //     freightCents: 1250,
+  //     deliveryCents: 1250,
   //     taxRatePercent: 10,
   //   });
   //   await expect(balanceDue(page)).toHaveText(formatCents(expected.balanceCents));
@@ -1271,7 +1271,7 @@ test.describe("the action bar", () => {
             }),
           ],
           discount: { mode: "fixed", amountCents: 2500 },
-          freightCents: 1500,
+          deliveryCents: 1500,
           taxRatePercent: 10,
           notes: "Backordered items to follow.",
           payments: [payment()],

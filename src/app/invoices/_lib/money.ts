@@ -15,7 +15,7 @@ export function computeTotals(
   draft: {
     lineItems: LineItemBase[];
     discount: Discount | null;
-    freightCents: number;
+    deliveryCents: number;
     taxRatePercent: number;
   },
   paidCents = 0,
@@ -30,8 +30,8 @@ export function computeTotals(
         : Math.min(draft.discount.amountCents, subtotalCents);
   }
 
-  // Freight is part of the GST base.
-  const taxableCents = subtotalCents - discountCents + draft.freightCents;
+  // Delivery is part of the GST base.
+  const taxableCents = subtotalCents - discountCents + draft.deliveryCents;
   const taxCents = Math.round((taxableCents * draft.taxRatePercent) / 100);
   const totalCents = taxableCents + taxCents;
 

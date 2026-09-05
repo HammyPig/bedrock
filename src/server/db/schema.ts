@@ -342,7 +342,7 @@ export const invoices = createTable(
     terms: d.varchar({ length: 16 }).$type<PaymentTerms>().notNull(),
     customDueDate: d.date({ mode: "string" }),
     discount: d.jsonb().$type<Discount>(),
-    freightCents: d.integer().notNull(),
+    deliveryCents: d.integer().notNull(),
     taxRatePercent: d.doublePrecision().notNull(),
     notes: d.text().notNull(),
     createdAt: d
@@ -478,7 +478,7 @@ export const purchaseOrders = createTable(
     orderDate: d.date({ mode: "string" }).notNull(),
     expectedDate: d.date({ mode: "string" }),
     discount: d.jsonb().$type<Discount>(),
-    freightCents: d.integer().notNull(),
+    deliveryCents: d.integer().notNull(),
     taxRatePercent: d.doublePrecision().notNull(),
     notes: d.text().notNull(),
     createdAt: d

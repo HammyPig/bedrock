@@ -27,7 +27,7 @@ function createInitialDraft(poNumber: string): PurchaseOrderDraft {
     expectedDate: null,
     lineItems: [makeLineItemBase()],
     discount: null,
-    freightCents: 0,
+    deliveryCents: 0,
     taxRatePercent: 10,
     notes: "",
   };
@@ -200,7 +200,7 @@ export function PurchaseOrderForm({
             <TotalsPanel
               totals={totals}
               discount={draft.discount}
-              freightCents={draft.freightCents}
+              deliveryCents={draft.deliveryCents}
               taxRatePercent={draft.taxRatePercent}
               dispatch={dispatch}
             />

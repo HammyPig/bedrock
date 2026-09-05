@@ -75,7 +75,7 @@ export interface InvoiceDraft {
   customDueDate: string | null;
   lineItems: LineItem[];
   discount: Discount | null;
-  freightCents: number;
+  deliveryCents: number;
   taxRatePercent: number;
   notes: string;
 }

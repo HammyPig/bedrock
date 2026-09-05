@@ -13,7 +13,7 @@ import { type PurchaseOrderAction } from "../_lib/types";
 interface TotalsPanelProps {
   totals: Totals;
   discount: Discount | null;
-  freightCents: number;
+  deliveryCents: number;
   taxRatePercent: number;
   dispatch: (action: PurchaseOrderAction) => void;
 }
@@ -21,7 +21,7 @@ interface TotalsPanelProps {
 export function TotalsPanel({
   totals,
   discount,
-  freightCents,
+  deliveryCents,
   taxRatePercent,
   dispatch,
 }: TotalsPanelProps) {
@@ -110,15 +110,15 @@ export function TotalsPanel({
       )}
 
       <div className="flex items-center justify-between gap-2">
-        <label htmlFor="freight" className="text-muted-foreground text-sm">
-          Freight
+        <label htmlFor="delivery-cents" className="text-muted-foreground text-sm">
+          Delivery
         </label>
         <MoneyInput
-          id="freight"
+          id="delivery-cents"
           className="h-7 w-24 px-1.5 text-sm"
-          valueCents={freightCents}
+          valueCents={deliveryCents}
           onValueCentsChange={(cents) =>
-            dispatch({ type: "patch", patch: { freightCents: cents } })
+            dispatch({ type: "patch", patch: { deliveryCents: cents } })
           }
         />
       </div>

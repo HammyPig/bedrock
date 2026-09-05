@@ -264,8 +264,8 @@ export function InvoicePdf({ draft, settings, paidCents }: InvoicePdfProps) {
                 value={`-${formatCents(totals.discountCents)}`}
               />
             )}
-            {draft.freightCents > 0 && (
-              <TotalsRow label="Freight" value={formatCents(draft.freightCents)} />
+            {draft.deliveryCents > 0 && (
+              <TotalsRow label="Delivery" value={formatCents(draft.deliveryCents)} />
             )}
             {draft.taxRatePercent > 0 && (
               <TotalsRow

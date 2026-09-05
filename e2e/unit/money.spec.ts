@@ -79,12 +79,12 @@ test.describe("M4 a fixed discount", () => {
     expect(totals.totalCents).toBe(0);
   });
 
-  test("clamps at the subtotal only — freight still bills and is still taxed", () => {
+  test("clamps at the subtotal only — delivery still bills and is still taxed", () => {
     const totals = computeTotals(
       draft({
         lineItems: [line({ unitPriceCents: 5000 })],
         discount: { mode: "fixed", amountCents: 999_999 },
-        freightCents: 1000,
+        deliveryCents: 1000,
         taxRatePercent: 10,
       }),
     );
@@ -94,12 +94,12 @@ test.describe("M4 a fixed discount", () => {
   });
 });
 
-test("M5 GST is charged on the discounted subtotal plus freight", () => {
+test("M5 GST is charged on the discounted subtotal plus delivery", () => {
   const totals = computeTotals(
     draft({
       lineItems: [line({ unitPriceCents: 12_000 })],
       discount: { mode: "fixed", amountCents: 2000 },
-      freightCents: 1000,
+      deliveryCents: 1000,
       taxRatePercent: 10,
     }),
   );
@@ -107,11 +107,11 @@ test("M5 GST is charged on the discounted subtotal plus freight", () => {
   expect(totals.taxCents).toBe(1100);
 });
 
-test("M6 the total is subtotal less discount, plus freight, plus GST", () => {
+test("M6 the total is subtotal less discount, plus delivery, plus GST", () => {
   const totals = computeTotals(
     draft({
       lineItems: [line({ unitPriceCents: 10_000 })],
-      freightCents: 1000,
+      deliveryCents: 1000,
       taxRatePercent: 10,
     }),
   );
@@ -126,7 +126,7 @@ test("M6 the total is subtotal less discount, plus freight, plus GST", () => {
 test.describe("M7 balance due", () => {
   const invoice = draft({
     lineItems: [line({ unitPriceCents: 10_000 })],
-    freightCents: 1000,
+    deliveryCents: 1000,
     taxRatePercent: 10,
   });
 

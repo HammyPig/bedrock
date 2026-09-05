@@ -48,7 +48,7 @@ function createInitialDraft(invoiceNumber: string): InvoiceDraft {
     customDueDate: null,
     lineItems: [makeLineItem()],
     discount: null,
-    freightCents: 0,
+    deliveryCents: 0,
     taxRatePercent: 10,
     notes: "",
   };
@@ -384,7 +384,7 @@ export function InvoiceForm({
             <TotalsPanel
               totals={totals}
               discount={draft.discount}
-              freightCents={draft.freightCents}
+              deliveryCents={draft.deliveryCents}
               taxRatePercent={draft.taxRatePercent}
               invoiceId={invoiceId}
               isQuote={draft.isQuote}

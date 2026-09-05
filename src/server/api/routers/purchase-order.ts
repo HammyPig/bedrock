@@ -30,7 +30,7 @@ const draftInput = z.object({
       z.object({ mode: z.literal("fixed"), amountCents: z.number().int().min(0) }),
     ])
     .nullable(),
-  freightCents: z.number().int().min(0),
+  deliveryCents: z.number().int().min(0),
   taxRatePercent: z.number().min(0),
   notes: z.string(),
 }) satisfies z.ZodType<PurchaseOrderDraft>;
@@ -57,7 +57,7 @@ function toPurchaseOrder(row: PurchaseOrderRow): PurchaseOrder {
         discountPercent: line.discountPercent,
       })),
       discount: row.discount,
-      freightCents: row.freightCents,
+      deliveryCents: row.deliveryCents,
       taxRatePercent: row.taxRatePercent,
       notes: row.notes,
     },
