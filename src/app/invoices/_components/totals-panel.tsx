@@ -40,7 +40,12 @@ export function TotalsPanel({
 }: TotalsPanelProps) {
   const setDiscountMode = (mode: DiscountMode) => {
     if (discount?.mode !== mode) {
-      dispatch({ type: "patch", patch: { discount: { mode, value: 0 } } });
+      dispatch({
+        type: "patch",
+        patch: {
+          discount: mode === "percent" ? { mode, percent: 0 } : { mode, amountCents: 0 },
+        },
+      });
     }
   };
 
@@ -57,7 +62,7 @@ export function TotalsPanel({
           size="sm"
           className="h-auto p-0"
           onClick={() =>
-            dispatch({ type: "patch", patch: { discount: { mode: "percent", value: 0 } } })
+            dispatch({ type: "patch", patch: { discount: { mode: "percent", percent: 0 } } })
           }
         >
           Add discount
@@ -88,9 +93,9 @@ export function TotalsPanel({
                 className="h-7 w-14 px-1.5 text-sm"
                 aria-label="Discount percent"
                 max={100}
-                value={discount.value}
-                onValueChange={(value) =>
-                  dispatch({ type: "patch", patch: { discount: { mode: "percent", value } } })
+                value={discount.percent}
+                onValueChange={(percent) =>
+                  dispatch({ type: "patch", patch: { discount: { mode: "percent", percent } } })
                 }
               />
             ) : (
@@ -98,9 +103,9 @@ export function TotalsPanel({
                 plain
                 className="h-7 w-20 px-1.5 text-sm"
                 aria-label="Discount amount"
-                valueCents={discount.value}
-                onValueCentsChange={(value) =>
-                  dispatch({ type: "patch", patch: { discount: { mode: "fixed", value } } })
+                valueCents={discount.amountCents}
+                onValueCentsChange={(amountCents) =>
+                  dispatch({ type: "patch", patch: { discount: { mode: "fixed", amountCents } } })
                 }
               />
             )}

@@ -51,7 +51,7 @@ test("M3 a percent discount comes off the subtotal", () => {
   const totals = computeTotals(
     draft({
       lineItems: [line({ unitPriceCents: 10_000 })],
-      discount: { mode: "percent", value: 15 },
+      discount: { mode: "percent", percent: 15 },
     }),
   );
   expect(totals.discountCents).toBe(1500);
@@ -62,7 +62,7 @@ test.describe("M4 a fixed discount", () => {
     const totals = computeTotals(
       draft({
         lineItems: [line({ unitPriceCents: 10_000 })],
-        discount: { mode: "fixed", value: 2500 },
+        discount: { mode: "fixed", amountCents: 2500 },
       }),
     );
     expect(totals.discountCents).toBe(2500);
@@ -72,7 +72,7 @@ test.describe("M4 a fixed discount", () => {
     const totals = computeTotals(
       draft({
         lineItems: [line({ unitPriceCents: 5000 })],
-        discount: { mode: "fixed", value: 999_999 },
+        discount: { mode: "fixed", amountCents: 999_999 },
       }),
     );
     expect(totals.discountCents).toBe(5000);
@@ -83,7 +83,7 @@ test.describe("M4 a fixed discount", () => {
     const totals = computeTotals(
       draft({
         lineItems: [line({ unitPriceCents: 5000 })],
-        discount: { mode: "fixed", value: 999_999 },
+        discount: { mode: "fixed", amountCents: 999_999 },
         freightCents: 1000,
         taxRatePercent: 10,
       }),
@@ -98,7 +98,7 @@ test("M5 GST is charged on the discounted subtotal plus freight", () => {
   const totals = computeTotals(
     draft({
       lineItems: [line({ unitPriceCents: 12_000 })],
-      discount: { mode: "fixed", value: 2000 },
+      discount: { mode: "fixed", amountCents: 2000 },
       freightCents: 1000,
       taxRatePercent: 10,
     }),
@@ -158,7 +158,7 @@ test.describe("M8 half-cent amounts round up", () => {
     const totals = computeTotals(
       draft({
         lineItems: [line({ unitPriceCents: 101 })],
-        discount: { mode: "percent", value: 50 },
+        discount: { mode: "percent", percent: 50 },
       }),
     );
     expect(totals.discountCents).toBe(51);

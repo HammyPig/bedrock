@@ -42,7 +42,12 @@ const draftInput = z.object({
       (lines) => new Set(lines.map((line) => line.id)).size === lines.length,
       "Line item ids must be unique.",
     ),
-  discount: z.object({ mode: z.enum(["percent", "fixed"]), value: z.number().min(0) }).nullable(),
+  discount: z
+    .discriminatedUnion("mode", [
+      z.object({ mode: z.literal("percent"), percent: z.number().min(0) }),
+      z.object({ mode: z.literal("fixed"), amountCents: z.number().int().min(0) }),
+    ])
+    .nullable(),
   freightCents: z.number().int().min(0),
   taxRatePercent: z.number().min(0),
   notes: z.string(),

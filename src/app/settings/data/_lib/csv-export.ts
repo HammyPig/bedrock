@@ -122,8 +122,8 @@ export function invoicesCsv(invoices: Invoice[]): string {
       draft.discount === null
         ? ""
         : draft.discount.mode === "fixed"
-          ? dollars(draft.discount.value)
-          : String(draft.discount.value),
+          ? dollars(draft.discount.amountCents)
+          : String(draft.discount.percent),
       dollars(paymentsTotalCents(payments)),
       draft.notes,
     ]),

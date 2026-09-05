@@ -976,7 +976,7 @@ test.describe("balance section", () => {
 
   //   const expected = computeTotals({
   //     lineItems: [line({ quantity: 3, unitPriceCents: 1999 })],
-  //     discount: { mode: "percent", value: 15 },
+  //     discount: { mode: "percent", percent: 15 },
   //     freightCents: 1250,
   //     taxRatePercent: 10,
   //   });
@@ -1270,7 +1270,7 @@ test.describe("the action bar", () => {
               backordered: true,
             }),
           ],
-          discount: { mode: "fixed", value: 2500 },
+          discount: { mode: "fixed", amountCents: 2500 },
           freightCents: 1500,
           taxRatePercent: 10,
           notes: "Backordered items to follow.",

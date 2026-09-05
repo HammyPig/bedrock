@@ -10,11 +10,13 @@ export interface Tier {
 
 export type DiscountMode = "percent" | "fixed";
 
-export interface Discount {
-  mode: DiscountMode;
-  /** Percent (0-100) when mode is "percent", cents when mode is "fixed". */
-  value: number;
-}
+/**
+ * The two modes carry different units, so they carry different fields — a
+ * percent can never be misread as cents. Fixed amounts are integer cents.
+ */
+export type Discount =
+  | { mode: "percent"; percent: number }
+  | { mode: "fixed"; amountCents: number };
 
 /** Line-item fields shared with purchase orders. */
 export interface LineItemBase {

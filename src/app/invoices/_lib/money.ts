@@ -26,8 +26,8 @@ export function computeTotals(
   if (draft.discount) {
     discountCents =
       draft.discount.mode === "percent"
-        ? Math.round((subtotalCents * draft.discount.value) / 100)
-        : Math.min(draft.discount.value, subtotalCents);
+        ? Math.round((subtotalCents * draft.discount.percent) / 100)
+        : Math.min(draft.discount.amountCents, subtotalCents);
   }
 
   // Freight is part of the GST base.

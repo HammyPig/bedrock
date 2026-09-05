@@ -258,7 +258,7 @@ export function InvoicePdf({ draft, settings, paidCents }: InvoicePdfProps) {
               <TotalsRow
                 label={
                   draft.discount?.mode === "percent"
-                    ? `Discount (${draft.discount.value}%)`
+                    ? `Discount (${draft.discount.percent}%)`
                     : "Discount"
                 }
                 value={`-${formatCents(totals.discountCents)}`}
