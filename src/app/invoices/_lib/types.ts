@@ -64,7 +64,7 @@ export interface InvoiceDraft {
    * in — their record is created, and this filled, on save. */
   customerId: string | null;
   /** Per-invoice fulfillment flags — not part of the customer snapshot. */
-  delivery: boolean;
+  hasDeliveryAddress: boolean;
   deliverySameAsBilling: boolean;
   poNumber: string;
   /** ISO date, YYYY-MM-DD. */

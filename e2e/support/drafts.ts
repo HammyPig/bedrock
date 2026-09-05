@@ -38,7 +38,7 @@ export function draft(overrides: Partial<InvoiceDraft> = {}): InvoiceDraft {
     invoiceNumber: "INV-1001",
     customerDetails: customerDetails(),
     customerId: null,
-    delivery: false,
+    hasDeliveryAddress: false,
     deliverySameAsBilling: true,
     poNumber: "",
     issueDate: "2026-08-26",

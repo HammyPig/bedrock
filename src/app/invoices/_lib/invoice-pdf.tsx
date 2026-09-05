@@ -196,7 +196,7 @@ export function InvoicePdf({ draft, settings, paidCents }: InvoicePdfProps) {
               <Text style={styles.muted}>{draft.customerDetails.phone}</Text>
             )}
           </View>
-          {draft.delivery && (
+          {draft.hasDeliveryAddress && (
             <View style={styles.partyBlock}>
               <Text style={styles.sectionLabel}>Deliver to</Text>
               {draft.deliverySameAsBilling ? (

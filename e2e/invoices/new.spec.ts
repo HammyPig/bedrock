@@ -1252,7 +1252,7 @@ test.describe("the action bar", () => {
             billingAddress: CUSTOMERS.acme.billingAddress,
             deliveryAddress: CUSTOMERS.acme.deliveryAddress,
           }),
-          delivery: true,
+          hasDeliveryAddress: true,
           deliverySameAsBilling: false,
           lineItems: [
             line({

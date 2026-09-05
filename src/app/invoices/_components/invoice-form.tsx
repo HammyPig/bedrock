@@ -41,7 +41,7 @@ function createInitialDraft(invoiceNumber: string): InvoiceDraft {
     invoiceNumber,
     customerDetails: emptyCustomerDetails(),
     customerId: null,
-    delivery: false,
+    hasDeliveryAddress: false,
     deliverySameAsBilling: true,
     poNumber: "",
     issueDate: todayIsoDate(),
@@ -351,7 +351,7 @@ export function InvoiceForm({
             customerDetails={draft.customerDetails}
             customerId={draft.customerId}
             creating={creatingCustomer}
-            delivery={draft.delivery}
+            hasDeliveryAddress={draft.hasDeliveryAddress}
             deliverySameAsBilling={draft.deliverySameAsBilling}
             error={errors?.customerDetails}
             dispatch={dispatch}

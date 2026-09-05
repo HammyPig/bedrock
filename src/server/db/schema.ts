@@ -336,7 +336,7 @@ export const invoices = createTable(
       .varchar({ length: 255 })
       .notNull()
       .references(() => customers.id, { onDelete: "restrict" }),
-    delivery: d.boolean().notNull(),
+    hasDeliveryAddress: d.boolean().notNull(),
     deliverySameAsBilling: d.boolean().notNull(),
     poNumber: d.varchar({ length: 64 }).notNull(),
     issueDate: d.date({ mode: "string" }).notNull(),

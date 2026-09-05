@@ -47,7 +47,7 @@ interface CustomerDetailsSectionProps {
   customerId: string | null;
   /** "New customer" was chosen: these fields describe a record that does not exist yet. */
   creating: boolean;
-  delivery: boolean;
+  hasDeliveryAddress: boolean;
   deliverySameAsBilling: boolean;
   error?: string;
   dispatch: (action: InvoiceAction) => void;
@@ -84,7 +84,7 @@ export function CustomerDetailsSection({
   customerDetails,
   customerId,
   creating,
-  delivery,
+  hasDeliveryAddress,
   deliverySameAsBilling,
   error,
   dispatch,
@@ -236,16 +236,16 @@ export function CustomerDetailsSection({
                 <div className="flex items-center gap-2">
                   <Checkbox
                     id="delivery"
-                    checked={delivery}
+                    checked={hasDeliveryAddress}
                     onCheckedChange={(checked) =>
-                      dispatch({ type: "patch", patch: { delivery: checked === true } })
+                      dispatch({ type: "patch", patch: { hasDeliveryAddress: checked === true } })
                     }
                   />
                   <Label htmlFor="delivery" className="text-muted-foreground">
                     Delivery address
                   </Label>
                 </div>
-                {delivery && (
+                {hasDeliveryAddress && (
                   <Button
                     variant="link"
                     size="sm"
@@ -261,7 +261,7 @@ export function CustomerDetailsSection({
                   </Button>
                 )}
               </div>
-              {delivery &&
+              {hasDeliveryAddress &&
                 (deliverySameAsBilling ? (
                   <p className="text-muted-foreground flex h-8 items-center text-sm">
                     Same as billing address
