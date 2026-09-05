@@ -37,7 +37,7 @@ import { TotalsPanel } from "./totals-panel";
 
 function createInitialDraft(invoiceNumber: string): InvoiceDraft {
   return {
-    documentType: "invoice",
+    isQuote: false,
     invoiceNumber,
     billTo: emptyBillTo(),
     sourceCustomerId: null,
@@ -313,7 +313,7 @@ export function InvoiceForm({
         <h1 className="text-2xl font-semibold tracking-tight">
           {initialDraft
             ? `Edit ${initialDraft.invoiceNumber}`
-            : draft.documentType === "quote"
+            : draft.isQuote
               ? "New quote"
               : "New invoice"}
         </h1>
@@ -324,15 +324,15 @@ export function InvoiceForm({
         >
           {DOCUMENT_TYPE_OPTIONS.map((option) => (
             <button
-              key={option.value}
+              key={option.label}
               type="button"
               className={cn(
                 "px-3 py-1.5 text-sm",
-                draft.documentType === option.value
+                draft.isQuote === option.isQuote
                   ? "bg-primary font-medium text-primary-foreground"
                   : "text-muted-foreground hover:bg-muted/50",
               )}
-              onClick={() => dispatch({ type: "patch", patch: { documentType: option.value } })}
+              onClick={() => dispatch({ type: "patch", patch: { isQuote: option.isQuote } })}
             >
               {option.label}
             </button>
@@ -369,7 +369,7 @@ export function InvoiceForm({
               <Textarea
                 id="invoice-notes"
                 rows={4}
-                placeholder={`Notes to appear on the ${draft.documentType}...`}
+                placeholder={`Notes to appear on the ${draft.isQuote ? "quote" : "invoice"}...`}
                 value={draft.notes}
                 onChange={(e) =>
                   dispatch({ type: "patch", patch: { notes: e.currentTarget.value } })
@@ -382,7 +382,7 @@ export function InvoiceForm({
               freightCents={draft.freightCents}
               taxRatePercent={draft.taxRatePercent}
               invoiceId={invoiceId}
-              documentType={draft.documentType}
+              isQuote={draft.isQuote}
               payments={payments}
               dispatch={dispatch}
             />

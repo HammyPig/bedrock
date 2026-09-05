@@ -9,12 +9,12 @@ import { Input } from "~/components/ui/input";
 import { formatIsoDate, todayIsoDate } from "~/lib/dates";
 import { formatCents } from "~/lib/money";
 import { api } from "~/trpc/react";
-import { type DocumentType, type Payment } from "../_lib/types";
+import { type Payment } from "../_lib/types";
 
 interface PaymentsSectionProps {
   /** Undefined on the create page — payments only attach to a saved invoice. */
   invoiceId?: string;
-  documentType: DocumentType;
+  isQuote: boolean;
   payments: Payment[];
   /** Prefills the amount input; paying off the full balance is the common case. */
   balanceCents: number;
@@ -23,7 +23,7 @@ interface PaymentsSectionProps {
 /** The recorded payments between the totals and the balance due, with record/delete controls. */
 export function PaymentsSection({
   invoiceId,
-  documentType,
+  isQuote,
   payments,
   balanceCents,
 }: PaymentsSectionProps) {
@@ -87,7 +87,7 @@ export function PaymentsSection({
 
       {/* Quotes aren't payable, and a settled invoice has nothing left to record. */}
       {invoiceId !== undefined &&
-        documentType === "invoice" &&
+        !isQuote &&
         balanceCents > 0 &&
         (adding ? (
           <div className="flex items-center justify-between gap-2">

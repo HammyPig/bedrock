@@ -9,7 +9,6 @@ import { cn } from "~/lib/utils";
 import {
   type Discount,
   type DiscountMode,
-  type DocumentType,
   type InvoiceAction,
   type Payment,
   type Totals,
@@ -24,7 +23,7 @@ interface TotalsPanelProps {
   taxRatePercent: number;
   /** Undefined on the create page — payments only attach to a saved invoice. */
   invoiceId?: string;
-  documentType: DocumentType;
+  isQuote: boolean;
   payments: Payment[];
   dispatch: (action: InvoiceAction) => void;
 }
@@ -35,7 +34,7 @@ export function TotalsPanel({
   freightCents,
   taxRatePercent,
   invoiceId,
-  documentType,
+  isQuote,
   payments,
   dispatch,
 }: TotalsPanelProps) {
@@ -155,7 +154,7 @@ export function TotalsPanel({
 
       <PaymentsSection
         invoiceId={invoiceId}
-        documentType={documentType}
+        isQuote={isQuote}
         payments={payments}
         balanceCents={totals.balanceCents}
       />

@@ -172,7 +172,7 @@ export function InvoicePdf({ draft, settings, paidCents }: InvoicePdfProps) {
           </View>
           <View style={styles.titleBlock}>
             <Text style={[styles.title, { color: accent }]}>
-              {draft.documentType === "quote" ? "Quote" : "Tax invoice"}
+              {draft.isQuote ? "Quote" : "Tax invoice"}
             </Text>
             <Text style={styles.titleNumber}>{draft.invoiceNumber}</Text>
           </View>

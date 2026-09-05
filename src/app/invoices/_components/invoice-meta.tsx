@@ -23,9 +23,7 @@ export function InvoiceMeta({ draft, invoiceNumberError, dispatch }: InvoiceMeta
   return (
     <section className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-3">
       <div className="space-y-1.5">
-        <Label htmlFor="invoice-number">
-          {draft.documentType === "quote" ? "Quote no." : "Invoice no."}
-        </Label>
+        <Label htmlFor="invoice-number">{draft.isQuote ? "Quote no." : "Invoice no."}</Label>
         <Input
           id="invoice-number"
           value={draft.invoiceNumber}
