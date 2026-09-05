@@ -70,22 +70,6 @@ export function updateCustomerPrompt(page: Page): Locator {
   return page.getByRole("dialog", { name: "Update customer?" });
 }
 
-/**
- * Resolves when the browser issues a call to a tRPC procedure. The customer
- * writes fire on blur, so this is what says "it saved" — the request leaving is
- * the app's side of the bargain, and it happens the moment focus moves.
- *
- * Deliberately the *request*, not the response: `httpBatchStreamLink` flushes
- * headers before the procedure resolves and holds the stream open afterwards,
- * so `waitForResponse` returns too early, `response.body()` throws once
- * anything navigates, and `response.finished()` never settles.
- *
- * Start it *before* the interaction, then await it after.
- */
-export function trpcRequest(page: Page, procedure: string) {
-  return page.waitForRequest((request) => request.url().includes(`/api/trpc/${procedure}`));
-}
-
 export function deliveryCheckbox(page: Page): Locator {
   return page.getByRole("checkbox", { name: "Delivery address" });
 }

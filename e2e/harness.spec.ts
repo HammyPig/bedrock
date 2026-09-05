@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import * as schema from "~/server/db/schema";
-import { resetBusinessData, TEST_BUSINESS_ID, testDb } from "../support/db";
+import { resetBusinessData, TEST_BUSINESS_ID, testDb } from "./support/db";
 
 const EMPTY_ADDRESS = { line1: "", line2: "", suburb: "", state: "", postcode: "" };
 

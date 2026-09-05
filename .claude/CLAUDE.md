@@ -16,28 +16,12 @@ bun run check            # next lint && tsc --noEmit — use this to verify chan
 bun run format:write     # oxfmt (also sorts Tailwind classes)
 ./start-database.sh      # local Postgres container (reads DATABASE_URL from .env)
 bun run db:push          # push schema changes (dev workflow; also db:generate / db:migrate / db:studio)
-bun run e2e              # Playwright: unit specs + browser specs (~2 min)
-bun run e2e:unit         # pure functions only — no browser, no database (~1s)
-bun run e2e:fresh        # as above, rebuilding the e2e database first
 ```
 
 ## Tests
 
-Playwright, in `e2e/`. **The tests are the specification**: where a test and the
-code disagree, the test is right and the code changes to match. Never resolve a
-failing spec by editing the assertion to match the code — that is backwards. If
-you believe a test is wrong, say so and ask; changing it is a design decision.
-
-Some tests are **meant** to be red. `test.fixme` marks behaviour that is not
-built yet, and `test.skip` in the run output is expected. `test.fail` marks
-behaviour that exists and is wrong — it is counted as passing while it fails, and
-flips red once fixed, which is the signal to delete the marker. A run with
-skipped tests and `✘` marks can still be a green run.
-
-Pure functions (money, dates, validation) get table-driven specs under `e2e/unit/`
-with no browser — never assert arithmetic through the DOM. `e2e/PLAN.md` covers
-the design, the deliberate gaps, and the interaction helpers that exist to work
-around blur-committed fields and hydration races.
+Playwright, in `e2e/`. Don't read, edit, or run them unless the task is the
+tests — and even then, run them only if asked.
 
 ## Gotchas & conventions
 

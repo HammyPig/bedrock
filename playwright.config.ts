@@ -36,9 +36,10 @@ export default defineConfig({
       name: "chromium",
       use: { ...devices["Desktop Chrome"], storageState: STORAGE_STATE },
       dependencies: ["setup"],
-      // Scoped to tests/ so the unit specs don't also run here, against a
-      // browser and a seeded database they have no use for.
-      testMatch: /tests\/.*\.spec\.ts/,
+      // Everything but the unit specs, which have no use for a browser or a
+      // seeded database.
+      testMatch: /\.spec\.ts$/,
+      testIgnore: /unit\/.*\.spec\.ts/,
     },
   ],
   webServer: unitOnly
