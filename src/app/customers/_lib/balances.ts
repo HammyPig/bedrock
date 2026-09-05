@@ -2,9 +2,8 @@ import { balanceCents, summarizeInvoice } from "~/app/invoices/_lib/invoices";
 import { type Invoice, type InvoiceSummary } from "~/app/invoices/_lib/types";
 
 /**
- * Invoices with money still owing, grouped by the saved customer they were
- * filled from and oldest first. Walk-up invoices have no customer to attribute
- * to, so they're left out — the invoices list is where those show up.
+ * Invoices with money still owing, grouped by the customer they were billed
+ * to and oldest first.
  */
 export function openInvoicesByCustomer(invoices: Invoice[]): Map<string, InvoiceSummary[]> {
   const byCustomer = new Map<string, InvoiceSummary[]>();

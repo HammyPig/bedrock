@@ -29,7 +29,7 @@ const draftInput = z.object({
   isQuote: z.boolean(),
   invoiceNumber: z.string().min(1).max(64),
   customerDetails: customerDetailsInput,
-  customerId: z.string().max(255).nullable(),
+  customerId: z.string().max(255),
   delivery: z.boolean(),
   deliverySameAsBilling: z.boolean(),
   poNumber: z.string().max(64),

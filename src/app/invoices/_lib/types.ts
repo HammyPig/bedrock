@@ -60,7 +60,8 @@ export interface InvoiceDraft {
   isQuote: boolean;
   invoiceNumber: string;
   customerDetails: CustomerDetails;
-  /** Saved customer these details were filled from; null for walk-up/manual entry. */
+  /** The customer billed. Null only mid-edit, while a new one is being typed
+   * in — their record is created, and this filled, on save. */
   customerId: string | null;
   /** Per-invoice fulfillment flags — not part of the customer snapshot. */
   delivery: boolean;

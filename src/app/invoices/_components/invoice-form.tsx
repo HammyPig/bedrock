@@ -222,14 +222,19 @@ export function InvoiceForm({
   })();
 
   const commit = (toSave: InvoiceDraft, onSaved?: (id: string) => void) => {
+    // Every saved invoice is billed to a customer record. persist() gates on
+    // validation and save() creates the record first, so this never fires.
+    const { customerId } = toSave;
+    if (customerId === null) return;
+    const payload = { ...toSave, customerId };
     setShowErrors(false);
     if (invoiceId) {
       updateInvoice.mutate(
-        { id: invoiceId, draft: toSave },
+        { id: invoiceId, draft: payload },
         { onSuccess: ({ id }) => onSaved?.(id) },
       );
     } else {
-      createInvoice.mutate(toSave, { onSuccess: ({ id }) => onSaved?.(id) });
+      createInvoice.mutate(payload, { onSuccess: ({ id }) => onSaved?.(id) });
     }
   };
 

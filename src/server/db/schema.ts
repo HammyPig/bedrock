@@ -311,10 +311,11 @@ export const vendors = createTable(
 );
 
 /**
- * Columns mirror InvoiceDraft minus lineItems. customerDetails is a jsonb snapshot of
- * the customer details at invoice time; customerId is a soft pointer
- * (no FK) so a missing customer degrades to "unsaved" in the UI. Due date,
- * status, and totals stay derived — never stored.
+ * Columns mirror InvoiceDraft minus lineItems. customerDetails is a jsonb
+ * snapshot taken at invoice time, so editing a customer never rewrites their
+ * old invoices; customerId is a required FK to the customer billed, restricted
+ * on delete so invoice history can't be orphaned. Due date, status, and totals
+ * stay derived — never stored.
  */
 export const invoices = createTable(
   "invoice",
@@ -331,7 +332,10 @@ export const invoices = createTable(
     isQuote: d.boolean().notNull().default(false),
     invoiceNumber: d.varchar({ length: 64 }).notNull(),
     customerDetails: d.jsonb().$type<CustomerDetails>().notNull(),
-    customerId: d.varchar({ length: 255 }),
+    customerId: d
+      .varchar({ length: 255 })
+      .notNull()
+      .references(() => customers.id, { onDelete: "restrict" }),
     delivery: d.boolean().notNull(),
     deliverySameAsBilling: d.boolean().notNull(),
     poNumber: d.varchar({ length: 64 }).notNull(),
