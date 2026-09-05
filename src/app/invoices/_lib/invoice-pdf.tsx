@@ -211,7 +211,6 @@ export function InvoicePdf({ draft, settings, paidCents }: InvoicePdfProps) {
           <View>
             <MetaRow label="Issue date" value={formatIsoDate(draft.issueDate)} />
             <MetaRow label="Due date" value={formatIsoDate(dueDate)} />
-            {draft.poNumber.trim() !== "" && <MetaRow label="PO number" value={draft.poNumber} />}
           </View>
         </View>
 

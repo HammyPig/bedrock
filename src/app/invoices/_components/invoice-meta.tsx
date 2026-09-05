@@ -80,14 +80,6 @@ export function InvoiceMeta({ draft, invoiceNumberError, dispatch }: InvoiceMeta
           </p>
         )}
       </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="po-number">P.O. #</Label>
-        <Input
-          id="po-number"
-          value={draft.poNumber}
-          onChange={(e) => dispatch({ type: "patch", patch: { poNumber: e.currentTarget.value } })}
-        />
-      </div>
     </section>
   );
 }

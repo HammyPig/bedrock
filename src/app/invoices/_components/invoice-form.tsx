@@ -43,7 +43,6 @@ function createInitialDraft(invoiceNumber: string): InvoiceDraft {
     customerId: null,
     hasDeliveryAddress: false,
     deliverySameAsBilling: true,
-    poNumber: "",
     issueDate: todayIsoDate(),
     terms: "net_30",
     customDueDate: null,

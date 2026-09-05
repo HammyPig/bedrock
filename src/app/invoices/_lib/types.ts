@@ -66,7 +66,6 @@ export interface InvoiceDraft {
   /** Per-invoice fulfillment flags — not part of the customer snapshot. */
   hasDeliveryAddress: boolean;
   deliverySameAsBilling: boolean;
-  poNumber: string;
   /** ISO date, YYYY-MM-DD. */
   issueDate: string;
   terms: PaymentTerms;

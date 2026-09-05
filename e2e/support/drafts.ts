@@ -40,7 +40,6 @@ export function draft(overrides: Partial<InvoiceDraft> = {}): InvoiceDraft {
     customerId: null,
     hasDeliveryAddress: false,
     deliverySameAsBilling: true,
-    poNumber: "",
     issueDate: "2026-08-26",
     terms: "net_30",
     customDueDate: null,

@@ -338,7 +338,6 @@ export const invoices = createTable(
       .references(() => customers.id, { onDelete: "restrict" }),
     hasDeliveryAddress: d.boolean().notNull(),
     deliverySameAsBilling: d.boolean().notNull(),
-    poNumber: d.varchar({ length: 64 }).notNull(),
     issueDate: d.date({ mode: "string" }).notNull(),
     terms: d.varchar({ length: 16 }).$type<PaymentTerms>().notNull(),
     customDueDate: d.date({ mode: "string" }),
