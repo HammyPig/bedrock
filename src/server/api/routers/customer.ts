@@ -1,10 +1,10 @@
 import { TRPCError } from "@trpc/server";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, count, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { type Customer, type CustomerDetails } from "~/app/invoices/_lib/types";
 import { businessProcedure, createTRPCRouter } from "~/server/api/trpc";
-import { customers, tiers } from "~/server/db/schema";
+import { customers, invoices, tiers } from "~/server/db/schema";
 import { type db as database } from "~/server/db";
 
 export const addressInput = z.object({
@@ -158,6 +158,19 @@ export const customerRouter = createTRPCRouter({
     }),
 
   delete: businessProcedure.input(z.object({ id: z.string() })).mutation(async ({ ctx, input }) => {
+    // Invoices are billed to a customer record, so removing one would orphan
+    // its history. They have to be dealt with before the customer can go.
+    const [billed] = await ctx.db
+      .select({ total: count() })
+      .from(invoices)
+      .where(and(eq(invoices.businessId, ctx.businessId), eq(invoices.customerId, input.id)));
+    const total = billed?.total ?? 0;
+    if (total > 0) {
+      throw new TRPCError({
+        code: "CONFLICT",
+        message: `This customer has ${total} invoice${total === 1 ? "" : "s"}. Delete those first.`,
+      });
+    }
     const [deleted] = await ctx.db
       .delete(customers)
       .where(and(eq(customers.id, input.id), eq(customers.businessId, ctx.businessId)))
