@@ -152,6 +152,11 @@ export function InvoiceForm({
   const [creatingCustomer, setCreatingCustomer] = useState(false);
   const [pendingSave, setPendingSave] = useState<{ onSaved?: SavedHandler } | null>(null);
   const [exporting, setExporting] = useState(false);
+  /** The number a save was rejected for, kept so the field can own the error. */
+  const [numberConflict, setNumberConflict] = useState<{
+    invoiceNumber: string;
+    message: string;
+  } | null>(null);
   // An existing invoice starts in sync with the database; any edit marks it dirty.
   const [saved, setSaved] = useState(initialDraft !== undefined);
 
@@ -206,12 +211,22 @@ export function InvoiceForm({
       setSaved(true);
       await utils.invoice.invalidate();
     },
+    onError: (error, { draft: attempted }) => {
+      // A number already on another invoice is the only clash a save is refused for.
+      if (error.data?.code === "CONFLICT") {
+        setNumberConflict({ invoiceNumber: attempted.invoiceNumber, message: error.message });
+      }
+    },
   });
 
   const createCustomer = api.customer.create.useMutation();
 
   const saving = createInvoice.isPending || updateInvoice.isPending || createCustomer.isPending;
-  const saveError = (createInvoice.error ?? updateInvoice.error ?? createCustomer.error)?.message;
+  // A clashing number is shown on the field, so it never doubles up down here.
+  const saveError =
+    updateInvoice.error?.data?.code === "CONFLICT"
+      ? undefined
+      : (createInvoice.error ?? updateInvoice.error ?? createCustomer.error)?.message;
 
   // Payments live outside the draft: recording one mutates immediately, and the
   // query refetch (via invalidation) is what updates this list.
@@ -226,6 +241,13 @@ export function InvoiceForm({
   // Only an edit has a number field, so only an edit can be missing a number.
   const editing = invoiceId !== undefined;
   const errors = showErrors ? validateDraft(draft, editing) : null;
+  // Dropped as soon as the number is edited to anything else.
+  const conflictError =
+    numberConflict?.invoiceNumber === draft.invoiceNumber ? numberConflict.message : undefined;
+  const invoiceNumberError = errors?.invoiceNumber ?? conflictError;
+  const errorsAbove = [invoiceNumberError, errors?.customerDetails, errors?.lineItems].filter(
+    (message) => message !== undefined,
+  ).length;
 
   const customers = api.customer.list.useQuery().data ?? [];
   const updateCustomer = api.customer.update.useMutation();
@@ -383,7 +405,7 @@ export function InvoiceForm({
           <InvoiceMeta
             draft={draft}
             showInvoiceNumber={editing}
-            invoiceNumberError={errors?.invoiceNumber}
+            invoiceNumberError={invoiceNumberError}
             dispatch={dispatch}
           />
           <LineItemsGrid
@@ -424,6 +446,7 @@ export function InvoiceForm({
           balanceCents={totals.balanceCents}
           autosaveStatus={saving ? "saving" : saved ? "saved" : "idle"}
           saveError={saveError}
+          errorsAbove={errorsAbove}
           exporting={exporting}
           sending={sendEmail.isPending}
           sendError={sendEmail.error?.message}

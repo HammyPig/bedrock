@@ -9,6 +9,8 @@ interface StickyActionBarProps {
   balanceCents: number;
   autosaveStatus: "idle" | "saving" | "saved";
   saveError?: string;
+  /** How many errors are shown against fields above; summarised rather than repeated. */
+  errorsAbove: number;
   exporting: boolean;
   sending: boolean;
   sendError?: string;
@@ -23,6 +25,7 @@ export function StickyActionBar({
   balanceCents,
   autosaveStatus,
   saveError,
+  errorsAbove,
   exporting,
   sending,
   sendError,
@@ -33,7 +36,15 @@ export function StickyActionBar({
 }: StickyActionBarProps) {
   const saving = autosaveStatus === "saving";
   const busy = saving || exporting || sending;
-  const error = saving || sending ? undefined : (saveError ?? sendError);
+  // Errors with a field of their own are pointed at; the rest have nowhere else to show.
+  // The count only earns its place past one, where it says to keep looking.
+  const summary =
+    errorsAbove === 0
+      ? undefined
+      : errorsAbove === 1
+        ? "Fix the field above"
+        : `Fix ${errorsAbove} fields above`;
+  const error = saving || sending ? undefined : (summary ?? saveError ?? sendError);
 
   return (
     <div className="bg-card/95 sticky bottom-0 flex items-center justify-between gap-4 rounded-b-xl border-t px-8 py-4 backdrop-blur sm:px-10">
