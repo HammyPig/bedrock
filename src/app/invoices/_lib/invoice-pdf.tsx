@@ -8,6 +8,7 @@ import {
   computeTotals,
   documentTaxBasisPoints,
   formatBasisPoints,
+  formatQuantity,
   lineItemSubtotalCents,
 } from "./money";
 import { type Address, type InvoiceDraft } from "./types";
@@ -235,7 +236,7 @@ export function InvoicePdf({ draft, settings, paidCents }: InvoicePdfProps) {
               {item.name}
               {item.backordered && <Text style={styles.backorderTag}>{"   BACKORDERED"}</Text>}
             </Text>
-            <Text style={styles.colQty}>{String(item.quantity)}</Text>
+            <Text style={styles.colQty}>{formatQuantity(item.quantityMilli)}</Text>
             <Text style={styles.colUnit}>{formatCents(item.unitPriceCents)}</Text>
             {showDiscount && (
               <Text style={styles.colDisc}>

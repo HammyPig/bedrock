@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { GripVerticalIcon, PlusIcon, Trash2Icon } from "lucide-react";
 
-import { NumberInput } from "~/app/invoices/_components/number-input";
 import { PercentInput } from "~/app/invoices/_components/percent-input";
+import { QuantityInput } from "~/app/invoices/_components/quantity-input";
 import { makeLineItemBase } from "~/app/invoices/_lib/invoice";
 import { lineItemSubtotalCents } from "~/app/invoices/_lib/money";
 import { type LineItemBase } from "~/app/invoices/_lib/types";
@@ -155,13 +155,13 @@ export function LineItemsGrid({
                 onPickSaved={(saved) => handlePickSaved(item.id, saved)}
                 onKeyDown={(e) => handleCellKeyDown(e, item.id, "name")}
               />
-              <NumberInput
+              <QuantityInput
                 ref={registerCell(item.id, "quantity")}
                 className="px-1.5"
-                value={item.quantity}
+                quantityMilli={item.quantityMilli}
                 aria-label={`Line ${index + 1} quantity`}
-                aria-invalid={showInvalid && item.quantity <= 0}
-                onValueChange={(quantity) => patchItem({ quantity })}
+                aria-invalid={showInvalid && item.quantityMilli <= 0}
+                onQuantityMilliChange={(quantityMilli) => patchItem({ quantityMilli })}
                 onKeyDown={(e) => handleCellKeyDown(e, item.id, "quantity")}
               />
               <MoneyInput

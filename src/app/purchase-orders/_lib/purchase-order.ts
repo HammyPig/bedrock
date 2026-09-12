@@ -51,7 +51,7 @@ export function purchaseOrderTotals(
 
 export function validateDraft(draft: PurchaseOrderDraft): PurchaseOrderDraftErrors | null {
   const invalidLineItemIds = draft.lineItems
-    .filter((item) => item.name.trim() === "" || item.quantity <= 0)
+    .filter((item) => item.name.trim() === "" || item.quantityMilli <= 0)
     .map((item) => item.id);
 
   const errors: PurchaseOrderDraftErrors = { invalidLineItemIds };

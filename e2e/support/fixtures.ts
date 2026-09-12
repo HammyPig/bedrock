@@ -147,7 +147,7 @@ export async function seedInvoice(
         position,
         sku: item.sku,
         name: item.name,
-        quantity: item.quantity,
+        quantityMilli: item.quantityMilli,
         unitPriceCents: item.unitPriceCents,
         discountBasisPoints: item.discountBasisPoints,
         discountCents: breakdown.lines[position]?.discountCents ?? 0,

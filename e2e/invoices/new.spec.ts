@@ -975,7 +975,7 @@ test.describe("balance section", () => {
   //   await fillAndCommit(page.getByLabel("Delivery", { exact: true }), "12.50");
 
   //   const expected = computeTotals({
-  //     lineItems: [line({ quantity: 3, unitPriceCents: 1999 })],
+  //     lineItems: [line({ quantityMilli: 3000, unitPriceCents: 1999 })],
   //     discount: { basisPoints: 1500, amountCents: 0 },
   //     deliveryCents: 1250,
   //     taxRatePercent: 10,
@@ -1258,14 +1258,14 @@ test.describe("the action bar", () => {
             line({
               sku: "PIPE-100",
               name: "Copper pipe 100mm",
-              quantity: 3,
+              quantityMilli: 3000,
               unitPriceCents: 4250,
               discountBasisPoints: 1000,
             }),
             line({
               sku: "LAB-HR",
               name: "Labour",
-              quantity: 2,
+              quantityMilli: 2000,
               unitPriceCents: 12_000,
               backordered: true,
             }),

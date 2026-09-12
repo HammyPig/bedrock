@@ -26,7 +26,8 @@ export interface LineItemBase {
   id: string;
   sku: string;
   name: string;
-  quantity: number;
+  /** Quantity in thousandths of a unit, so 2.5 is 2500 — no float in the money path. */
+  quantityMilli: number;
   unitPriceCents: number;
   /** Per-line discount in basis points, 0-10000; 0 when none was given. */
   discountBasisPoints: number;

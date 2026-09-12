@@ -415,7 +415,8 @@ export const invoiceLineItems = createTable(
     position: d.integer().notNull(),
     sku: d.varchar({ length: 64 }).notNull(),
     name: d.text().notNull(),
-    quantity: d.doublePrecision().notNull(),
+    /** Thousandths of a unit, so 2.5 is 2500 — quantities are integers too. */
+    quantityMilli: d.integer().notNull(),
     unitPriceCents: d.integer().notNull(),
     /** The discount asked for, in basis points; 0 when the line has none. */
     discountBasisPoints: d.integer().notNull(),
@@ -525,7 +526,8 @@ export const purchaseOrderLineItems = createTable(
     position: d.integer().notNull(),
     sku: d.varchar({ length: 64 }).notNull(),
     name: d.text().notNull(),
-    quantity: d.doublePrecision().notNull(),
+    /** Thousandths of a unit, so 2.5 is 2500 — quantities are integers too. */
+    quantityMilli: d.integer().notNull(),
     unitPriceCents: d.integer().notNull(),
     /** The discount asked for, in basis points; 0 when the line has none. */
     discountBasisPoints: d.integer().notNull(),

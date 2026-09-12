@@ -26,7 +26,7 @@ export function line(overrides: Partial<LineItem> = {}): LineItem {
   return {
     ...makeLineItem(GST_RATE_BASIS_POINTS),
     name: "Labour",
-    quantity: 1,
+    quantityMilli: 1000,
     unitPriceCents: 10_000,
     ...overrides,
   };

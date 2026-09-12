@@ -5,10 +5,18 @@ import { type Discount, type DiscountMode, type LineItemBase, type Totals } from
  * ever a float. 10% is 1000; 100%, the largest a rate can be, is 10000.
  */
 export const BASIS_POINTS_PER_PERCENT = 100;
+
+/** Quantities are stored in thousandths of a unit, so 2.5 is 2500. */
+export const MILLI_PER_UNIT = 1000;
 export const MAX_BASIS_POINTS = 100 * BASIS_POINTS_PER_PERCENT;
 
 /** The only tax rate the app charges: a business is registered for GST or it isn't. */
 export const GST_RATE_BASIS_POINTS = 10 * BASIS_POINTS_PER_PERCENT;
+
+/** A quantity as the units it reads as: 2500 -> "2.5", 3000 -> "3". */
+export function formatQuantity(quantityMilli: number): string {
+  return String(quantityMilli / MILLI_PER_UNIT);
+}
 
 /** A rate as the percent it reads as: 1000 -> "10", 3333 -> "33.33". */
 export function formatBasisPoints(basisPoints: number): string {
@@ -83,14 +91,16 @@ export function resolveDiscount(
 
 /** Line subtotal: qty x unit price, less the per-line discount. */
 export function lineItemSubtotalCents(item: LineItemBase): number {
-  return Math.round(
-    item.quantity * item.unitPriceCents * (1 - item.discountBasisPoints / MAX_BASIS_POINTS),
-  );
+  // Divided down to cents before the rate is applied: the product of two
+  // integers is exact, and only this last step rounds.
+  const grossCents = (item.quantityMilli * item.unitPriceCents) / MILLI_PER_UNIT;
+  return Math.round(grossCents * (1 - item.discountBasisPoints / MAX_BASIS_POINTS));
 }
 
 /** What the per-line discount took off — the gap to the undiscounted line, so the two reconcile exactly. */
 export function lineItemDiscountCents(item: LineItemBase): number {
-  return Math.round(item.quantity * item.unitPriceCents) - lineItemSubtotalCents(item);
+  const grossCents = Math.round((item.quantityMilli * item.unitPriceCents) / MILLI_PER_UNIT);
+  return grossCents - lineItemSubtotalCents(item);
 }
 
 /** The rate a document is written at; a fresh one with no lines falls back to its delivery rate. */

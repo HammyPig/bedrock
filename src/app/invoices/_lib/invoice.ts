@@ -1,5 +1,6 @@
 import { addDaysIso } from "~/lib/dates";
 import { tierUnitPriceCents, type SavedItem } from "~/lib/items";
+import { MILLI_PER_UNIT } from "./money";
 import {
   type Address,
   type CustomerDetails,
@@ -48,7 +49,7 @@ export function makeLineItemBase(taxBasisPoints: number): LineItemBase {
     id: crypto.randomUUID(),
     sku: "",
     name: "",
-    quantity: 1,
+    quantityMilli: MILLI_PER_UNIT,
     unitPriceCents: 0,
     discountBasisPoints: 0,
     taxBasisPoints,
@@ -172,7 +173,7 @@ export function customerDisplayName(customer: Identity): string {
 
 export function validateDraft(draft: InvoiceDraft): DraftErrors | null {
   const invalidLineItemIds = draft.lineItems
-    .filter((item) => item.name.trim() === "" || item.quantity <= 0)
+    .filter((item) => item.name.trim() === "" || item.quantityMilli <= 0)
     .map((item) => item.id);
 
   const errors: DraftErrors = { invalidLineItemIds };

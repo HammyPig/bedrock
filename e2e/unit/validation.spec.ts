@@ -79,12 +79,12 @@ test.describe("V3 every line needs a name and a quantity", () => {
   });
 
   test("a line with no quantity is flagged", () => {
-    const empty = line({ quantity: 0 });
+    const empty = line({ quantityMilli: 0 });
     expect(validateDraft(draft({ lineItems: [empty] }))?.invalidLineItemIds).toEqual([empty.id]);
   });
 
   test("a negative quantity is flagged", () => {
-    const negative = line({ quantity: -1 });
+    const negative = line({ quantityMilli: -1000 });
     expect(validateDraft(draft({ lineItems: [negative] }))?.invalidLineItemIds).toEqual([
       negative.id,
     ]);

@@ -84,7 +84,7 @@ function toPurchaseOrder(row: PurchaseOrderRow): PurchaseOrder {
         id: line.id,
         sku: line.sku,
         name: line.name,
-        quantity: line.quantity,
+        quantityMilli: line.quantityMilli,
         unitPriceCents: line.unitPriceCents,
         discountBasisPoints: line.discountBasisPoints,
         taxBasisPoints: line.taxBasisPoints,

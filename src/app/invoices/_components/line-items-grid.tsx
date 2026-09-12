@@ -15,8 +15,8 @@ import { makeLineItem, normalizeSku } from "../_lib/invoice";
 import { lineItemSubtotalCents } from "../_lib/money";
 import { type InvoiceAction, type LineItem, type Tier } from "../_lib/types";
 import { Highlight } from "~/components/highlight";
-import { NumberInput } from "./number-input";
 import { PercentInput } from "./percent-input";
+import { QuantityInput } from "./quantity-input";
 
 type CellField = "sku" | "name" | "quantity" | "unitPrice" | "discount";
 
@@ -195,13 +195,13 @@ export function LineItemsGrid({
                 onPickSaved={(saved) => handlePickSaved(item.id, saved)}
                 onKeyDown={(e) => handleCellKeyDown(e, item.id, "name")}
               />
-              <NumberInput
+              <QuantityInput
                 ref={registerCell(item.id, "quantity")}
                 className="px-1.5"
-                value={item.quantity}
+                quantityMilli={item.quantityMilli}
                 aria-label={`Line ${index + 1} quantity`}
-                aria-invalid={showInvalid && item.quantity <= 0}
-                onValueChange={(quantity) => patchItem({ quantity })}
+                aria-invalid={showInvalid && item.quantityMilli <= 0}
+                onQuantityMilliChange={(quantityMilli) => patchItem({ quantityMilli })}
                 onKeyDown={(e) => handleCellKeyDown(e, item.id, "quantity")}
               />
               <UnitPriceCell

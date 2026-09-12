@@ -3,6 +3,7 @@ import { Document, Font, Image, Page, pdf, StyleSheet, Text, View } from "@react
 import {
   documentTaxBasisPoints,
   formatBasisPoints,
+  formatQuantity,
   lineItemSubtotalCents,
 } from "~/app/invoices/_lib/money";
 import { type Address } from "~/app/invoices/_lib/types";
@@ -216,7 +217,7 @@ export function PurchaseOrderPdf({ draft, settings }: PurchaseOrderPdfProps) {
           <View key={item.id} style={styles.tableRow} wrap={false}>
             {showSku && <Text style={styles.colSku}>{item.sku}</Text>}
             <Text style={styles.colName}>{item.name}</Text>
-            <Text style={styles.colQty}>{String(item.quantity)}</Text>
+            <Text style={styles.colQty}>{formatQuantity(item.quantityMilli)}</Text>
             <Text style={styles.colUnit}>{formatCents(item.unitPriceCents)}</Text>
             {showDiscount && (
               <Text style={styles.colDisc}>

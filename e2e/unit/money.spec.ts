@@ -15,23 +15,25 @@ import { draft, line } from "../support/drafts";
 
 test.describe("M1 line subtotal", () => {
   test("is quantity x unit price", () => {
-    expect(lineItemSubtotalCents(line({ quantity: 3, unitPriceCents: 1050 }))).toBe(3150);
+    expect(lineItemSubtotalCents(line({ quantityMilli: 3000, unitPriceCents: 1050 }))).toBe(3150);
   });
 
   test("applies the per-line discount percent", () => {
     expect(
-      lineItemSubtotalCents(line({ quantity: 3, unitPriceCents: 1050, discountBasisPoints: 1000 })),
+      lineItemSubtotalCents(
+        line({ quantityMilli: 3000, unitPriceCents: 1050, discountBasisPoints: 1000 }),
+      ),
     ).toBe(2835);
   });
 
   test("allows a fractional quantity", () => {
-    expect(lineItemSubtotalCents(line({ quantity: 2.5, unitPriceCents: 400 }))).toBe(1000);
+    expect(lineItemSubtotalCents(line({ quantityMilli: 2500, unitPriceCents: 400 }))).toBe(1000);
   });
 
   test("a 100% line discount bills nothing", () => {
     expect(
       lineItemSubtotalCents(
-        line({ quantity: 3, unitPriceCents: 1050, discountBasisPoints: 10000 }),
+        line({ quantityMilli: 3000, unitPriceCents: 1050, discountBasisPoints: 10000 }),
       ),
     ).toBe(0);
   });
@@ -41,8 +43,8 @@ test("M2 the invoice subtotal is the sum of its line subtotals", () => {
   const totals = computeTotals(
     draft({
       lineItems: [
-        line({ quantity: 3, unitPriceCents: 1050 }), // 3150
-        line({ quantity: 2.5, unitPriceCents: 400 }), // 1000
+        line({ quantityMilli: 3000, unitPriceCents: 1050 }), // 3150
+        line({ quantityMilli: 2500, unitPriceCents: 400 }), // 1000
       ],
     }),
   );
@@ -190,7 +192,7 @@ test.describe("M9 empty amounts total to zero, never NaN", () => {
   });
 
   test("a line with no quantity", () => {
-    expect(lineItemSubtotalCents(line({ quantity: 0, unitPriceCents: 10_000 }))).toBe(0);
+    expect(lineItemSubtotalCents(line({ quantityMilli: 0, unitPriceCents: 10_000 }))).toBe(0);
   });
 
   test("a zero GST rate", () => {
