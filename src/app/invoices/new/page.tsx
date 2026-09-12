@@ -16,22 +16,16 @@ export default async function NewInvoicePage() {
   if (!session?.user) redirect("/login");
   if (!(await resolveBusinessId(session.user))) redirect("/");
 
-  // Kicked off before the awaited nextNumber so all three fetches run concurrently.
+  // Kicked off before the awaited settings so all three fetches run concurrently.
   void api.item.list.prefetch();
   void api.customer.list.prefetch();
 
-  const [suggestedInvoiceNumber, settings] = await Promise.all([
-    api.invoice.nextNumber(),
-    api.settings.get(),
-  ]);
+  const settings = await api.settings.get();
 
   return (
     <HydrateClient>
       <main className="bg-background min-h-screen">
-        <InvoiceForm
-          suggestedInvoiceNumber={suggestedInvoiceNumber}
-          taxBasisPoints={settings.gstRegistered ? GST_RATE_BASIS_POINTS : 0}
-        />
+        <InvoiceForm taxBasisPoints={settings.gstRegistered ? GST_RATE_BASIS_POINTS : 0} />
       </main>
     </HydrateClient>
   );

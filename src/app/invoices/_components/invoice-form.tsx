@@ -40,10 +40,11 @@ import { LineItemsGrid } from "./line-items-grid";
 import { StickyActionBar } from "./sticky-action-bar";
 import { TotalsPanel } from "./totals-panel";
 
-function createInitialDraft(invoiceNumber: string, taxBasisPoints: number): InvoiceDraft {
+function createInitialDraft(taxBasisPoints: number): InvoiceDraft {
   return {
     isQuote: false,
-    invoiceNumber,
+    // Assigned by the server on save, off the business's numbering counter.
+    invoiceNumber: "",
     customerDetails: emptyCustomerDetails(),
     customerId: null,
     hasDeliveryAddress: false,
@@ -106,6 +107,9 @@ function invoiceReducer(draft: InvoiceDraft, action: InvoiceAction): InvoiceDraf
   return discount === next.discount ? next : { ...next, discount };
 }
 
+/** Told the saved invoice's id and the number it ended up with. */
+type SavedHandler = (id: string, invoiceNumber: string) => void;
+
 interface InvoiceFormProps {
   /** Existing invoice being edited; omitted on the create page. */
   initialDraft?: InvoiceDraft;
@@ -113,8 +117,6 @@ interface InvoiceFormProps {
   invoiceId?: string;
   /** The saved invoice's recorded payments, until the client-side query takes over. */
   initialPayments?: Payment[];
-  /** Next free invoice number, pre-filled on the create page. */
-  suggestedInvoiceNumber?: string;
   /** GST rate in basis points a new invoice is written at, from the business's settings. */
   taxBasisPoints?: number;
 }
@@ -123,7 +125,6 @@ export function InvoiceForm({
   initialDraft,
   invoiceId,
   initialPayments,
-  suggestedInvoiceNumber,
   taxBasisPoints = 0,
 }: InvoiceFormProps) {
   const router = useRouter();
@@ -133,8 +134,7 @@ export function InvoiceForm({
   const [draft, rawDispatch] = useReducer(
     invoiceReducer,
     initialDraft,
-    (existing) =>
-      existing ?? createInitialDraft(suggestedInvoiceNumber ?? "INV-0001", taxBasisPoints),
+    (existing) => existing ?? createInitialDraft(taxBasisPoints),
   );
   const [showErrors, setShowErrors] = useState(false);
   /**
@@ -150,7 +150,7 @@ export function InvoiceForm({
    * abandoned half-filled leaves no customer behind.
    */
   const [creatingCustomer, setCreatingCustomer] = useState(false);
-  const [pendingSave, setPendingSave] = useState<{ onSaved?: (id: string) => void } | null>(null);
+  const [pendingSave, setPendingSave] = useState<{ onSaved?: SavedHandler } | null>(null);
   const [exporting, setExporting] = useState(false);
   // An existing invoice starts in sync with the database; any edit marks it dirty.
   const [saved, setSaved] = useState(initialDraft !== undefined);
@@ -223,7 +223,9 @@ export function InvoiceForm({
   const paidCents = paymentsTotalCents(payments);
 
   const totals = computeTotals(draft, paidCents);
-  const errors = showErrors ? validateDraft(draft) : null;
+  // Only an edit has a number field, so only an edit can be missing a number.
+  const editing = invoiceId !== undefined;
+  const errors = showErrors ? validateDraft(draft, editing) : null;
 
   const customers = api.customer.list.useQuery().data ?? [];
   const updateCustomer = api.customer.update.useMutation();
@@ -240,20 +242,23 @@ export function InvoiceForm({
     return company === "" || company === display ? display : `${display} · ${company}`;
   })();
 
-  const commit = (toSave: InvoiceDraft, onSaved?: (id: string) => void) => {
+  const commit = (toSave: InvoiceDraft, onSaved?: SavedHandler) => {
     // Every saved invoice is billed to a customer record. persist() gates on
     // validation and save() creates the record first, so this never fires.
-    const { customerId } = toSave;
+    const { customerId, invoiceNumber, ...rest } = toSave;
     if (customerId === null) return;
-    const payload = { ...toSave, customerId };
+    const base = { ...rest, customerId };
     setShowErrors(false);
     if (invoiceId) {
       updateInvoice.mutate(
-        { id: invoiceId, draft: payload },
-        { onSuccess: ({ id }) => onSaved?.(id) },
+        { id: invoiceId, draft: { ...base, invoiceNumber } },
+        { onSuccess: ({ id }) => onSaved?.(id, invoiceNumber) },
       );
     } else {
-      createInvoice.mutate(payload, { onSuccess: ({ id }) => onSaved?.(id) });
+      // A new invoice sends no number: the server assigns one and hands it back.
+      createInvoice.mutate(base, {
+        onSuccess: ({ id, invoiceNumber: assigned }) => onSaved?.(id, assigned),
+      });
     }
   };
 
@@ -262,7 +267,7 @@ export function InvoiceForm({
    * invoice is billed to it. Validation has already run, so they are guaranteed
    * an identity to be found by again.
    */
-  const save = (onSaved?: (id: string) => void) => {
+  const save = (onSaved?: SavedHandler) => {
     if (!creatingCustomer) {
       commit(draft, onSaved);
       return;
@@ -278,9 +283,9 @@ export function InvoiceForm({
     });
   };
 
-  const persist = (onSaved?: (id: string) => void) => {
+  const persist = (onSaved?: SavedHandler) => {
     if (saving) return;
-    if (validateDraft(draft)) {
+    if (validateDraft(draft, editing)) {
       setShowErrors(true);
       return;
     }
@@ -307,7 +312,7 @@ export function InvoiceForm({
     save(pending?.onSaved);
   };
 
-  const handleExportPdf = async () => {
+  const handleExportPdf = async (invoiceNumber: string) => {
     if (exporting) return;
     setExporting(true);
     try {
@@ -316,11 +321,11 @@ export function InvoiceForm({
         import("../_lib/invoice-pdf"),
         utils.settings.get.ensureData(),
       ]);
-      const blob = await invoicePdfBlob(draft, settings, paidCents);
+      const blob = await invoicePdfBlob({ ...draft, invoiceNumber }, settings, paidCents);
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = `${draft.invoiceNumber.trim() || "invoice"}.pdf`;
+      anchor.download = `${invoiceNumber.trim() || "invoice"}.pdf`;
       anchor.click();
       URL.revokeObjectURL(url);
     } finally {
@@ -377,6 +382,7 @@ export function InvoiceForm({
           />
           <InvoiceMeta
             draft={draft}
+            showInvoiceNumber={editing}
             invoiceNumberError={errors?.invoiceNumber}
             dispatch={dispatch}
           />
@@ -423,7 +429,7 @@ export function InvoiceForm({
           sendError={sendEmail.error?.message}
           sentTo={sendEmail.data?.sentTo}
           onSave={() => persist()}
-          onSaveAndExport={() => persist(() => void handleExportPdf())}
+          onSaveAndExport={() => persist((_id, assigned) => void handleExportPdf(assigned))}
           onSaveAndEmail={() => persist((id) => sendEmail.mutate({ id }))}
         />
       </div>

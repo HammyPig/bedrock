@@ -10,7 +10,7 @@ import {
 } from "~/app/invoices/_lib/money";
 import { type Invoice, type InvoiceDraft } from "~/app/invoices/_lib/types";
 import { customerDetailsInput } from "~/server/api/routers/customer";
-import { loadEffectiveSettings } from "~/server/api/routers/settings";
+import { assignNextInvoiceNumber, loadSettings } from "~/server/api/routers/settings";
 import { businessProcedure, createTRPCRouter } from "~/server/api/trpc";
 import { sendInvoiceEmail } from "~/server/email";
 import { invoiceLineItems, invoices, payments } from "~/server/db/schema";
@@ -58,6 +58,9 @@ const draftInput = z.object({
   deliveryTaxBasisPoints: z.number().int().min(0).max(MAX_BASIS_POINTS),
   notes: z.string(),
 }) satisfies z.ZodType<InvoiceDraft>;
+
+/** A new invoice is numbered by the business's counter, so it sends no number. */
+const createInput = draftInput.omit({ invoiceNumber: true });
 
 /**
  * The rows a draft is stored as. Every cents figure is derived here from the
@@ -180,12 +183,12 @@ export const invoiceRouter = createTRPCRouter({
     return row ? toInvoice(row) : null;
   }),
 
-  create: businessProcedure.input(draftInput).mutation(async ({ ctx, input }) => {
+  create: businessProcedure.input(createInput).mutation(async ({ ctx, input }) => {
     const businessId = ctx.businessId;
-    await assertInvoiceNumberFree(ctx.db, businessId, input.invoiceNumber);
-
-    const { columns, lineItems } = toRows(input);
     return ctx.db.transaction(async (tx) => {
+      // Inside the transaction, so a number is only spent by an invoice that saves.
+      const invoiceNumber = await assignNextInvoiceNumber(tx, businessId);
+      const { columns, lineItems } = toRows({ ...input, invoiceNumber });
       const [created] = await tx
         .insert(invoices)
         .values({ ...columns, businessId })
@@ -194,7 +197,7 @@ export const invoiceRouter = createTRPCRouter({
       await tx
         .insert(invoiceLineItems)
         .values(lineItems.map((line) => ({ ...line, invoiceId: created.id })));
-      return { id: created.id };
+      return { id: created.id, invoiceNumber };
     });
   }),
 
@@ -296,14 +299,22 @@ export const invoiceRouter = createTRPCRouter({
         });
       }
 
-      const settings = await loadEffectiveSettings(ctx.db, ctx.businessId);
+      const settings = await loadSettings(ctx.db, ctx.businessId);
       await sendInvoiceEmail(to, invoice.draft, settings, paymentsTotalCents(invoice.payments));
       return { sentTo: to };
     }),
 
-  /** Suggested number for the next invoice, from the business's numbering settings. */
-  nextNumber: businessProcedure.query(async ({ ctx }) => {
-    const settings = await loadEffectiveSettings(ctx.db, ctx.businessId);
-    return settings.invoiceNumberPrefix + settings.nextInvoiceNumber;
-  }),
+  /** Whether a number is already on an invoice — warns before it is set as the counter. */
+  numberTaken: businessProcedure
+    .input(z.object({ invoiceNumber: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const existing = await ctx.db.query.invoices.findFirst({
+        columns: { id: true },
+        where: and(
+          eq(invoices.businessId, ctx.businessId),
+          eq(invoices.invoiceNumber, input.invoiceNumber),
+        ),
+      });
+      return existing !== undefined;
+    }),
 });

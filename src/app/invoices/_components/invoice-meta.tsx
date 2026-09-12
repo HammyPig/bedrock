@@ -15,25 +15,34 @@ import { type InvoiceAction, type InvoiceDraft, type PaymentTerms } from "../_li
 
 interface InvoiceMetaProps {
   draft: InvoiceDraft;
+  /** A new invoice has no number until it saves, so it shows no number field. */
+  showInvoiceNumber: boolean;
   invoiceNumberError?: string;
   dispatch: (action: InvoiceAction) => void;
 }
 
-export function InvoiceMeta({ draft, invoiceNumberError, dispatch }: InvoiceMetaProps) {
+export function InvoiceMeta({
+  draft,
+  showInvoiceNumber,
+  invoiceNumberError,
+  dispatch,
+}: InvoiceMetaProps) {
   return (
     <section className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-3">
-      <div className="space-y-1.5">
-        <Label htmlFor="invoice-number">{draft.isQuote ? "Quote no." : "Invoice no."}</Label>
-        <Input
-          id="invoice-number"
-          value={draft.invoiceNumber}
-          aria-invalid={invoiceNumberError !== undefined}
-          onChange={(e) =>
-            dispatch({ type: "patch", patch: { invoiceNumber: e.currentTarget.value } })
-          }
-        />
-        {invoiceNumberError && <p className="text-destructive text-sm">{invoiceNumberError}</p>}
-      </div>
+      {showInvoiceNumber && (
+        <div className="space-y-1.5">
+          <Label htmlFor="invoice-number">{draft.isQuote ? "Quote no." : "Invoice no."}</Label>
+          <Input
+            id="invoice-number"
+            value={draft.invoiceNumber}
+            aria-invalid={invoiceNumberError !== undefined}
+            onChange={(e) =>
+              dispatch({ type: "patch", patch: { invoiceNumber: e.currentTarget.value } })
+            }
+          />
+          {invoiceNumberError && <p className="text-destructive text-sm">{invoiceNumberError}</p>}
+        </div>
+      )}
       <div className="space-y-1.5">
         <Label htmlFor="issue-date">Issue date</Label>
         <Input

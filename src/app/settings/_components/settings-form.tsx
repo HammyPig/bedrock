@@ -49,12 +49,14 @@ export function SettingsForm({ section }: { section: SettingsSection }) {
       setSavedSettings(fresh);
       setJustSaved(true);
       await utils.settings.get.invalidate();
-      // The suggested number on the create page depends on numbering settings.
-      await utils.invoice.nextNumber.invalidate();
     },
   });
 
   const nextNumberValid = Number(settings.nextInvoiceNumber) >= 1;
+  const previewNumber = settings.invoiceNumberPrefix + settings.nextInvoiceNumber;
+  const invoiceNumberTaken =
+    api.invoice.numberTaken.useQuery({ invoiceNumber: previewNumber }, { enabled: nextNumberValid })
+      .data ?? false;
 
   const handleSave = () => {
     if (!nextNumberValid) return;
@@ -66,7 +68,7 @@ export function SettingsForm({ section }: { section: SettingsSection }) {
   return (
     <div className="bg-card rounded-xl border shadow-sm">
       <div className="space-y-10 p-8 sm:p-10">
-        <Fields value={settings} onChange={patch} />
+        <Fields value={settings} onChange={patch} invoiceNumberTaken={invoiceNumberTaken} />
       </div>
       <SaveBar
         summary={dirty ? "Unsaved changes" : null}

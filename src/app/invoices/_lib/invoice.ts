@@ -171,13 +171,20 @@ export function customerDisplayName(customer: Identity): string {
   return field === undefined ? "Unnamed customer" : customer[field].trim();
 }
 
-export function validateDraft(draft: InvoiceDraft): DraftErrors | null {
+/**
+ * What blocks the draft from saving, or null. A new invoice shows no number
+ * field — the server numbers it on save — so only an edit can leave it empty.
+ */
+export function validateDraft(
+  draft: InvoiceDraft,
+  requireInvoiceNumber = true,
+): DraftErrors | null {
   const invalidLineItemIds = draft.lineItems
     .filter((item) => item.name.trim() === "" || item.quantityMilli <= 0)
     .map((item) => item.id);
 
   const errors: DraftErrors = { invalidLineItemIds };
-  if (draft.invoiceNumber.trim() === "") {
+  if (requireInvoiceNumber && draft.invoiceNumber.trim() === "") {
     errors.invoiceNumber = draft.isQuote
       ? "Quote number is required."
       : "Invoice number is required.";

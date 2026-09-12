@@ -15,6 +15,11 @@ const MAX_LOGO_BYTES = 1_000_000;
 export interface SettingsFieldsProps {
   value: BusinessSettings;
   onChange: (patch: Partial<BusinessSettings>) => void;
+  /**
+   * Whether the next number is already on an invoice. Only the settings page
+   * knows — a business being created has no invoices to check against.
+   */
+  invoiceNumberTaken?: boolean;
 }
 
 /** Name, tax ID, and contact details — the invoice header block. */
@@ -90,7 +95,11 @@ export function BusinessDetailsFields({ value, onChange }: SettingsFieldsProps) 
 }
 
 /** Everything printed on the invoice PDF: branding, payment details, terms, numbering. */
-export function InvoiceAppearanceFields({ value, onChange }: SettingsFieldsProps) {
+export function InvoiceAppearanceFields({
+  value,
+  onChange,
+  invoiceNumberTaken = false,
+}: SettingsFieldsProps) {
   const [logoError, setLogoError] = useState<string | null>(null);
   const nextNumberValid = Number(value.nextInvoiceNumber) >= 1;
   const previewNumber = value.invoiceNumberPrefix + value.nextInvoiceNumber;
@@ -192,9 +201,9 @@ export function InvoiceAppearanceFields({ value, onChange }: SettingsFieldsProps
       <section>
         <h2 className="mb-1 font-medium">Invoice numbering</h2>
         <p className="text-muted-foreground mb-4 text-sm">
-          New invoice numbers are the prefix followed by a running number. Zero-pad the next number
-          to set its width — 000213 gives six digits. Numbers already invoiced push it up
-          automatically, so duplicates are impossible.
+          Invoices are numbered on save: the prefix followed by a counter that advances each time.
+          Zero-pad the next number to set its width — 000213 gives six digits. Numbers already used
+          are skipped over, so duplicates are impossible.
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
@@ -220,13 +229,18 @@ export function InvoiceAppearanceFields({ value, onChange }: SettingsFieldsProps
             />
           </div>
         </div>
-        {nextNumberValid ? (
+        {!nextNumberValid ? (
+          <p className="text-destructive mt-3 text-sm">Next number must be 1 or higher.</p>
+        ) : invoiceNumberTaken ? (
+          <p className="mt-3 text-sm text-amber-600 dark:text-amber-500">
+            <span className="font-medium tabular-nums">{previewNumber}</span> is already on an
+            invoice, so your next one will skip past it.
+          </p>
+        ) : (
           <p className="text-muted-foreground mt-3 text-sm">
             Your next invoice will be numbered{" "}
             <span className="text-foreground font-medium tabular-nums">{previewNumber}</span>.
           </p>
-        ) : (
-          <p className="text-destructive mt-3 text-sm">Next number must be 1 or higher.</p>
         )}
       </section>
     </>

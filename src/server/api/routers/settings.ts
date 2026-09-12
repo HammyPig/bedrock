@@ -64,34 +64,66 @@ function toSettings(row: typeof businessSettings.$inferSelect): BusinessSettings
   };
 }
 
-/**
- * Settings with nextInvoiceNumber advanced to the effective next sequence:
- * the stored floor pushed past any invoice numbers already used under the
- * prefix, keeping the stored padding width. Suggestions built from this can
- * never collide with an existing invoice.
- */
-export async function loadEffectiveSettings(
+/** The business's stored settings, or defaults for a business without a row yet. */
+export async function loadSettings(
   db: typeof database,
   businessId: string,
 ): Promise<BusinessSettings> {
   const row = await db.query.businessSettings.findFirst({
     where: eq(businessSettings.businessId, businessId),
   });
-  const settings = row ? toSettings(row) : defaultSettings();
+  return row ? toSettings(row) : defaultSettings();
+}
 
-  const invoiceRows = await db
+/** The transaction handle `db.transaction` hands its callback. */
+type Transaction = Parameters<Parameters<typeof database.transaction>[0]>[0];
+
+/**
+ * Takes the next number off the business's counter and advances it, stepping
+ * over any sequence already in use — numbers set by hand are what put the
+ * counter out of step, so it can't be assumed free on its own.
+ *
+ * Runs in the caller's transaction and locks the settings row, so two invoices
+ * saved at the same moment queue up rather than both taking the same number.
+ */
+export async function assignNextInvoiceNumber(
+  tx: Transaction,
+  businessId: string,
+): Promise<string> {
+  const [row] = await tx
+    .select()
+    .from(businessSettings)
+    .where(eq(businessSettings.businessId, businessId))
+    .for("update");
+  // Creating a business writes its settings row in the same transaction.
+  if (!row) {
+    throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Business has no settings." });
+  }
+
+  const { invoiceNumberPrefix: prefix, nextInvoiceNumber } = row;
+  // Matching the prefix in SQL would mean escaping the LIKE wildcards a prefix
+  // is free to contain, so the column comes back whole and the parse filters it.
+  const usedRows = await tx
     .select({ invoiceNumber: invoices.invoiceNumber })
     .from(invoices)
     .where(eq(invoices.businessId, businessId));
+  const taken = new Set(
+    usedRows
+      .map(({ invoiceNumber }) => invoiceNumberSequence(prefix, invoiceNumber))
+      .filter((sequence): sequence is number => sequence !== null),
+  );
 
-  let sequence = Number(settings.nextInvoiceNumber);
-  for (const { invoiceNumber } of invoiceRows) {
-    const existing = invoiceNumberSequence(settings.invoiceNumberPrefix, invoiceNumber);
-    if (existing !== null && existing >= sequence) sequence = existing + 1;
-  }
+  // Compared as sequences, not strings, so INV-42 also rules out INV-0042.
+  let sequence = Number(nextInvoiceNumber);
+  while (taken.has(sequence)) sequence += 1;
 
-  const width = settings.nextInvoiceNumber.length;
-  return { ...settings, nextInvoiceNumber: String(sequence).padStart(width, "0") };
+  const width = nextInvoiceNumber.length;
+  await tx
+    .update(businessSettings)
+    .set({ nextInvoiceNumber: String(sequence + 1).padStart(width, "0") })
+    .where(eq(businessSettings.businessId, businessId));
+
+  return prefix + String(sequence).padStart(width, "0");
 }
 
 /** The business's module toggles; a business with no settings row has every module off. */
@@ -117,7 +149,7 @@ export const purchaseOrdersProcedure = businessProcedure.use(async ({ ctx, next 
 });
 
 export const settingsRouter = createTRPCRouter({
-  get: businessProcedure.query(({ ctx }) => loadEffectiveSettings(ctx.db, ctx.businessId)),
+  get: businessProcedure.query(({ ctx }) => loadSettings(ctx.db, ctx.businessId)),
 
   modules: businessProcedure.query(({ ctx }) => loadModules(ctx.db, ctx.businessId)),
 
@@ -136,8 +168,7 @@ export const settingsRouter = createTRPCRouter({
       .insert(businessSettings)
       .values({ ...input, businessId })
       .onConflictDoUpdate({ target: businessSettings.businessId, set: input });
-    // Re-read so the client's form resets to the effective next number, not
-    // the raw floor it submitted.
-    return loadEffectiveSettings(ctx.db, businessId);
+    // Re-read so the client's form resets to exactly what was stored.
+    return loadSettings(ctx.db, businessId);
   }),
 });

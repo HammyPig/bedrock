@@ -6,7 +6,7 @@ import { computeBreakdown, MAX_BASIS_POINTS } from "~/app/invoices/_lib/money";
 import { type PurchaseOrder, type PurchaseOrderDraft } from "~/app/purchase-orders/_lib/types";
 import { isoDate, lineItemBaseInput } from "~/server/api/routers/invoice";
 import { vendorDetailsInput } from "~/server/api/routers/vendor";
-import { loadEffectiveSettings, purchaseOrdersProcedure } from "~/server/api/routers/settings";
+import { loadSettings, purchaseOrdersProcedure } from "~/server/api/routers/settings";
 import { createTRPCRouter } from "~/server/api/trpc";
 import { sendPurchaseOrderEmail } from "~/server/email";
 import { purchaseOrderLineItems, purchaseOrders } from "~/server/db/schema";
@@ -197,7 +197,7 @@ export const purchaseOrderRouter = createTRPCRouter({
         });
       }
 
-      const settings = await loadEffectiveSettings(ctx.db, ctx.businessId);
+      const settings = await loadSettings(ctx.db, ctx.businessId);
       await sendPurchaseOrderEmail(to, draft, settings);
       return { sentTo: to };
     }),
