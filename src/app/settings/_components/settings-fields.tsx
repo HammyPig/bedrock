@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { AddressField } from "~/app/invoices/_components/address-field";
 import { Button } from "~/components/ui/button";
+import { Checkbox } from "~/components/ui/checkbox";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Textarea } from "~/components/ui/textarea";
@@ -40,6 +41,16 @@ export function BusinessDetailsFields({ value, onChange }: SettingsFieldsProps) 
             value={value.taxId}
             onChange={(e) => onChange({ taxId: e.currentTarget.value })}
           />
+        </div>
+        <div className="flex items-center gap-2 sm:mt-7">
+          <Checkbox
+            id="gst-registered"
+            checked={value.gstRegistered}
+            onCheckedChange={(checked) => onChange({ gstRegistered: checked === true })}
+          />
+          <Label htmlFor="gst-registered" className="font-normal">
+            Registered for GST
+          </Label>
         </div>
         <div className="space-y-2">
           <Label htmlFor="website">Website</Label>

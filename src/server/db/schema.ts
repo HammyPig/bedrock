@@ -371,6 +371,7 @@ export const businessSettings = createTable("business_settings", (d) => ({
     .references(() => businesses.id),
   businessName: d.varchar({ length: 255 }).notNull(),
   taxId: d.varchar({ length: 64 }).notNull(),
+  gstRegistered: d.boolean().notNull().default(true),
   address: d.jsonb().$type<Address>().notNull(),
   website: d.varchar({ length: 255 }).notNull(),
   email: d.varchar({ length: 255 }).notNull(),

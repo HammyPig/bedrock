@@ -40,6 +40,8 @@ export interface BusinessSettings {
   businessName: string;
   /** ABN, EIN, VAT number — whatever identifies the business for tax. */
   taxId: string;
+  /** Registered for GST: new invoices and purchase orders charge it, at the one legislated rate. */
+  gstRegistered: boolean;
   address: Address;
   website: string;
   email: string;
@@ -69,6 +71,7 @@ export function defaultSettings(): BusinessSettings {
   return {
     businessName: "",
     taxId: "",
+    gstRegistered: true,
     address: emptyAddress(),
     website: "",
     email: "",

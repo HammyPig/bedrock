@@ -16,6 +16,7 @@ import { type db as database } from "~/server/db";
 export const settingsInput = z.object({
   businessName: z.string().max(255),
   taxId: z.string().max(64),
+  gstRegistered: z.boolean(),
   address: addressInput,
   website: z.string().max(255),
   email: z.string().max(255),
@@ -45,6 +46,7 @@ function toSettings(row: typeof businessSettings.$inferSelect): BusinessSettings
   return {
     businessName: row.businessName,
     taxId: row.taxId,
+    gstRegistered: row.gstRegistered,
     address: row.address,
     website: row.website,
     email: row.email,
