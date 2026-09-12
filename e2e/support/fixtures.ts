@@ -133,8 +133,8 @@ export async function seedInvoice(
     .values({
       businessId: TEST_BUSINESS_ID,
       ...rest,
-      discountPercent: discount?.percent ?? 0,
       discountCents: breakdown.discountCents,
+      discountBasisPoints: discount?.basisPoints ?? 0,
       deliveryTaxCents: breakdown.deliveryTaxCents,
     })
     .returning();
@@ -149,9 +149,9 @@ export async function seedInvoice(
         name: item.name,
         quantity: item.quantity,
         unitPriceCents: item.unitPriceCents,
-        discountPercent: item.discountPercent,
+        discountBasisPoints: item.discountBasisPoints,
         discountCents: breakdown.lines[position]?.discountCents ?? 0,
-        taxPercent: item.taxPercent,
+        taxBasisPoints: item.taxBasisPoints,
         taxCents: breakdown.lines[position]?.taxCents ?? 0,
         backordered: item.backordered,
       })),

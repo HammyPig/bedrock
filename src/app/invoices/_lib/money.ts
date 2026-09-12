@@ -1,7 +1,19 @@
 import { type Discount, type DiscountMode, type LineItemBase, type Totals } from "./types";
 
+/**
+ * Rates are stored in basis points — hundredths of a percent — so no rate is
+ * ever a float. 10% is 1000; 100%, the largest a rate can be, is 10000.
+ */
+export const BASIS_POINTS_PER_PERCENT = 100;
+export const MAX_BASIS_POINTS = 100 * BASIS_POINTS_PER_PERCENT;
+
 /** The only tax rate the app charges: a business is registered for GST or it isn't. */
-export const GST_RATE_PERCENT = 10;
+export const GST_RATE_BASIS_POINTS = 10 * BASIS_POINTS_PER_PERCENT;
+
+/** A rate as the percent it reads as: 1000 -> "10", 3333 -> "33.33". */
+export function formatBasisPoints(basisPoints: number): string {
+  return String(basisPoints / BASIS_POINTS_PER_PERCENT);
+}
 
 /**
  * The shape the money math needs. Structural rather than Pick<InvoiceDraft, ...>
@@ -11,7 +23,7 @@ interface TaxableDocument {
   lineItems: LineItemBase[];
   discount: Discount | null;
   deliveryCents: number;
-  deliveryTaxPercent: number;
+  deliveryTaxBasisPoints: number;
 }
 
 /** The cents a single line contributes, each derived from a percent on the line. */
@@ -38,7 +50,7 @@ export function subtotalCents(lineItems: LineItemBase[]): number {
 
 /** How a discount was asked for — read off the discount rather than stored beside it. */
 export function discountMode(discount: Discount): DiscountMode {
-  return discount.percent > 0 ? "percent" : "fixed";
+  return discount.basisPoints > 0 ? "percent" : "fixed";
 }
 
 /**
@@ -48,7 +60,9 @@ export function discountMode(discount: Discount): DiscountMode {
  */
 export function discountAmountCents(discount: Discount, subtotal: number): number {
   const cents =
-    discount.percent > 0 ? Math.round((subtotal * discount.percent) / 100) : discount.amountCents;
+    discount.basisPoints > 0
+      ? Math.round((subtotal * discount.basisPoints) / MAX_BASIS_POINTS)
+      : discount.amountCents;
   return Math.min(cents, subtotal);
 }
 
@@ -69,7 +83,9 @@ export function resolveDiscount(
 
 /** Line subtotal: qty x unit price, less the per-line discount. */
 export function lineItemSubtotalCents(item: LineItemBase): number {
-  return Math.round(item.quantity * item.unitPriceCents * (1 - item.discountPercent / 100));
+  return Math.round(
+    item.quantity * item.unitPriceCents * (1 - item.discountBasisPoints / MAX_BASIS_POINTS),
+  );
 }
 
 /** What the per-line discount took off — the gap to the undiscounted line, so the two reconcile exactly. */
@@ -78,8 +94,10 @@ export function lineItemDiscountCents(item: LineItemBase): number {
 }
 
 /** The rate a document is written at; a fresh one with no lines falls back to its delivery rate. */
-export function documentTaxPercent(doc: Pick<TaxableDocument, "lineItems" | "deliveryTaxPercent">) {
-  return doc.lineItems[0]?.taxPercent ?? doc.deliveryTaxPercent;
+export function documentTaxBasisPoints(
+  doc: Pick<TaxableDocument, "lineItems" | "deliveryTaxBasisPoints">,
+) {
+  return doc.lineItems[0]?.taxBasisPoints ?? doc.deliveryTaxBasisPoints;
 }
 
 /** The invoice's paid total: the sum of its recorded payments. */
@@ -119,16 +137,18 @@ export function computeBreakdown(doc: TaxableDocument, paidCents = 0): Breakdown
 
   const discountShares = allocateCents(discountCents, lineSubtotals);
   const lines = doc.lineItems.map((item, i) => {
-    const lineSubtotal = lineSubtotals[i] ?? 0;
-    const taxableCents = lineSubtotal - (discountShares[i] ?? 0);
+    const lineSubtotalCents = lineSubtotals[i] ?? 0;
+    const taxableCents = lineSubtotalCents - (discountShares[i] ?? 0);
     return {
       discountCents: lineItemDiscountCents(item),
-      subtotalCents: lineSubtotal,
-      taxCents: Math.round((taxableCents * item.taxPercent) / 100),
+      subtotalCents: lineSubtotalCents,
+      taxCents: Math.round((taxableCents * item.taxBasisPoints) / MAX_BASIS_POINTS),
     };
   });
 
-  const deliveryTaxCents = Math.round((doc.deliveryCents * doc.deliveryTaxPercent) / 100);
+  const deliveryTaxCents = Math.round(
+    (doc.deliveryCents * doc.deliveryTaxBasisPoints) / MAX_BASIS_POINTS,
+  );
   const taxCents = lines.reduce((sum, line) => sum + line.taxCents, 0) + deliveryTaxCents;
   const totalCents = subtotal - discountCents + doc.deliveryCents + taxCents;
 

@@ -6,7 +6,8 @@ import { XIcon } from "lucide-react";
 import { MoneyInput } from "~/components/money-input";
 import { Button } from "~/components/ui/button";
 import { formatCents } from "~/lib/money";
-import { discountMode } from "../_lib/money";
+import { discountMode, formatBasisPoints } from "../_lib/money";
+import { PercentInput } from "./percent-input";
 import { cn } from "~/lib/utils";
 import {
   type Discount,
@@ -15,15 +16,14 @@ import {
   type Payment,
   type Totals,
 } from "../_lib/types";
-import { NumberInput } from "./number-input";
 import { PaymentsSection } from "./payments-section";
 
 interface TotalsPanelProps {
   totals: Totals;
   discount: Discount | null;
   deliveryCents: number;
-  /** The rate the document is written at — shown, never edited. */
-  taxPercent: number;
+  /** The rate the invoice is written at — shown, never edited. */
+  taxBasisPoints: number;
   /** Undefined on the create page — payments only attach to a saved invoice. */
   invoiceId?: string;
   isQuote: boolean;
@@ -35,7 +35,7 @@ export function TotalsPanel({
   totals,
   discount,
   deliveryCents,
-  taxPercent,
+  taxBasisPoints,
   invoiceId,
   isQuote,
   payments,
@@ -53,7 +53,7 @@ export function TotalsPanel({
   const switchMode = (next: DiscountMode) => {
     if (next === mode) return;
     setMode(next);
-    dispatch({ type: "patch", patch: { discount: { percent: 0, amountCents: 0 } } });
+    dispatch({ type: "patch", patch: { discount: { basisPoints: 0, amountCents: 0 } } });
   };
 
   return (
@@ -70,7 +70,7 @@ export function TotalsPanel({
           className="h-auto p-0"
           onClick={() => {
             setMode("percent");
-            dispatch({ type: "patch", patch: { discount: { percent: 0, amountCents: 0 } } });
+            dispatch({ type: "patch", patch: { discount: { basisPoints: 0, amountCents: 0 } } });
           }}
         >
           Add discount
@@ -97,13 +97,12 @@ export function TotalsPanel({
               ))}
             </div>
             {mode === "percent" ? (
-              <NumberInput
+              <PercentInput
                 className="h-7 w-14 px-1.5 text-sm"
                 aria-label="Discount percent"
-                max={100}
-                value={discount.percent}
-                onValueChange={(percent) =>
-                  dispatch({ type: "patch", patch: { discount: { ...discount, percent } } })
+                basisPoints={discount.basisPoints}
+                onBasisPointsChange={(basisPoints) =>
+                  dispatch({ type: "patch", patch: { discount: { ...discount, basisPoints } } })
                 }
               />
             ) : (
@@ -113,7 +112,7 @@ export function TotalsPanel({
                 aria-label="Discount amount"
                 valueCents={discount.amountCents}
                 onValueCentsChange={(amountCents) =>
-                  dispatch({ type: "patch", patch: { discount: { percent: 0, amountCents } } })
+                  dispatch({ type: "patch", patch: { discount: { basisPoints: 0, amountCents } } })
                 }
               />
             )}
@@ -144,9 +143,11 @@ export function TotalsPanel({
         />
       </div>
 
-      {taxPercent > 0 && (
+      {taxBasisPoints > 0 && (
         <div className="flex items-center justify-between gap-2">
-          <span className="text-muted-foreground text-sm">GST ({taxPercent}%)</span>
+          <span className="text-muted-foreground text-sm">
+            GST ({formatBasisPoints(taxBasisPoints)}%)
+          </span>
           <span className="text-sm tabular-nums">{formatCents(totals.taxCents)}</span>
         </div>
       )}

@@ -2,7 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { and, asc, eq, ne } from "drizzle-orm";
 import { z } from "zod";
 
-import { computeBreakdown } from "~/app/invoices/_lib/money";
+import { computeBreakdown, MAX_BASIS_POINTS } from "~/app/invoices/_lib/money";
 import { type PurchaseOrder, type PurchaseOrderDraft } from "~/app/purchase-orders/_lib/types";
 import { isoDate, lineItemBaseInput } from "~/server/api/routers/invoice";
 import { vendorDetailsInput } from "~/server/api/routers/vendor";
@@ -27,12 +27,12 @@ const draftInput = z.object({
     ),
   discount: z
     .object({
-      percent: z.number().min(0).max(100),
+      basisPoints: z.number().int().min(0).max(MAX_BASIS_POINTS),
       amountCents: z.number().int().min(0),
     })
     .nullable(),
   deliveryCents: z.number().int().min(0),
-  deliveryTaxPercent: z.number().min(0).max(100),
+  deliveryTaxBasisPoints: z.number().int().min(0).max(MAX_BASIS_POINTS),
   notes: z.string(),
 }) satisfies z.ZodType<PurchaseOrderDraft>;
 
@@ -43,8 +43,8 @@ function toRows(draft: z.infer<typeof draftInput>) {
   return {
     columns: {
       ...columns,
-      discountPercent: discount?.percent ?? 0,
       discountCents: breakdown.discountCents,
+      discountBasisPoints: discount?.basisPoints ?? 0,
       deliveryTaxCents: breakdown.deliveryTaxCents,
     },
     lineItems: lineItems.map((line, position) => ({
@@ -61,9 +61,9 @@ function toRows(draft: z.infer<typeof draftInput>) {
  * a discount exists when it came to something or when a rate was recorded —
  * a discount of exactly nothing is not one worth keeping.
  */
-function rowDiscount(row: { discountCents: number; discountPercent: number }) {
-  return row.discountCents > 0 || row.discountPercent > 0
-    ? { percent: row.discountPercent, amountCents: row.discountCents }
+function rowDiscount(row: { discountCents: number; discountBasisPoints: number }) {
+  return row.discountCents > 0 || row.discountBasisPoints > 0
+    ? { basisPoints: row.discountBasisPoints, amountCents: row.discountCents }
     : null;
 }
 
@@ -86,12 +86,12 @@ function toPurchaseOrder(row: PurchaseOrderRow): PurchaseOrder {
         name: line.name,
         quantity: line.quantity,
         unitPriceCents: line.unitPriceCents,
-        discountPercent: line.discountPercent,
-        taxPercent: line.taxPercent,
+        discountBasisPoints: line.discountBasisPoints,
+        taxBasisPoints: line.taxBasisPoints,
       })),
       discount: rowDiscount(row),
       deliveryCents: row.deliveryCents,
-      deliveryTaxPercent: row.deliveryTaxPercent,
+      deliveryTaxBasisPoints: row.deliveryTaxBasisPoints,
       notes: row.notes,
     },
   };

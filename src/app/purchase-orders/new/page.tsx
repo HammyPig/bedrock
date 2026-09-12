@@ -1,7 +1,7 @@
 import { type Metadata } from "next";
 import { redirect } from "next/navigation";
 
-import { GST_RATE_PERCENT } from "~/app/invoices/_lib/money";
+import { GST_RATE_BASIS_POINTS } from "~/app/invoices/_lib/money";
 import { auth } from "~/server/auth";
 import { resolveBusinessId } from "~/server/business";
 import { api, HydrateClient } from "~/trpc/server";
@@ -30,7 +30,7 @@ export default async function NewPurchaseOrderPage() {
       <main className="bg-background min-h-screen">
         <PurchaseOrderForm
           suggestedPoNumber={suggestedPoNumber}
-          taxPercent={settings.gstRegistered ? GST_RATE_PERCENT : 0}
+          taxBasisPoints={settings.gstRegistered ? GST_RATE_BASIS_POINTS : 0}
         />
       </main>
     </HydrateClient>

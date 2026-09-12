@@ -1,6 +1,10 @@
 import { Document, Font, Image, Page, pdf, StyleSheet, Text, View } from "@react-pdf/renderer";
 
-import { documentTaxPercent, lineItemSubtotalCents } from "~/app/invoices/_lib/money";
+import {
+  documentTaxBasisPoints,
+  formatBasisPoints,
+  lineItemSubtotalCents,
+} from "~/app/invoices/_lib/money";
 import { type Address } from "~/app/invoices/_lib/types";
 import { type BusinessSettings } from "~/app/settings/_lib/settings";
 import { formatIsoDate } from "~/lib/dates";
@@ -120,10 +124,10 @@ interface PurchaseOrderPdfProps {
 
 export function PurchaseOrderPdf({ draft, settings }: PurchaseOrderPdfProps) {
   const totals = purchaseOrderTotals(draft);
-  const taxPercent = documentTaxPercent(draft);
+  const taxBasisPoints = documentTaxBasisPoints(draft);
   const items = draft.lineItems.filter((item) => item.name.trim() !== "" || item.sku.trim() !== "");
   const showSku = items.some((item) => item.sku.trim() !== "");
-  const showDiscount = items.some((item) => item.discountPercent > 0);
+  const showDiscount = items.some((item) => item.discountBasisPoints > 0);
   const businessContact = [settings.phone, settings.email, settings.website].filter(
     (value) => value.trim() !== "",
   );
@@ -216,7 +220,9 @@ export function PurchaseOrderPdf({ draft, settings }: PurchaseOrderPdfProps) {
             <Text style={styles.colUnit}>{formatCents(item.unitPriceCents)}</Text>
             {showDiscount && (
               <Text style={styles.colDisc}>
-                {item.discountPercent > 0 ? `${item.discountPercent}%` : ""}
+                {item.discountBasisPoints > 0
+                  ? `${formatBasisPoints(item.discountBasisPoints)}%`
+                  : ""}
               </Text>
             )}
             <Text style={styles.colAmount}>{formatCents(lineItemSubtotalCents(item))}</Text>
@@ -230,9 +236,9 @@ export function PurchaseOrderPdf({ draft, settings }: PurchaseOrderPdfProps) {
             {totals.discountCents > 0 && (
               <TotalsRow
                 label={
-                  draft.discount === null || draft.discount.percent === 0
+                  draft.discount === null || draft.discount.basisPoints === 0
                     ? "Discount"
-                    : `Discount (${draft.discount.percent}%)`
+                    : `Discount (${formatBasisPoints(draft.discount.basisPoints)}%)`
                 }
                 value={`-${formatCents(totals.discountCents)}`}
               />
@@ -240,8 +246,11 @@ export function PurchaseOrderPdf({ draft, settings }: PurchaseOrderPdfProps) {
             {draft.deliveryCents > 0 && (
               <TotalsRow label="Delivery" value={formatCents(draft.deliveryCents)} />
             )}
-            {taxPercent > 0 && (
-              <TotalsRow label={`GST (${taxPercent}%)`} value={formatCents(totals.taxCents)} />
+            {taxBasisPoints > 0 && (
+              <TotalsRow
+                label={`GST (${formatBasisPoints(taxBasisPoints)}%)`}
+                value={formatCents(totals.taxCents)}
+              />
             )}
             <TotalsRow
               label="Total"

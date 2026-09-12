@@ -16,6 +16,7 @@ import { lineItemSubtotalCents } from "../_lib/money";
 import { type InvoiceAction, type LineItem, type Tier } from "../_lib/types";
 import { Highlight } from "~/components/highlight";
 import { NumberInput } from "./number-input";
+import { PercentInput } from "./percent-input";
 
 type CellField = "sku" | "name" | "quantity" | "unitPrice" | "discount";
 
@@ -46,7 +47,7 @@ interface LineItemsGridProps {
   invalidItemIds: string[];
   error?: string;
   /** The rate the document is on; a row added here joins it rather than setting its own. */
-  taxPercent: number;
+  taxBasisPoints: number;
   dispatch: (action: InvoiceAction) => void;
 }
 
@@ -56,7 +57,7 @@ export function LineItemsGrid({
   tierId,
   invalidItemIds,
   error,
-  taxPercent,
+  taxBasisPoints,
   dispatch,
 }: LineItemsGridProps) {
   // Names for the unit-price dropdown; harmlessly empty while Tiered pricing is off.
@@ -67,12 +68,12 @@ export function LineItemsGrid({
   // Discount and backorder columns are opt-in; each starts visible when the
   // invoice already uses it so saved data can never be hidden.
   const [discountToggle, setDiscountToggle] = useState(() =>
-    items.some((item) => item.discountPercent > 0),
+    items.some((item) => item.discountBasisPoints > 0),
   );
   const [backorderToggle, setBackorderToggle] = useState(() =>
     items.some((item) => item.backordered),
   );
-  const hasDiscounts = items.some((item) => item.discountPercent > 0);
+  const hasDiscounts = items.some((item) => item.discountBasisPoints > 0);
   const hasBackorders = items.some((item) => item.backordered);
   const showDiscount = discountToggle || hasDiscounts;
   const showBackorder = backorderToggle || hasBackorders;
@@ -98,7 +99,7 @@ export function LineItemsGrid({
   };
 
   const appendRow = (focusField: CellField) => {
-    const item = makeLineItem(taxPercent);
+    const item = makeLineItem(taxBasisPoints);
     dispatch({ type: "appendLineItem", item });
     setPendingFocus({ id: item.id, field: focusField });
   };
@@ -213,13 +214,12 @@ export function LineItemsGrid({
                 onKeyDown={(e) => handleCellKeyDown(e, item.id, "unitPrice")}
               />
               {showDiscount && (
-                <NumberInput
+                <PercentInput
                   ref={registerCell(item.id, "discount")}
                   className="px-1.5"
-                  max={100}
-                  value={item.discountPercent}
+                  basisPoints={item.discountBasisPoints}
                   aria-label={`Line ${index + 1} discount percent`}
-                  onValueChange={(discountPercent) => patchItem({ discountPercent })}
+                  onBasisPointsChange={(discountBasisPoints) => patchItem({ discountBasisPoints })}
                   onKeyDown={(e) => handleCellKeyDown(e, item.id, "discount")}
                 />
               )}

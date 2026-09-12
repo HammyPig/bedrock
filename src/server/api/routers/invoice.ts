@@ -2,7 +2,12 @@ import { TRPCError } from "@trpc/server";
 import { and, asc, eq, inArray, ne } from "drizzle-orm";
 import { z } from "zod";
 
-import { computeBreakdown, computeTotals, paymentsTotalCents } from "~/app/invoices/_lib/money";
+import {
+  computeBreakdown,
+  computeTotals,
+  MAX_BASIS_POINTS,
+  paymentsTotalCents,
+} from "~/app/invoices/_lib/money";
 import { type Invoice, type InvoiceDraft } from "~/app/invoices/_lib/types";
 import { customerDetailsInput } from "~/server/api/routers/customer";
 import { loadEffectiveSettings } from "~/server/api/routers/settings";
@@ -20,8 +25,8 @@ export const lineItemBaseInput = z.object({
   name: z.string().min(1),
   quantity: z.number().positive(),
   unitPriceCents: z.number().int().min(0),
-  discountPercent: z.number().min(0).max(100),
-  taxPercent: z.number().min(0).max(100),
+  discountBasisPoints: z.number().int().min(0).max(MAX_BASIS_POINTS),
+  taxBasisPoints: z.number().int().min(0).max(MAX_BASIS_POINTS),
 });
 
 const lineItemInput = lineItemBaseInput.extend({ backordered: z.boolean() });
@@ -45,12 +50,12 @@ const draftInput = z.object({
     ),
   discount: z
     .object({
-      percent: z.number().min(0).max(100),
+      basisPoints: z.number().int().min(0).max(MAX_BASIS_POINTS),
       amountCents: z.number().int().min(0),
     })
     .nullable(),
   deliveryCents: z.number().int().min(0),
-  deliveryTaxPercent: z.number().min(0).max(100),
+  deliveryTaxBasisPoints: z.number().int().min(0).max(MAX_BASIS_POINTS),
   notes: z.string(),
 }) satisfies z.ZodType<InvoiceDraft>;
 
@@ -65,8 +70,8 @@ function toRows(draft: z.infer<typeof draftInput>) {
   return {
     columns: {
       ...columns,
-      discountPercent: discount?.percent ?? 0,
       discountCents: breakdown.discountCents,
+      discountBasisPoints: discount?.basisPoints ?? 0,
       deliveryTaxCents: breakdown.deliveryTaxCents,
     },
     lineItems: lineItems.map((line, position) => ({
@@ -83,9 +88,9 @@ function toRows(draft: z.infer<typeof draftInput>) {
  * a discount exists when it came to something or when a rate was recorded —
  * a discount of exactly nothing is not one worth keeping.
  */
-function rowDiscount(row: { discountCents: number; discountPercent: number }) {
-  return row.discountCents > 0 || row.discountPercent > 0
-    ? { percent: row.discountPercent, amountCents: row.discountCents }
+function rowDiscount(row: { discountCents: number; discountBasisPoints: number }) {
+  return row.discountCents > 0 || row.discountBasisPoints > 0
+    ? { basisPoints: row.discountBasisPoints, amountCents: row.discountCents }
     : null;
 }
 
@@ -119,13 +124,13 @@ function toInvoice(row: InvoiceRow): Invoice {
         name: line.name,
         quantity: line.quantity,
         unitPriceCents: line.unitPriceCents,
-        discountPercent: line.discountPercent,
-        taxPercent: line.taxPercent,
+        discountBasisPoints: line.discountBasisPoints,
+        taxBasisPoints: line.taxBasisPoints,
         backordered: line.backordered,
       })),
       discount: rowDiscount(row),
       deliveryCents: row.deliveryCents,
-      deliveryTaxPercent: row.deliveryTaxPercent,
+      deliveryTaxBasisPoints: row.deliveryTaxBasisPoints,
       notes: row.notes,
     },
     payments: row.payments.map((payment) => ({

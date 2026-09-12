@@ -4,7 +4,12 @@ import { type BusinessSettings } from "~/app/settings/_lib/settings";
 import { formatIsoDate } from "~/lib/dates";
 import { formatCents } from "~/lib/money";
 import { customerDisplayName, draftDueDate } from "./invoice";
-import { computeTotals, documentTaxPercent, lineItemSubtotalCents } from "./money";
+import {
+  computeTotals,
+  documentTaxBasisPoints,
+  formatBasisPoints,
+  lineItemSubtotalCents,
+} from "./money";
 import { type Address, type InvoiceDraft } from "./types";
 
 // Wrap whole words to the next line instead of react-pdf's default hyphenated splitting.
@@ -130,11 +135,11 @@ interface InvoicePdfProps {
 
 export function InvoicePdf({ draft, settings, paidCents }: InvoicePdfProps) {
   const totals = computeTotals(draft, paidCents);
-  const taxPercent = documentTaxPercent(draft);
+  const taxBasisPoints = documentTaxBasisPoints(draft);
   const dueDate = draftDueDate(draft);
   const items = draft.lineItems.filter((item) => item.name.trim() !== "" || item.sku.trim() !== "");
   const showSku = items.some((item) => item.sku.trim() !== "");
-  const showDiscount = items.some((item) => item.discountPercent > 0);
+  const showDiscount = items.some((item) => item.discountBasisPoints > 0);
   const showBackordered = items.some((item) => item.backordered);
   const businessContact = [settings.phone, settings.email, settings.website].filter(
     (value) => value.trim() !== "",
@@ -234,7 +239,9 @@ export function InvoicePdf({ draft, settings, paidCents }: InvoicePdfProps) {
             <Text style={styles.colUnit}>{formatCents(item.unitPriceCents)}</Text>
             {showDiscount && (
               <Text style={styles.colDisc}>
-                {item.discountPercent > 0 ? `${item.discountPercent}%` : ""}
+                {item.discountBasisPoints > 0
+                  ? `${formatBasisPoints(item.discountBasisPoints)}%`
+                  : ""}
               </Text>
             )}
             <Text style={styles.colAmount}>{formatCents(lineItemSubtotalCents(item))}</Text>
@@ -258,9 +265,9 @@ export function InvoicePdf({ draft, settings, paidCents }: InvoicePdfProps) {
             {totals.discountCents > 0 && (
               <TotalsRow
                 label={
-                  draft.discount === null || draft.discount.percent === 0
+                  draft.discount === null || draft.discount.basisPoints === 0
                     ? "Discount"
-                    : `Discount (${draft.discount.percent}%)`
+                    : `Discount (${formatBasisPoints(draft.discount.basisPoints)}%)`
                 }
                 value={`-${formatCents(totals.discountCents)}`}
               />
@@ -268,8 +275,11 @@ export function InvoicePdf({ draft, settings, paidCents }: InvoicePdfProps) {
             {draft.deliveryCents > 0 && (
               <TotalsRow label="Delivery" value={formatCents(draft.deliveryCents)} />
             )}
-            {taxPercent > 0 && (
-              <TotalsRow label={`GST (${taxPercent}%)`} value={formatCents(totals.taxCents)} />
+            {taxBasisPoints > 0 && (
+              <TotalsRow
+                label={`GST (${formatBasisPoints(taxBasisPoints)}%)`}
+                value={formatCents(totals.taxCents)}
+              />
             )}
             <TotalsRow
               label="Total"

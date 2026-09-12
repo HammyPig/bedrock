@@ -10,7 +10,7 @@ import { Textarea } from "~/components/ui/textarea";
 import { todayIsoDate } from "~/lib/dates";
 import { cn } from "~/lib/utils";
 import { api } from "~/trpc/react";
-import { documentTaxPercent, resolveDiscount } from "~/app/invoices/_lib/money";
+import { documentTaxBasisPoints, resolveDiscount } from "~/app/invoices/_lib/money";
 import { emptyVendorDetails, purchaseOrderTotals, validateDraft } from "../_lib/purchase-order";
 import { type PurchaseOrderAction, type PurchaseOrderDraft } from "../_lib/types";
 import { LineItemsGrid } from "./line-items-grid";
@@ -19,17 +19,17 @@ import { StickyActionBar } from "./sticky-action-bar";
 import { TotalsPanel } from "./totals-panel";
 import { VendorSection } from "./vendor-section";
 
-function createInitialDraft(poNumber: string, taxPercent: number): PurchaseOrderDraft {
+function createInitialDraft(poNumber: string, taxBasisPoints: number): PurchaseOrderDraft {
   return {
     poNumber,
     vendor: emptyVendorDetails(),
     sourceVendorId: null,
     orderDate: todayIsoDate(),
     expectedDate: null,
-    lineItems: [makeLineItemBase(taxPercent)],
+    lineItems: [makeLineItemBase(taxBasisPoints)],
     discount: null,
     deliveryCents: 0,
-    deliveryTaxPercent: taxPercent,
+    deliveryTaxBasisPoints: taxBasisPoints,
     notes: "",
   };
 }
@@ -75,15 +75,15 @@ interface PurchaseOrderFormProps {
   purchaseOrderId?: string;
   /** Next free purchase order number, pre-filled on the create page. */
   suggestedPoNumber?: string;
-  /** GST rate a new purchase order is written at, from the business's settings. */
-  taxPercent?: number;
+  /** GST rate in basis points a new purchase order is written at, from the business's settings. */
+  taxBasisPoints?: number;
 }
 
 export function PurchaseOrderForm({
   initialDraft,
   purchaseOrderId,
   suggestedPoNumber,
-  taxPercent = 0,
+  taxBasisPoints = 0,
 }: PurchaseOrderFormProps) {
   const router = useRouter();
   const utils = api.useUtils();
@@ -92,7 +92,7 @@ export function PurchaseOrderForm({
   const [draft, rawDispatch] = useReducer(
     purchaseOrderReducer,
     initialDraft,
-    (existing) => existing ?? createInitialDraft(suggestedPoNumber ?? "PO-0001", taxPercent),
+    (existing) => existing ?? createInitialDraft(suggestedPoNumber ?? "PO-0001", taxBasisPoints),
   );
   const [showErrors, setShowErrors] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -193,7 +193,7 @@ export function PurchaseOrderForm({
             savedItems={savedItems}
             invalidItemIds={errors?.invalidLineItemIds ?? []}
             error={errors?.lineItems}
-            taxPercent={documentTaxPercent(draft)}
+            taxBasisPoints={documentTaxBasisPoints(draft)}
             dispatch={dispatch}
           />
           <div className="flex flex-col gap-8 sm:flex-row sm:items-start">
@@ -213,7 +213,7 @@ export function PurchaseOrderForm({
               totals={totals}
               discount={draft.discount}
               deliveryCents={draft.deliveryCents}
-              taxPercent={documentTaxPercent(draft)}
+              taxBasisPoints={documentTaxBasisPoints(draft)}
               dispatch={dispatch}
             />
           </div>

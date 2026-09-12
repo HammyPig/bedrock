@@ -1,6 +1,6 @@
 import Papa from "papaparse";
 
-import { paymentsTotalCents } from "~/app/invoices/_lib/money";
+import { formatBasisPoints, paymentsTotalCents } from "~/app/invoices/_lib/money";
 import { type Customer, type Invoice, type Tier } from "~/app/invoices/_lib/types";
 import { type SavedItem } from "~/lib/items";
 import { customerImportFields, ITEM_FIELDS, itemTierFields } from "./csv-import";
@@ -115,12 +115,12 @@ export function invoicesCsv(invoices: Invoice[]): string {
       line.name,
       String(line.quantity),
       dollars(line.unitPriceCents),
-      String(line.discountPercent),
-      String(line.taxPercent),
+      formatBasisPoints(line.discountBasisPoints),
+      formatBasisPoints(line.taxBasisPoints),
       line.backordered ? "yes" : "",
       dollars(draft.deliveryCents),
-      String(draft.deliveryTaxPercent),
-      draft.discount === null ? "" : String(draft.discount.percent),
+      formatBasisPoints(draft.deliveryTaxBasisPoints),
+      draft.discount === null ? "" : formatBasisPoints(draft.discount.basisPoints),
       draft.discount === null ? "" : dollars(draft.discount.amountCents),
       dollars(paymentsTotalCents(payments)),
       draft.notes,

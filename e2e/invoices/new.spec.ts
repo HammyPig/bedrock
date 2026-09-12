@@ -854,7 +854,7 @@ test.describe("items section", () => {
 
     test("a discount an invoice already uses starts open", async ({ page }) => {
       const invoice = await seedInvoice(
-        draft({ lineItems: [line({ name: "Discounted", discountPercent: 10 })] }),
+        draft({ lineItems: [line({ name: "Discounted", discountBasisPoints: 1000 })] }),
       );
       await page.goto(`/invoices/${invoice.id}/edit`);
 
@@ -881,7 +881,7 @@ test.describe("items section", () => {
     test("discounts in use say why they will not close", async ({ page }) => {
       test.fixme();
       const invoice = await seedInvoice(
-        draft({ lineItems: [line({ name: "Discounted", discountPercent: 10 })] }),
+        draft({ lineItems: [line({ name: "Discounted", discountBasisPoints: 1000 })] }),
       );
       await page.goto(`/invoices/${invoice.id}/edit`);
 
@@ -976,9 +976,9 @@ test.describe("balance section", () => {
 
   //   const expected = computeTotals({
   //     lineItems: [line({ quantity: 3, unitPriceCents: 1999 })],
-  //     discount: { percent: 15, amountCents: 0 },
+  //     discount: { basisPoints: 1500, amountCents: 0 },
   //     deliveryCents: 1250,
-  //     deliveryTaxPercent: 10,
+  //     taxRatePercent: 10,
   //   });
   //   await expect(balanceDue(page)).toHaveText(formatCents(expected.balanceCents));
   // });
@@ -1260,7 +1260,7 @@ test.describe("the action bar", () => {
               name: "Copper pipe 100mm",
               quantity: 3,
               unitPriceCents: 4250,
-              discountPercent: 10,
+              discountBasisPoints: 1000,
             }),
             line({
               sku: "LAB-HR",
@@ -1270,9 +1270,9 @@ test.describe("the action bar", () => {
               backordered: true,
             }),
           ],
-          discount: { percent: 0, amountCents: 2500 },
+          discount: { basisPoints: 0, amountCents: 2500 },
           deliveryCents: 1500,
-          deliveryTaxPercent: 10,
+          deliveryTaxBasisPoints: 1000,
           notes: "Backordered items to follow.",
           payments: [payment()],
         }),

@@ -20,7 +20,7 @@ test.describe("M1 line subtotal", () => {
 
   test("applies the per-line discount percent", () => {
     expect(
-      lineItemSubtotalCents(line({ quantity: 3, unitPriceCents: 1050, discountPercent: 10 })),
+      lineItemSubtotalCents(line({ quantity: 3, unitPriceCents: 1050, discountBasisPoints: 1000 })),
     ).toBe(2835);
   });
 
@@ -30,7 +30,9 @@ test.describe("M1 line subtotal", () => {
 
   test("a 100% line discount bills nothing", () => {
     expect(
-      lineItemSubtotalCents(line({ quantity: 3, unitPriceCents: 1050, discountPercent: 100 })),
+      lineItemSubtotalCents(
+        line({ quantity: 3, unitPriceCents: 1050, discountBasisPoints: 10000 }),
+      ),
     ).toBe(0);
   });
 });
@@ -51,7 +53,7 @@ test("M3 a percent discount comes off the subtotal", () => {
   const totals = computeTotals(
     draft({
       lineItems: [line({ unitPriceCents: 10_000 })],
-      discount: { percent: 15, amountCents: 0 },
+      discount: { basisPoints: 1500, amountCents: 0 },
     }),
   );
   expect(totals.discountCents).toBe(1500);
@@ -62,7 +64,7 @@ test.describe("M4 a fixed discount", () => {
     const totals = computeTotals(
       draft({
         lineItems: [line({ unitPriceCents: 10_000 })],
-        discount: { percent: 0, amountCents: 2500 },
+        discount: { basisPoints: 0, amountCents: 2500 },
       }),
     );
     expect(totals.discountCents).toBe(2500);
@@ -72,7 +74,7 @@ test.describe("M4 a fixed discount", () => {
     const totals = computeTotals(
       draft({
         lineItems: [line({ unitPriceCents: 5000 })],
-        discount: { percent: 0, amountCents: 999_999 },
+        discount: { basisPoints: 0, amountCents: 999_999 },
       }),
     );
     expect(totals.discountCents).toBe(5000);
@@ -83,9 +85,9 @@ test.describe("M4 a fixed discount", () => {
     const totals = computeTotals(
       draft({
         lineItems: [line({ unitPriceCents: 5000 })],
-        discount: { percent: 0, amountCents: 999_999 },
+        discount: { basisPoints: 0, amountCents: 999_999 },
         deliveryCents: 1000,
-        deliveryTaxPercent: 10,
+        deliveryTaxBasisPoints: 1000,
       }),
     );
     expect(totals.discountCents).toBe(5000);
@@ -98,9 +100,9 @@ test("M5 GST is charged on the discounted subtotal plus delivery", () => {
   const totals = computeTotals(
     draft({
       lineItems: [line({ unitPriceCents: 12_000 })],
-      discount: { percent: 0, amountCents: 2000 },
+      discount: { basisPoints: 0, amountCents: 2000 },
       deliveryCents: 1000,
-      deliveryTaxPercent: 10,
+      deliveryTaxBasisPoints: 1000,
     }),
   );
   // (12000 - 2000 + 1000) x 10%
@@ -112,7 +114,7 @@ test("M6 the total is subtotal less discount, plus delivery, plus GST", () => {
     draft({
       lineItems: [line({ unitPriceCents: 10_000 })],
       deliveryCents: 1000,
-      deliveryTaxPercent: 10,
+      deliveryTaxBasisPoints: 1000,
     }),
   );
   expect(totals).toMatchObject({
@@ -127,7 +129,7 @@ test.describe("M7 balance due", () => {
   const invoice = draft({
     lineItems: [line({ unitPriceCents: 10_000 })],
     deliveryCents: 1000,
-    deliveryTaxPercent: 10,
+    deliveryTaxBasisPoints: 1000,
   });
 
   test("is the total less what has been paid", () => {
@@ -151,14 +153,16 @@ test.describe("M7 balance due", () => {
 test.describe("M8 half-cent amounts round up", () => {
   test("on a line discount", () => {
     // 101 x 50% = 50.5
-    expect(lineItemSubtotalCents(line({ unitPriceCents: 101, discountPercent: 50 }))).toBe(51);
+    expect(lineItemSubtotalCents(line({ unitPriceCents: 101, discountBasisPoints: 5000 }))).toBe(
+      51,
+    );
   });
 
   test("on an invoice percent discount", () => {
     const totals = computeTotals(
       draft({
         lineItems: [line({ unitPriceCents: 101 })],
-        discount: { percent: 50, amountCents: 0 },
+        discount: { basisPoints: 5000, amountCents: 0 },
       }),
     );
     expect(totals.discountCents).toBe(51);
@@ -167,7 +171,7 @@ test.describe("M8 half-cent amounts round up", () => {
   test("on GST", () => {
     // 105 x 10% = 10.5
     const totals = computeTotals(
-      draft({ lineItems: [line({ unitPriceCents: 105 })], deliveryTaxPercent: 10 }),
+      draft({ lineItems: [line({ unitPriceCents: 105 })], deliveryTaxBasisPoints: 1000 }),
     );
     expect(totals.taxCents).toBe(11);
     expect(totals.totalCents).toBe(116);
@@ -192,8 +196,8 @@ test.describe("M9 empty amounts total to zero, never NaN", () => {
   test("a zero GST rate", () => {
     const totals = computeTotals(
       draft({
-        lineItems: [line({ unitPriceCents: 10_000, taxPercent: 0 })],
-        deliveryTaxPercent: 0,
+        lineItems: [line({ unitPriceCents: 10_000, taxBasisPoints: 0 })],
+        deliveryTaxBasisPoints: 0,
       }),
     );
     expect(totals.taxCents).toBe(0);

@@ -343,12 +343,12 @@ export const invoices = createTable(
     issueDate: d.date({ mode: "string" }).notNull(),
     terms: d.varchar({ length: 16 }).$type<PaymentTerms>().notNull(),
     customDueDate: d.date({ mode: "string" }),
-    /** Non-zero only when the discount was given as a percent, never as the amount itself. */
-    discountPercent: d.doublePrecision().notNull(),
+    /** Rates are basis points — hundredths of a percent — so no rate is a float. 10% is 1000. */
+    discountBasisPoints: d.integer().notNull(),
     /** What the discount came to; 0 when none was given. */
     discountCents: d.integer().notNull(),
     deliveryCents: d.integer().notNull(),
-    deliveryTaxPercent: d.doublePrecision().notNull(),
+    deliveryTaxBasisPoints: d.integer().notNull(),
     deliveryTaxCents: d.integer().notNull(),
     notes: d.text().notNull(),
     createdAt: d
@@ -417,10 +417,11 @@ export const invoiceLineItems = createTable(
     name: d.text().notNull(),
     quantity: d.doublePrecision().notNull(),
     unitPriceCents: d.integer().notNull(),
-    discountPercent: d.doublePrecision().notNull(),
+    /** The discount asked for, in basis points; 0 when the line has none. */
+    discountBasisPoints: d.integer().notNull(),
     discountCents: d.integer().notNull(),
     /** GST is charged line by line, at the business's rate when the line was written. */
-    taxPercent: d.doublePrecision().notNull(),
+    taxBasisPoints: d.integer().notNull(),
     taxCents: d.integer().notNull(),
     backordered: d.boolean().notNull().default(false),
   }),
@@ -488,12 +489,12 @@ export const purchaseOrders = createTable(
     sourceVendorId: d.varchar({ length: 255 }),
     orderDate: d.date({ mode: "string" }).notNull(),
     expectedDate: d.date({ mode: "string" }),
-    /** Non-zero only when the discount was given as a percent, never as the amount itself. */
-    discountPercent: d.doublePrecision().notNull(),
+    /** Rates are basis points — hundredths of a percent — so no rate is a float. 10% is 1000. */
+    discountBasisPoints: d.integer().notNull(),
     /** What the discount came to; 0 when none was given. */
     discountCents: d.integer().notNull(),
     deliveryCents: d.integer().notNull(),
-    deliveryTaxPercent: d.doublePrecision().notNull(),
+    deliveryTaxBasisPoints: d.integer().notNull(),
     deliveryTaxCents: d.integer().notNull(),
     notes: d.text().notNull(),
     createdAt: d
@@ -526,10 +527,11 @@ export const purchaseOrderLineItems = createTable(
     name: d.text().notNull(),
     quantity: d.doublePrecision().notNull(),
     unitPriceCents: d.integer().notNull(),
-    discountPercent: d.doublePrecision().notNull(),
+    /** The discount asked for, in basis points; 0 when the line has none. */
+    discountBasisPoints: d.integer().notNull(),
     discountCents: d.integer().notNull(),
     /** GST is charged line by line, at the business's rate when the line was written. */
-    taxPercent: d.doublePrecision().notNull(),
+    taxBasisPoints: d.integer().notNull(),
     taxCents: d.integer().notNull(),
   }),
   (t) => [index("purchase_order_line_item_po_id_idx").on(t.purchaseOrderId)],

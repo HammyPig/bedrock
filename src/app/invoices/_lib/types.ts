@@ -13,11 +13,11 @@ export type DiscountMode = "percent" | "fixed";
 
 /**
  * A discount. amountCents is always what actually comes off, so the money is
- * readable without re-running the math; percent records how it was asked for,
- * and is 0 when it was entered as a straight amount.
+ * readable without re-running the math; basisPoints records how it was asked
+ * for, and is 0 when it was entered as a straight amount.
  */
 export interface Discount {
-  percent: number;
+  basisPoints: number;
   amountCents: number;
 }
 
@@ -28,11 +28,12 @@ export interface LineItemBase {
   name: string;
   quantity: number;
   unitPriceCents: number;
-  /** Per-line discount, 0-100. */
-  discountPercent: number;
-  /** GST rate applied to this line. Never edited — it is the business's rate,
-   * captured when the line was written, so a saved document keeps its own. */
-  taxPercent: number;
+  /** Per-line discount in basis points, 0-10000; 0 when none was given. */
+  discountBasisPoints: number;
+  /** GST rate applied to this line, in basis points. Never edited — it is the
+   * business's rate, captured when the line was written, so a saved document
+   * keeps its own. */
+  taxBasisPoints: number;
 }
 
 export interface LineItem extends LineItemBase {
@@ -82,8 +83,8 @@ export interface InvoiceDraft {
   lineItems: LineItem[];
   discount: Discount | null;
   deliveryCents: number;
-  /** GST rate applied to delivery; the same rate the lines were written at. */
-  deliveryTaxPercent: number;
+  /** GST rate applied to delivery, in basis points; the same rate the lines were written at. */
+  deliveryTaxBasisPoints: number;
   notes: string;
 }
 

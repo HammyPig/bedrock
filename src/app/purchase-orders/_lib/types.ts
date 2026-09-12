@@ -25,8 +25,8 @@ export interface PurchaseOrderDraft {
   lineItems: LineItemBase[];
   discount: Discount | null;
   deliveryCents: number;
-  /** GST rate applied to delivery; the same rate the lines were written at. */
-  deliveryTaxPercent: number;
+  /** GST rate applied to delivery, in basis points; the same rate the lines were written at. */
+  deliveryTaxBasisPoints: number;
   notes: string;
 }
 

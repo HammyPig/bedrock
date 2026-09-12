@@ -1,5 +1,5 @@
 import { emptyAddress, makeLineItem } from "~/app/invoices/_lib/invoice";
-import { GST_RATE_PERCENT } from "~/app/invoices/_lib/money";
+import { GST_RATE_BASIS_POINTS } from "~/app/invoices/_lib/money";
 import { type CustomerDetails, type InvoiceDraft, type LineItem } from "~/app/invoices/_lib/types";
 
 /**
@@ -24,7 +24,7 @@ export function customerDetails(overrides: Partial<CustomerDetails> = {}): Custo
 /** A billable line: $100.00 x 1, no discount. */
 export function line(overrides: Partial<LineItem> = {}): LineItem {
   return {
-    ...makeLineItem(GST_RATE_PERCENT),
+    ...makeLineItem(GST_RATE_BASIS_POINTS),
     name: "Labour",
     quantity: 1,
     unitPriceCents: 10_000,
@@ -47,7 +47,7 @@ export function draft(overrides: Partial<InvoiceDraft> = {}): InvoiceDraft {
     lineItems: [line()],
     discount: null,
     deliveryCents: 0,
-    deliveryTaxPercent: GST_RATE_PERCENT,
+    deliveryTaxBasisPoints: GST_RATE_BASIS_POINTS,
     notes: "",
     ...overrides,
   };

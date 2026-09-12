@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { GripVerticalIcon, PlusIcon, Trash2Icon } from "lucide-react";
 
 import { NumberInput } from "~/app/invoices/_components/number-input";
+import { PercentInput } from "~/app/invoices/_components/percent-input";
 import { makeLineItemBase } from "~/app/invoices/_lib/invoice";
 import { lineItemSubtotalCents } from "~/app/invoices/_lib/money";
 import { type LineItemBase } from "~/app/invoices/_lib/types";
@@ -32,7 +33,7 @@ interface LineItemsGridProps {
   invalidItemIds: string[];
   error?: string;
   /** The rate the document is on; a row added here joins it rather than setting its own. */
-  taxPercent: number;
+  taxBasisPoints: number;
   dispatch: (action: PurchaseOrderAction) => void;
 }
 
@@ -41,7 +42,7 @@ export function LineItemsGrid({
   savedItems,
   invalidItemIds,
   error,
-  taxPercent,
+  taxBasisPoints,
   dispatch,
 }: LineItemsGridProps) {
   const cellRefs = useRef(new Map<string, CellElement>());
@@ -67,7 +68,7 @@ export function LineItemsGrid({
   };
 
   const appendRow = (focusField: CellField) => {
-    const item = makeLineItemBase(taxPercent);
+    const item = makeLineItemBase(taxBasisPoints);
     dispatch({ type: "appendLineItem", item });
     setPendingFocus({ id: item.id, field: focusField });
   };
@@ -170,13 +171,12 @@ export function LineItemsGrid({
                 onValueCentsChange={(cents) => patchItem({ unitPriceCents: cents })}
                 onKeyDown={(e) => handleCellKeyDown(e, item.id, "unitPrice")}
               />
-              <NumberInput
+              <PercentInput
                 ref={registerCell(item.id, "discount")}
                 className="px-1.5"
-                max={100}
-                value={item.discountPercent}
+                basisPoints={item.discountBasisPoints}
                 aria-label={`Line ${index + 1} discount percent`}
-                onValueChange={(discountPercent) => patchItem({ discountPercent })}
+                onBasisPointsChange={(discountBasisPoints) => patchItem({ discountBasisPoints })}
                 onKeyDown={(e) => handleCellKeyDown(e, item.id, "discount")}
               />
               <div className="text-muted-foreground text-right text-sm tabular-nums">
