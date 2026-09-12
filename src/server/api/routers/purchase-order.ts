@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { and, asc, eq, ne } from "drizzle-orm";
 import { z } from "zod";
 
+import { computeBreakdown } from "~/app/invoices/_lib/money";
 import { type PurchaseOrder, type PurchaseOrderDraft } from "~/app/purchase-orders/_lib/types";
 import { isoDate, lineItemBaseInput } from "~/server/api/routers/invoice";
 import { vendorDetailsInput } from "~/server/api/routers/vendor";
@@ -31,9 +32,23 @@ const draftInput = z.object({
     ])
     .nullable(),
   deliveryCents: z.number().int().min(0),
-  taxRatePercent: z.number().min(0),
+  deliveryTaxPercent: z.number().min(0).max(100),
   notes: z.string(),
 }) satisfies z.ZodType<PurchaseOrderDraft>;
+
+/** Mirrors the invoice router: the cents are derived here, never taken from the client. */
+function toRows(draft: z.infer<typeof draftInput>) {
+  const breakdown = computeBreakdown(draft);
+  const { lineItems, ...columns } = draft;
+  return {
+    columns: { ...columns, deliveryTaxCents: breakdown.deliveryTaxCents },
+    lineItems: lineItems.map((line, position) => ({
+      ...line,
+      position,
+      taxCents: breakdown.lines[position]?.taxCents ?? 0,
+    })),
+  };
+}
 
 type PurchaseOrderRow = typeof purchaseOrders.$inferSelect & {
   lineItems: (typeof purchaseOrderLineItems.$inferSelect)[];
@@ -55,10 +70,11 @@ function toPurchaseOrder(row: PurchaseOrderRow): PurchaseOrder {
         quantity: line.quantity,
         unitPriceCents: line.unitPriceCents,
         discountPercent: line.discountPercent,
+        taxPercent: line.taxPercent,
       })),
       discount: row.discount,
       deliveryCents: row.deliveryCents,
-      taxRatePercent: row.taxRatePercent,
+      deliveryTaxPercent: row.deliveryTaxPercent,
       notes: row.notes,
     },
   };
@@ -107,20 +123,16 @@ export const purchaseOrderRouter = createTRPCRouter({
     const businessId = ctx.businessId;
     await assertPoNumberFree(ctx.db, businessId, input.poNumber);
 
-    const { lineItems, ...orderColumns } = input;
+    const { columns, lineItems } = toRows(input);
     return ctx.db.transaction(async (tx) => {
       const [created] = await tx
         .insert(purchaseOrders)
-        .values({ ...orderColumns, businessId })
+        .values({ ...columns, businessId })
         .returning({ id: purchaseOrders.id });
       if (!created) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-      await tx.insert(purchaseOrderLineItems).values(
-        lineItems.map((line, position) => ({
-          ...line,
-          purchaseOrderId: created.id,
-          position,
-        })),
-      );
+      await tx
+        .insert(purchaseOrderLineItems)
+        .values(lineItems.map((line) => ({ ...line, purchaseOrderId: created.id })));
       return { id: created.id };
     });
   }),
@@ -131,24 +143,20 @@ export const purchaseOrderRouter = createTRPCRouter({
       const businessId = ctx.businessId;
       await assertPoNumberFree(ctx.db, businessId, input.draft.poNumber, input.id);
 
-      const { lineItems, ...orderColumns } = input.draft;
+      const { columns, lineItems } = toRows(input.draft);
       await ctx.db.transaction(async (tx) => {
         const [updated] = await tx
           .update(purchaseOrders)
-          .set(orderColumns)
+          .set(columns)
           .where(and(eq(purchaseOrders.id, input.id), eq(purchaseOrders.businessId, businessId)))
           .returning({ id: purchaseOrders.id });
         if (!updated) throw new TRPCError({ code: "NOT_FOUND" });
         await tx
           .delete(purchaseOrderLineItems)
           .where(eq(purchaseOrderLineItems.purchaseOrderId, input.id));
-        await tx.insert(purchaseOrderLineItems).values(
-          lineItems.map((line, position) => ({
-            ...line,
-            purchaseOrderId: input.id,
-            position,
-          })),
-        );
+        await tx
+          .insert(purchaseOrderLineItems)
+          .values(lineItems.map((line) => ({ ...line, purchaseOrderId: input.id })));
       });
       return { id: input.id };
     }),

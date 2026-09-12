@@ -31,6 +31,8 @@ interface LineItemsGridProps {
   savedItems: SavedItem[];
   invalidItemIds: string[];
   error?: string;
+  /** The rate the document is on; a row added here joins it rather than setting its own. */
+  taxPercent: number;
   dispatch: (action: PurchaseOrderAction) => void;
 }
 
@@ -39,6 +41,7 @@ export function LineItemsGrid({
   savedItems,
   invalidItemIds,
   error,
+  taxPercent,
   dispatch,
 }: LineItemsGridProps) {
   const cellRefs = useRef(new Map<string, CellElement>());
@@ -64,7 +67,7 @@ export function LineItemsGrid({
   };
 
   const appendRow = (focusField: CellField) => {
-    const item = makeLineItemBase();
+    const item = makeLineItemBase(taxPercent);
     dispatch({ type: "appendLineItem", item });
     setPendingFocus({ id: item.id, field: focusField });
   };

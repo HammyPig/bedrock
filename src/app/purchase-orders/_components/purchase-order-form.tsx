@@ -10,6 +10,7 @@ import { Textarea } from "~/components/ui/textarea";
 import { todayIsoDate } from "~/lib/dates";
 import { cn } from "~/lib/utils";
 import { api } from "~/trpc/react";
+import { documentTaxPercent } from "~/app/invoices/_lib/money";
 import { emptyVendorDetails, purchaseOrderTotals, validateDraft } from "../_lib/purchase-order";
 import { type PurchaseOrderAction, type PurchaseOrderDraft } from "../_lib/types";
 import { LineItemsGrid } from "./line-items-grid";
@@ -18,17 +19,17 @@ import { StickyActionBar } from "./sticky-action-bar";
 import { TotalsPanel } from "./totals-panel";
 import { VendorSection } from "./vendor-section";
 
-function createInitialDraft(poNumber: string): PurchaseOrderDraft {
+function createInitialDraft(poNumber: string, taxPercent: number): PurchaseOrderDraft {
   return {
     poNumber,
     vendor: emptyVendorDetails(),
     sourceVendorId: null,
     orderDate: todayIsoDate(),
     expectedDate: null,
-    lineItems: [makeLineItemBase()],
+    lineItems: [makeLineItemBase(taxPercent)],
     discount: null,
     deliveryCents: 0,
-    taxRatePercent: 10,
+    deliveryTaxPercent: taxPercent,
     notes: "",
   };
 }
@@ -67,12 +68,15 @@ interface PurchaseOrderFormProps {
   purchaseOrderId?: string;
   /** Next free purchase order number, pre-filled on the create page. */
   suggestedPoNumber?: string;
+  /** GST rate a new purchase order is written at, from the business's settings. */
+  taxPercent?: number;
 }
 
 export function PurchaseOrderForm({
   initialDraft,
   purchaseOrderId,
   suggestedPoNumber,
+  taxPercent = 0,
 }: PurchaseOrderFormProps) {
   const router = useRouter();
   const utils = api.useUtils();
@@ -81,7 +85,7 @@ export function PurchaseOrderForm({
   const [draft, rawDispatch] = useReducer(
     purchaseOrderReducer,
     initialDraft,
-    (existing) => existing ?? createInitialDraft(suggestedPoNumber ?? "PO-0001"),
+    (existing) => existing ?? createInitialDraft(suggestedPoNumber ?? "PO-0001", taxPercent),
   );
   const [showErrors, setShowErrors] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -182,6 +186,7 @@ export function PurchaseOrderForm({
             savedItems={savedItems}
             invalidItemIds={errors?.invalidLineItemIds ?? []}
             error={errors?.lineItems}
+            taxPercent={documentTaxPercent(draft)}
             dispatch={dispatch}
           />
           <div className="flex flex-col gap-8 sm:flex-row sm:items-start">
@@ -201,7 +206,7 @@ export function PurchaseOrderForm({
               totals={totals}
               discount={draft.discount}
               deliveryCents={draft.deliveryCents}
-              taxRatePercent={draft.taxRatePercent}
+              taxPercent={documentTaxPercent(draft)}
               dispatch={dispatch}
             />
           </div>

@@ -978,7 +978,7 @@ test.describe("balance section", () => {
   //     lineItems: [line({ quantity: 3, unitPriceCents: 1999 })],
   //     discount: { mode: "percent", percent: 15 },
   //     deliveryCents: 1250,
-  //     taxRatePercent: 10,
+  //     deliveryTaxPercent: 10,
   //   });
   //   await expect(balanceDue(page)).toHaveText(formatCents(expected.balanceCents));
   // });
@@ -1272,7 +1272,7 @@ test.describe("the action bar", () => {
           ],
           discount: { mode: "fixed", amountCents: 2500 },
           deliveryCents: 1500,
-          taxRatePercent: 10,
+          deliveryTaxPercent: 10,
           notes: "Backordered items to follow.",
           payments: [payment()],
         }),

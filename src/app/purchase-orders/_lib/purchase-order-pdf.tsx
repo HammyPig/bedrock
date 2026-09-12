@@ -1,6 +1,6 @@
 import { Document, Font, Image, Page, pdf, StyleSheet, Text, View } from "@react-pdf/renderer";
 
-import { lineItemSubtotalCents } from "~/app/invoices/_lib/money";
+import { documentTaxPercent, lineItemSubtotalCents } from "~/app/invoices/_lib/money";
 import { type Address } from "~/app/invoices/_lib/types";
 import { type BusinessSettings } from "~/app/settings/_lib/settings";
 import { formatIsoDate } from "~/lib/dates";
@@ -120,6 +120,7 @@ interface PurchaseOrderPdfProps {
 
 export function PurchaseOrderPdf({ draft, settings }: PurchaseOrderPdfProps) {
   const totals = purchaseOrderTotals(draft);
+  const taxPercent = documentTaxPercent(draft);
   const items = draft.lineItems.filter((item) => item.name.trim() !== "" || item.sku.trim() !== "");
   const showSku = items.some((item) => item.sku.trim() !== "");
   const showDiscount = items.some((item) => item.discountPercent > 0);
@@ -239,11 +240,8 @@ export function PurchaseOrderPdf({ draft, settings }: PurchaseOrderPdfProps) {
             {draft.deliveryCents > 0 && (
               <TotalsRow label="Delivery" value={formatCents(draft.deliveryCents)} />
             )}
-            {draft.taxRatePercent > 0 && (
-              <TotalsRow
-                label={`GST (${draft.taxRatePercent}%)`}
-                value={formatCents(totals.taxCents)}
-              />
+            {taxPercent > 0 && (
+              <TotalsRow label={`GST (${taxPercent}%)`} value={formatCents(totals.taxCents)} />
             )}
             <TotalsRow
               label="Total"

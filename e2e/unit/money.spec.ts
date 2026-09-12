@@ -85,7 +85,7 @@ test.describe("M4 a fixed discount", () => {
         lineItems: [line({ unitPriceCents: 5000 })],
         discount: { mode: "fixed", amountCents: 999_999 },
         deliveryCents: 1000,
-        taxRatePercent: 10,
+        deliveryTaxPercent: 10,
       }),
     );
     expect(totals.discountCents).toBe(5000);
@@ -100,7 +100,7 @@ test("M5 GST is charged on the discounted subtotal plus delivery", () => {
       lineItems: [line({ unitPriceCents: 12_000 })],
       discount: { mode: "fixed", amountCents: 2000 },
       deliveryCents: 1000,
-      taxRatePercent: 10,
+      deliveryTaxPercent: 10,
     }),
   );
   // (12000 - 2000 + 1000) x 10%
@@ -112,7 +112,7 @@ test("M6 the total is subtotal less discount, plus delivery, plus GST", () => {
     draft({
       lineItems: [line({ unitPriceCents: 10_000 })],
       deliveryCents: 1000,
-      taxRatePercent: 10,
+      deliveryTaxPercent: 10,
     }),
   );
   expect(totals).toMatchObject({
@@ -127,7 +127,7 @@ test.describe("M7 balance due", () => {
   const invoice = draft({
     lineItems: [line({ unitPriceCents: 10_000 })],
     deliveryCents: 1000,
-    taxRatePercent: 10,
+    deliveryTaxPercent: 10,
   });
 
   test("is the total less what has been paid", () => {
@@ -167,7 +167,7 @@ test.describe("M8 half-cent amounts round up", () => {
   test("on GST", () => {
     // 105 x 10% = 10.5
     const totals = computeTotals(
-      draft({ lineItems: [line({ unitPriceCents: 105 })], taxRatePercent: 10 }),
+      draft({ lineItems: [line({ unitPriceCents: 105 })], deliveryTaxPercent: 10 }),
     );
     expect(totals.taxCents).toBe(11);
     expect(totals.totalCents).toBe(116);
@@ -191,7 +191,10 @@ test.describe("M9 empty amounts total to zero, never NaN", () => {
 
   test("a zero GST rate", () => {
     const totals = computeTotals(
-      draft({ lineItems: [line({ unitPriceCents: 10_000 })], taxRatePercent: 0 }),
+      draft({
+        lineItems: [line({ unitPriceCents: 10_000, taxPercent: 0 })],
+        deliveryTaxPercent: 0,
+      }),
     );
     expect(totals.taxCents).toBe(0);
     expect(totals.totalCents).toBe(10_000);

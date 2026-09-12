@@ -1,4 +1,5 @@
 import * as schema from "~/server/db/schema";
+import { computeBreakdown } from "~/app/invoices/_lib/money";
 import { type Address, type InvoiceDraft } from "~/app/invoices/_lib/types";
 import { TEST_BUSINESS_ID, testDb } from "./db";
 
@@ -124,10 +125,12 @@ export async function seedInvoice(
   payments: { amountCents: number; paidDate: string }[] = [],
 ) {
   const { lineItems, ...rest } = draft;
+  // Seeded rows carry the same derived cents the router would have banked.
+  const breakdown = computeBreakdown(draft);
 
   const [invoice] = await testDb
     .insert(schema.invoices)
-    .values({ businessId: TEST_BUSINESS_ID, ...rest })
+    .values({ businessId: TEST_BUSINESS_ID, ...rest, deliveryTaxCents: breakdown.deliveryTaxCents })
     .returning();
   if (!invoice) throw new Error(`Failed to seed invoice ${draft.invoiceNumber}`);
 
@@ -141,6 +144,8 @@ export async function seedInvoice(
         quantity: item.quantity,
         unitPriceCents: item.unitPriceCents,
         discountPercent: item.discountPercent,
+        taxPercent: item.taxPercent,
+        taxCents: breakdown.lines[position]?.taxCents ?? 0,
         backordered: item.backordered,
       })),
     );

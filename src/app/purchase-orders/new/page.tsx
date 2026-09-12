@@ -1,6 +1,7 @@
 import { type Metadata } from "next";
 import { redirect } from "next/navigation";
 
+import { GST_RATE_PERCENT } from "~/app/invoices/_lib/money";
 import { auth } from "~/server/auth";
 import { resolveBusinessId } from "~/server/business";
 import { api, HydrateClient } from "~/trpc/server";
@@ -19,12 +20,18 @@ export default async function NewPurchaseOrderPage() {
   void api.item.list.prefetch();
   void api.vendor.list.prefetch();
 
-  const suggestedPoNumber = await api.purchaseOrder.nextNumber();
+  const [suggestedPoNumber, settings] = await Promise.all([
+    api.purchaseOrder.nextNumber(),
+    api.settings.get(),
+  ]);
 
   return (
     <HydrateClient>
       <main className="bg-background min-h-screen">
-        <PurchaseOrderForm suggestedPoNumber={suggestedPoNumber} />
+        <PurchaseOrderForm
+          suggestedPoNumber={suggestedPoNumber}
+          taxPercent={settings.gstRegistered ? GST_RATE_PERCENT : 0}
+        />
       </main>
     </HydrateClient>
   );

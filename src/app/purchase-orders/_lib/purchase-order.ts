@@ -41,7 +41,10 @@ export function vendorDisplayName(vendor: Pick<Vendor, "name" | "company">): str
 
 /** Purchase orders reuse the invoice totals math with nothing paid; balanceCents is unused. */
 export function purchaseOrderTotals(
-  draft: Pick<PurchaseOrderDraft, "lineItems" | "discount" | "deliveryCents" | "taxRatePercent">,
+  draft: Pick<
+    PurchaseOrderDraft,
+    "lineItems" | "discount" | "deliveryCents" | "deliveryTaxPercent"
+  >,
 ): Totals {
   return computeTotals(draft);
 }

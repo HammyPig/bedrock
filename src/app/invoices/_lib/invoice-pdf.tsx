@@ -4,7 +4,7 @@ import { type BusinessSettings } from "~/app/settings/_lib/settings";
 import { formatIsoDate } from "~/lib/dates";
 import { formatCents } from "~/lib/money";
 import { customerDisplayName, draftDueDate } from "./invoice";
-import { computeTotals, lineItemSubtotalCents } from "./money";
+import { computeTotals, documentTaxPercent, lineItemSubtotalCents } from "./money";
 import { type Address, type InvoiceDraft } from "./types";
 
 // Wrap whole words to the next line instead of react-pdf's default hyphenated splitting.
@@ -130,6 +130,7 @@ interface InvoicePdfProps {
 
 export function InvoicePdf({ draft, settings, paidCents }: InvoicePdfProps) {
   const totals = computeTotals(draft, paidCents);
+  const taxPercent = documentTaxPercent(draft);
   const dueDate = draftDueDate(draft);
   const items = draft.lineItems.filter((item) => item.name.trim() !== "" || item.sku.trim() !== "");
   const showSku = items.some((item) => item.sku.trim() !== "");
@@ -267,11 +268,8 @@ export function InvoicePdf({ draft, settings, paidCents }: InvoicePdfProps) {
             {draft.deliveryCents > 0 && (
               <TotalsRow label="Delivery" value={formatCents(draft.deliveryCents)} />
             )}
-            {draft.taxRatePercent > 0 && (
-              <TotalsRow
-                label={`GST (${draft.taxRatePercent}%)`}
-                value={formatCents(totals.taxCents)}
-              />
+            {taxPercent > 0 && (
+              <TotalsRow label={`GST (${taxPercent}%)`} value={formatCents(totals.taxCents)} />
             )}
             <TotalsRow
               label="Total"

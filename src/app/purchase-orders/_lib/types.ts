@@ -25,7 +25,8 @@ export interface PurchaseOrderDraft {
   lineItems: LineItemBase[];
   discount: Discount | null;
   deliveryCents: number;
-  taxRatePercent: number;
+  /** GST rate applied to delivery; the same rate the lines were written at. */
+  deliveryTaxPercent: number;
   notes: string;
 }
 

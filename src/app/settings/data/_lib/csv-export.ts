@@ -84,9 +84,10 @@ const INVOICE_EXPORT_FIELDS = [
   "Quantity",
   "Unit price",
   "Line discount %",
+  "Line GST %",
   "Backordered",
   "Delivery",
-  "Tax rate %",
+  "Delivery GST %",
   "Discount mode",
   "Discount value",
   "Paid",
@@ -115,9 +116,10 @@ export function invoicesCsv(invoices: Invoice[]): string {
       String(line.quantity),
       dollars(line.unitPriceCents),
       String(line.discountPercent),
+      String(line.taxPercent),
       line.backordered ? "yes" : "",
       dollars(draft.deliveryCents),
-      String(draft.taxRatePercent),
+      String(draft.deliveryTaxPercent),
       draft.discount?.mode ?? "",
       draft.discount === null
         ? ""

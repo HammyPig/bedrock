@@ -1,6 +1,7 @@
 import { type Metadata } from "next";
 import { redirect } from "next/navigation";
 
+import { GST_RATE_PERCENT } from "~/app/invoices/_lib/money";
 import { auth } from "~/server/auth";
 import { resolveBusinessId } from "~/server/business";
 import { api, HydrateClient } from "~/trpc/server";
@@ -19,12 +20,18 @@ export default async function NewInvoicePage() {
   void api.item.list.prefetch();
   void api.customer.list.prefetch();
 
-  const suggestedInvoiceNumber = await api.invoice.nextNumber();
+  const [suggestedInvoiceNumber, settings] = await Promise.all([
+    api.invoice.nextNumber(),
+    api.settings.get(),
+  ]);
 
   return (
     <HydrateClient>
       <main className="bg-background min-h-screen">
-        <InvoiceForm suggestedInvoiceNumber={suggestedInvoiceNumber} />
+        <InvoiceForm
+          suggestedInvoiceNumber={suggestedInvoiceNumber}
+          taxPercent={settings.gstRegistered ? GST_RATE_PERCENT : 0}
+        />
       </main>
     </HydrateClient>
   );

@@ -20,7 +20,8 @@ interface TotalsPanelProps {
   totals: Totals;
   discount: Discount | null;
   deliveryCents: number;
-  taxRatePercent: number;
+  /** The rate the document is written at — shown, never edited. */
+  taxPercent: number;
   /** Undefined on the create page — payments only attach to a saved invoice. */
   invoiceId?: string;
   isQuote: boolean;
@@ -32,7 +33,7 @@ export function TotalsPanel({
   totals,
   discount,
   deliveryCents,
-  taxRatePercent,
+  taxPercent,
   invoiceId,
   isQuote,
   payments,
@@ -136,21 +137,12 @@ export function TotalsPanel({
         />
       </div>
 
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5">
-          <label htmlFor="tax-rate" className="text-muted-foreground text-sm">
-            GST
-          </label>
-          <NumberInput
-            id="tax-rate"
-            className="h-7 w-14 px-1.5 text-sm"
-            value={taxRatePercent}
-            onValueChange={(value) => dispatch({ type: "patch", patch: { taxRatePercent: value } })}
-          />
-          <span className="text-muted-foreground text-sm">%</span>
+      {taxPercent > 0 && (
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-muted-foreground text-sm">GST ({taxPercent}%)</span>
+          <span className="text-sm tabular-nums">{formatCents(totals.taxCents)}</span>
         </div>
-        <span className="text-sm tabular-nums">{formatCents(totals.taxCents)}</span>
-      </div>
+      )}
 
       <div className="flex items-center justify-between border-t pt-2.5">
         <span className="text-sm font-medium">Total</span>

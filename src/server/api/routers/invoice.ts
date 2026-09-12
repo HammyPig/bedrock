@@ -2,7 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { and, asc, eq, inArray, ne } from "drizzle-orm";
 import { z } from "zod";
 
-import { computeTotals, paymentsTotalCents } from "~/app/invoices/_lib/money";
+import { computeBreakdown, computeTotals, paymentsTotalCents } from "~/app/invoices/_lib/money";
 import { type Invoice, type InvoiceDraft } from "~/app/invoices/_lib/types";
 import { customerDetailsInput } from "~/server/api/routers/customer";
 import { loadEffectiveSettings } from "~/server/api/routers/settings";
@@ -21,6 +21,7 @@ export const lineItemBaseInput = z.object({
   quantity: z.number().positive(),
   unitPriceCents: z.number().int().min(0),
   discountPercent: z.number().min(0).max(100),
+  taxPercent: z.number().min(0).max(100),
 });
 
 const lineItemInput = lineItemBaseInput.extend({ backordered: z.boolean() });
@@ -49,9 +50,27 @@ const draftInput = z.object({
     ])
     .nullable(),
   deliveryCents: z.number().int().min(0),
-  taxRatePercent: z.number().min(0),
+  deliveryTaxPercent: z.number().min(0).max(100),
   notes: z.string(),
 }) satisfies z.ZodType<InvoiceDraft>;
+
+/**
+ * The rows a draft is stored as. Every cents figure is derived here from the
+ * percents the client sent rather than taken from it, so what is banked can
+ * never disagree with what it was worked out from.
+ */
+function toRows(draft: z.infer<typeof draftInput>) {
+  const breakdown = computeBreakdown(draft);
+  const { lineItems, ...columns } = draft;
+  return {
+    columns: { ...columns, deliveryTaxCents: breakdown.deliveryTaxCents },
+    lineItems: lineItems.map((line, position) => ({
+      ...line,
+      position,
+      taxCents: breakdown.lines[position]?.taxCents ?? 0,
+    })),
+  };
+}
 
 type InvoiceRow = typeof invoices.$inferSelect & {
   lineItems: (typeof invoiceLineItems.$inferSelect)[];
@@ -84,11 +103,12 @@ function toInvoice(row: InvoiceRow): Invoice {
         quantity: line.quantity,
         unitPriceCents: line.unitPriceCents,
         discountPercent: line.discountPercent,
+        taxPercent: line.taxPercent,
         backordered: line.backordered,
       })),
       discount: row.discount,
       deliveryCents: row.deliveryCents,
-      taxRatePercent: row.taxRatePercent,
+      deliveryTaxPercent: row.deliveryTaxPercent,
       notes: row.notes,
     },
     payments: row.payments.map((payment) => ({
@@ -142,16 +162,16 @@ export const invoiceRouter = createTRPCRouter({
     const businessId = ctx.businessId;
     await assertInvoiceNumberFree(ctx.db, businessId, input.invoiceNumber);
 
-    const { lineItems, ...invoiceColumns } = input;
+    const { columns, lineItems } = toRows(input);
     return ctx.db.transaction(async (tx) => {
       const [created] = await tx
         .insert(invoices)
-        .values({ ...invoiceColumns, businessId })
+        .values({ ...columns, businessId })
         .returning({ id: invoices.id });
       if (!created) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       await tx
         .insert(invoiceLineItems)
-        .values(lineItems.map((line, position) => ({ ...line, invoiceId: created.id, position })));
+        .values(lineItems.map((line) => ({ ...line, invoiceId: created.id })));
       return { id: created.id };
     });
   }),
@@ -162,18 +182,18 @@ export const invoiceRouter = createTRPCRouter({
       const businessId = ctx.businessId;
       await assertInvoiceNumberFree(ctx.db, businessId, input.draft.invoiceNumber, input.id);
 
-      const { lineItems, ...invoiceColumns } = input.draft;
+      const { columns, lineItems } = toRows(input.draft);
       await ctx.db.transaction(async (tx) => {
         const [updated] = await tx
           .update(invoices)
-          .set(invoiceColumns)
+          .set(columns)
           .where(and(eq(invoices.id, input.id), eq(invoices.businessId, businessId)))
           .returning({ id: invoices.id });
         if (!updated) throw new TRPCError({ code: "NOT_FOUND" });
         await tx.delete(invoiceLineItems).where(eq(invoiceLineItems.invoiceId, input.id));
         await tx
           .insert(invoiceLineItems)
-          .values(lineItems.map((line, position) => ({ ...line, invoiceId: input.id, position })));
+          .values(lineItems.map((line) => ({ ...line, invoiceId: input.id })));
       });
       return { id: input.id };
     }),

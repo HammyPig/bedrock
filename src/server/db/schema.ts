@@ -315,7 +315,9 @@ export const vendors = createTable(
  * snapshot taken at invoice time, so editing a customer never rewrites their
  * old invoices; customerId is a required FK to the customer billed, restricted
  * on delete so invoice history can't be orphaned. Due date, status, and totals
- * stay derived — never stored.
+ * stay derived — never stored. The *Cents columns are the exception: every
+ * percent on the invoice is banked as the integer cents it worked out to, so
+ * the money on a saved invoice never depends on re-running the math.
  */
 export const invoices = createTable(
   "invoice",
@@ -343,7 +345,8 @@ export const invoices = createTable(
     customDueDate: d.date({ mode: "string" }),
     discount: d.jsonb().$type<Discount>(),
     deliveryCents: d.integer().notNull(),
-    taxRatePercent: d.doublePrecision().notNull(),
+    deliveryTaxPercent: d.doublePrecision().notNull(),
+    deliveryTaxCents: d.integer().notNull(),
     notes: d.text().notNull(),
     createdAt: d
       .timestamp({ withTimezone: true })
@@ -412,6 +415,9 @@ export const invoiceLineItems = createTable(
     quantity: d.doublePrecision().notNull(),
     unitPriceCents: d.integer().notNull(),
     discountPercent: d.doublePrecision().notNull(),
+    /** GST is charged line by line, at the business's rate when the line was written. */
+    taxPercent: d.doublePrecision().notNull(),
+    taxCents: d.integer().notNull(),
     backordered: d.boolean().notNull().default(false),
   }),
   (t) => [index("invoice_line_item_invoice_id_idx").on(t.invoiceId)],
@@ -480,7 +486,8 @@ export const purchaseOrders = createTable(
     expectedDate: d.date({ mode: "string" }),
     discount: d.jsonb().$type<Discount>(),
     deliveryCents: d.integer().notNull(),
-    taxRatePercent: d.doublePrecision().notNull(),
+    deliveryTaxPercent: d.doublePrecision().notNull(),
+    deliveryTaxCents: d.integer().notNull(),
     notes: d.text().notNull(),
     createdAt: d
       .timestamp({ withTimezone: true })
@@ -513,6 +520,9 @@ export const purchaseOrderLineItems = createTable(
     quantity: d.doublePrecision().notNull(),
     unitPriceCents: d.integer().notNull(),
     discountPercent: d.doublePrecision().notNull(),
+    /** GST is charged line by line, at the business's rate when the line was written. */
+    taxPercent: d.doublePrecision().notNull(),
+    taxCents: d.integer().notNull(),
   }),
   (t) => [index("purchase_order_line_item_po_id_idx").on(t.purchaseOrderId)],
 );

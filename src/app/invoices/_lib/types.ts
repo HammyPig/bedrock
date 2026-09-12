@@ -27,6 +27,9 @@ export interface LineItemBase {
   unitPriceCents: number;
   /** Per-line discount, 0-100. */
   discountPercent: number;
+  /** GST rate applied to this line. Never edited — it is the business's rate,
+   * captured when the line was written, so a saved document keeps its own. */
+  taxPercent: number;
 }
 
 export interface LineItem extends LineItemBase {
@@ -76,7 +79,8 @@ export interface InvoiceDraft {
   lineItems: LineItem[];
   discount: Discount | null;
   deliveryCents: number;
-  taxRatePercent: number;
+  /** GST rate applied to delivery; the same rate the lines were written at. */
+  deliveryTaxPercent: number;
   notes: string;
 }
 

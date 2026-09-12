@@ -42,7 +42,8 @@ export function draftDueDate(draft: Pick<InvoiceDraft, "issueDate" | "terms" | "
     : deriveDueDate(draft.issueDate, draft.terms);
 }
 
-export function makeLineItemBase(): LineItemBase {
+/** `taxPercent` is the rate the document is already on — a new line joins it, never sets it. */
+export function makeLineItemBase(taxPercent: number): LineItemBase {
   return {
     id: crypto.randomUUID(),
     sku: "",
@@ -50,11 +51,12 @@ export function makeLineItemBase(): LineItemBase {
     quantity: 1,
     unitPriceCents: 0,
     discountPercent: 0,
+    taxPercent,
   };
 }
 
-export function makeLineItem(): LineItem {
-  return { ...makeLineItemBase(), backordered: false };
+export function makeLineItem(taxPercent: number): LineItem {
+  return { ...makeLineItemBase(taxPercent), backordered: false };
 }
 
 /** Comparison key only — mirrors the server's SKU uniqueness check. */

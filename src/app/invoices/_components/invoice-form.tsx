@@ -27,7 +27,7 @@ import {
   repriceLineItems,
   validateDraft,
 } from "../_lib/invoice";
-import { computeTotals, paymentsTotalCents } from "../_lib/money";
+import { computeTotals, documentTaxPercent, paymentsTotalCents } from "../_lib/money";
 import { type InvoiceAction, type InvoiceDraft, type Payment } from "../_lib/types";
 import { CustomerDetailsSection } from "./customer-details-section";
 import { InvoiceMeta } from "./invoice-meta";
@@ -35,7 +35,7 @@ import { LineItemsGrid } from "./line-items-grid";
 import { StickyActionBar } from "./sticky-action-bar";
 import { TotalsPanel } from "./totals-panel";
 
-function createInitialDraft(invoiceNumber: string): InvoiceDraft {
+function createInitialDraft(invoiceNumber: string, taxPercent: number): InvoiceDraft {
   return {
     isQuote: false,
     invoiceNumber,
@@ -46,10 +46,10 @@ function createInitialDraft(invoiceNumber: string): InvoiceDraft {
     issueDate: todayIsoDate(),
     terms: "net_30",
     customDueDate: null,
-    lineItems: [makeLineItem()],
+    lineItems: [makeLineItem(taxPercent)],
     discount: null,
     deliveryCents: 0,
-    taxRatePercent: 10,
+    deliveryTaxPercent: taxPercent,
     notes: "",
   };
 }
@@ -99,6 +99,8 @@ interface InvoiceFormProps {
   initialPayments?: Payment[];
   /** Next free invoice number, pre-filled on the create page. */
   suggestedInvoiceNumber?: string;
+  /** GST rate a new invoice is written at, from the business's settings. */
+  taxPercent?: number;
 }
 
 export function InvoiceForm({
@@ -106,6 +108,7 @@ export function InvoiceForm({
   invoiceId,
   initialPayments,
   suggestedInvoiceNumber,
+  taxPercent = 0,
 }: InvoiceFormProps) {
   const router = useRouter();
   const utils = api.useUtils();
@@ -114,7 +117,7 @@ export function InvoiceForm({
   const [draft, rawDispatch] = useReducer(
     invoiceReducer,
     initialDraft,
-    (existing) => existing ?? createInitialDraft(suggestedInvoiceNumber ?? "INV-0001"),
+    (existing) => existing ?? createInitialDraft(suggestedInvoiceNumber ?? "INV-0001", taxPercent),
   );
   const [showErrors, setShowErrors] = useState(false);
   /**
@@ -366,6 +369,7 @@ export function InvoiceForm({
             tierId={draft.customerDetails.tierId}
             invalidItemIds={errors?.invalidLineItemIds ?? []}
             error={errors?.lineItems}
+            taxPercent={documentTaxPercent(draft)}
             dispatch={dispatch}
           />
           <div className="flex flex-col gap-8 sm:flex-row sm:items-start">
@@ -385,7 +389,7 @@ export function InvoiceForm({
               totals={totals}
               discount={draft.discount}
               deliveryCents={draft.deliveryCents}
-              taxRatePercent={draft.taxRatePercent}
+              taxPercent={documentTaxPercent(draft)}
               invoiceId={invoiceId}
               isQuote={draft.isQuote}
               payments={payments}

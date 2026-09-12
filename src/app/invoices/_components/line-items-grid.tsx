@@ -45,6 +45,8 @@ interface LineItemsGridProps {
   tierId: string | null;
   invalidItemIds: string[];
   error?: string;
+  /** The rate the document is on; a row added here joins it rather than setting its own. */
+  taxPercent: number;
   dispatch: (action: InvoiceAction) => void;
 }
 
@@ -54,6 +56,7 @@ export function LineItemsGrid({
   tierId,
   invalidItemIds,
   error,
+  taxPercent,
   dispatch,
 }: LineItemsGridProps) {
   // Names for the unit-price dropdown; harmlessly empty while Tiered pricing is off.
@@ -95,7 +98,7 @@ export function LineItemsGrid({
   };
 
   const appendRow = (focusField: CellField) => {
-    const item = makeLineItem();
+    const item = makeLineItem(taxPercent);
     dispatch({ type: "appendLineItem", item });
     setPendingFocus({ id: item.id, field: focusField });
   };
