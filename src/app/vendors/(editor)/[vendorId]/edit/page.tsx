@@ -17,7 +17,11 @@ const getVendor = cache(async (id: string) => api.vendor.get({ id }));
 
 export async function generateMetadata({ params }: EditVendorPageProps): Promise<Metadata> {
   const session = await auth();
-  if (!session?.user || !(await resolveBusinessId(session.user))) {
+  if (
+    !session?.user ||
+    !(await resolveBusinessId(session.user)) ||
+    !(await api.settings.modules()).purchaseOrders
+  ) {
     return { title: "Edit vendor" };
   }
 
@@ -30,6 +34,7 @@ export default async function EditVendorPage({ params }: EditVendorPageProps) {
   const session = await auth();
   if (!session?.user) redirect("/login");
   if (!(await resolveBusinessId(session.user))) redirect("/");
+  if (!(await api.settings.modules()).purchaseOrders) redirect("/");
 
   const { vendorId } = await params;
   const vendor = await getVendor(vendorId);

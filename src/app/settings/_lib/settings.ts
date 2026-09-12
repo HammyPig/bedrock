@@ -7,11 +7,13 @@ import { type Address } from "~/app/invoices/_lib/types";
  */
 export interface Modules {
   tieredPricing: boolean;
+  /** Purchase orders and the vendors they are raised against. */
+  purchaseOrders: boolean;
 }
 
 /** Modules are opt-in: everything starts off. */
 export function defaultModules(): Modules {
-  return { tieredPricing: false };
+  return { tieredPricing: false, purchaseOrders: false };
 }
 
 /**

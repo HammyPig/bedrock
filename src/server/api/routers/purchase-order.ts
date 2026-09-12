@@ -6,8 +6,8 @@ import { computeBreakdown, MAX_BASIS_POINTS } from "~/app/invoices/_lib/money";
 import { type PurchaseOrder, type PurchaseOrderDraft } from "~/app/purchase-orders/_lib/types";
 import { isoDate, lineItemBaseInput } from "~/server/api/routers/invoice";
 import { vendorDetailsInput } from "~/server/api/routers/vendor";
-import { loadEffectiveSettings } from "~/server/api/routers/settings";
-import { businessProcedure, createTRPCRouter } from "~/server/api/trpc";
+import { loadEffectiveSettings, purchaseOrdersProcedure } from "~/server/api/routers/settings";
+import { createTRPCRouter } from "~/server/api/trpc";
 import { sendPurchaseOrderEmail } from "~/server/email";
 import { purchaseOrderLineItems, purchaseOrders } from "~/server/db/schema";
 import { type db as database } from "~/server/db";
@@ -120,7 +120,7 @@ async function assertPoNumberFree(
 }
 
 export const purchaseOrderRouter = createTRPCRouter({
-  list: businessProcedure.query(async ({ ctx }) => {
+  list: purchaseOrdersProcedure.query(async ({ ctx }) => {
     const rows = await ctx.db.query.purchaseOrders.findMany({
       where: eq(purchaseOrders.businessId, ctx.businessId),
       with: { lineItems: { orderBy: [asc(purchaseOrderLineItems.position)] } },
@@ -128,7 +128,7 @@ export const purchaseOrderRouter = createTRPCRouter({
     return rows.map(toPurchaseOrder);
   }),
 
-  get: businessProcedure.input(z.object({ id: z.string() })).query(async ({ ctx, input }) => {
+  get: purchaseOrdersProcedure.input(z.object({ id: z.string() })).query(async ({ ctx, input }) => {
     const row = await ctx.db.query.purchaseOrders.findFirst({
       where: and(eq(purchaseOrders.id, input.id), eq(purchaseOrders.businessId, ctx.businessId)),
       with: { lineItems: { orderBy: [asc(purchaseOrderLineItems.position)] } },
@@ -136,7 +136,7 @@ export const purchaseOrderRouter = createTRPCRouter({
     return row ? toPurchaseOrder(row) : null;
   }),
 
-  create: businessProcedure.input(draftInput).mutation(async ({ ctx, input }) => {
+  create: purchaseOrdersProcedure.input(draftInput).mutation(async ({ ctx, input }) => {
     const businessId = ctx.businessId;
     await assertPoNumberFree(ctx.db, businessId, input.poNumber);
 
@@ -154,7 +154,7 @@ export const purchaseOrderRouter = createTRPCRouter({
     });
   }),
 
-  update: businessProcedure
+  update: purchaseOrdersProcedure
     .input(z.object({ id: z.string(), draft: draftInput }))
     .mutation(async ({ ctx, input }) => {
       const businessId = ctx.businessId;
@@ -179,7 +179,7 @@ export const purchaseOrderRouter = createTRPCRouter({
     }),
 
   /** Emails the saved purchase order, PDF attached, to the vendor's email address. */
-  sendEmail: businessProcedure
+  sendEmail: purchaseOrdersProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const row = await ctx.db.query.purchaseOrders.findFirst({
@@ -203,7 +203,7 @@ export const purchaseOrderRouter = createTRPCRouter({
     }),
 
   /** Suggested number for the next purchase order: PO-#### continuing from the highest used. */
-  nextNumber: businessProcedure.query(async ({ ctx }) => {
+  nextNumber: purchaseOrdersProcedure.query(async ({ ctx }) => {
     const rows = await ctx.db.query.purchaseOrders.findMany({
       columns: { poNumber: true },
       where: eq(purchaseOrders.businessId, ctx.businessId),

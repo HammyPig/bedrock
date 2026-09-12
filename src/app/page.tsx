@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
+  type LucideIcon,
   FileTextIcon,
   PackageIcon,
   PlusIcon,
@@ -12,10 +13,19 @@ import {
 
 import { Button } from "~/components/ui/button";
 import { DEFAULT_SETTINGS_PAGE } from "~/app/settings/_lib/sections";
+import { type Modules } from "~/app/settings/_lib/settings";
 import { auth, signOut } from "~/server/auth";
 import { resolveBusinessId } from "~/server/business";
+import { api } from "~/trpc/server";
 
-const sections = [
+/** A card without a `module` is always shown; one with it appears only while that module is on. */
+const sections: {
+  href: string;
+  title: string;
+  description: string;
+  icon: LucideIcon;
+  module?: keyof Modules;
+}[] = [
   {
     href: "/invoices",
     title: "Invoices",
@@ -27,6 +37,7 @@ const sections = [
     title: "Purchase orders",
     description: "Everything you've ordered from your vendors.",
     icon: ShoppingCartIcon,
+    module: "purchaseOrders",
   },
   {
     href: "/items",
@@ -45,6 +56,7 @@ const sections = [
     title: "Vendors",
     description: "The suppliers you order from.",
     icon: TruckIcon,
+    module: "purchaseOrders",
   },
   {
     // Straight to the first section — /settings itself only redirects there.
@@ -90,6 +102,9 @@ export default async function Home() {
     );
   }
 
+  const modules = await api.settings.modules();
+  const visibleSections = sections.filter(({ module }) => module === undefined || modules[module]);
+
   return (
     <main className="bg-background min-h-screen">
       <div className="mx-auto max-w-3xl px-4 py-10">
@@ -120,7 +135,7 @@ export default async function Home() {
           </div>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          {sections.map(({ href, title, description, icon: Icon }) => (
+          {visibleSections.map(({ href, title, description, icon: Icon }) => (
             <Link
               key={href}
               href={href}

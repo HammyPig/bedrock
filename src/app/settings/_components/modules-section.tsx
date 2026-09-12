@@ -4,6 +4,7 @@ import { useState } from "react";
 import { PlusIcon, Trash2Icon } from "lucide-react";
 
 import { type Tier } from "~/app/invoices/_lib/types";
+import { type Modules } from "~/app/settings/_lib/settings";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
 import {
@@ -25,44 +26,80 @@ export function ModulesSection() {
   const utils = api.useUtils();
   const modules = api.settings.modules.useQuery();
   const setModules = api.settings.setModules.useMutation({
-    // The flag gates what item reads return, so every cached list is stale after a toggle.
+    // The flags gate what reads return, so every cached list is stale after a toggle.
     onSuccess: () => utils.invalidate(),
   });
 
-  const enabled = modules.data?.tieredPricing ?? false;
+  const current = modules.data;
+  const toggle = (module: keyof Modules, enabled: boolean) => {
+    if (!current) return;
+    setModules.mutate({ ...current, [module]: enabled });
+  };
 
   return (
     <div className="bg-card rounded-xl border shadow-sm">
-      <div className="p-8 sm:p-10">
-        <section>
-          <div className="flex items-start justify-between gap-6">
-            <div>
-              <h2 className="font-medium">Tiered pricing</h2>
-              <p className="text-muted-foreground mt-1 text-sm">
-                Charge different customers different prices: name your own tiers, assign customers
-                to them, and give items a price per tier. Turning this off hides tiers everywhere
-                but keeps everything you&apos;ve set up.
-              </p>
-            </div>
-            <div className="flex shrink-0 items-center gap-2 pt-0.5">
-              <Checkbox
-                id="module-tiered-pricing"
-                checked={enabled}
-                disabled={!modules.data || setModules.isPending}
-                onCheckedChange={(checked) =>
-                  setModules.mutate({ tieredPricing: checked === true })
-                }
-              />
-              <Label htmlFor="module-tiered-pricing">Enabled</Label>
-            </div>
-          </div>
-          {setModules.error && (
-            <p className="text-destructive mt-2 text-sm">{setModules.error.message}</p>
-          )}
-          {enabled && <TierManager />}
-        </section>
+      <div className="space-y-10 p-8 sm:p-10">
+        <ModuleToggle
+          id="module-tiered-pricing"
+          title="Tiered pricing"
+          description="Charge different customers different prices: name your own tiers, assign customers to them, and give items a price per tier. Turning this off hides tiers everywhere but keeps everything you've set up."
+          enabled={current?.tieredPricing ?? false}
+          disabled={!current || setModules.isPending}
+          onChange={(enabled) => toggle("tieredPricing", enabled)}
+        >
+          <TierManager />
+        </ModuleToggle>
+        <ModuleToggle
+          id="module-purchase-orders"
+          title="Purchase orders"
+          description="Record what you order from your suppliers: raise purchase orders, email them out, and keep a vendor list to raise them against. Turning this off hides purchase orders and vendors but keeps everything you've recorded."
+          enabled={current?.purchaseOrders ?? false}
+          disabled={!current || setModules.isPending}
+          onChange={(enabled) => toggle("purchaseOrders", enabled)}
+        />
+        {setModules.error && <p className="text-destructive text-sm">{setModules.error.message}</p>}
       </div>
     </div>
+  );
+}
+
+/** One module: its description and Enabled checkbox, with any settings of its own below when on. */
+function ModuleToggle({
+  id,
+  title,
+  description,
+  enabled,
+  disabled,
+  onChange,
+  children,
+}: {
+  id: string;
+  title: string;
+  description: string;
+  enabled: boolean;
+  disabled: boolean;
+  onChange: (enabled: boolean) => void;
+  children?: React.ReactNode;
+}) {
+  return (
+    <section>
+      <div className="flex items-start justify-between gap-6">
+        <div>
+          <h2 className="font-medium">{title}</h2>
+          <p className="text-muted-foreground mt-1 text-sm">{description}</p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2 pt-0.5">
+          <Checkbox
+            id={id}
+            checked={enabled}
+            disabled={disabled}
+            onCheckedChange={(checked) => onChange(checked === true)}
+          />
+          <Label htmlFor={id}>Enabled</Label>
+        </div>
+      </div>
+      {enabled && children}
+    </section>
   );
 }
 

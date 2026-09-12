@@ -16,7 +16,11 @@ const getPurchaseOrder = cache(async (id: string) => api.purchaseOrder.get({ id 
 
 export async function generateMetadata({ params }: EditPurchaseOrderPageProps): Promise<Metadata> {
   const session = await auth();
-  if (!session?.user || !(await resolveBusinessId(session.user))) {
+  if (
+    !session?.user ||
+    !(await resolveBusinessId(session.user)) ||
+    !(await api.settings.modules()).purchaseOrders
+  ) {
     return { title: "Edit purchase order" };
   }
 
@@ -29,6 +33,7 @@ export default async function EditPurchaseOrderPage({ params }: EditPurchaseOrde
   const session = await auth();
   if (!session?.user) redirect("/login");
   if (!(await resolveBusinessId(session.user))) redirect("/");
+  if (!(await api.settings.modules()).purchaseOrders) redirect("/");
 
   // Kicked off before the awaited get so all three fetches run concurrently.
   void api.item.list.prefetch();

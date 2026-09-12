@@ -15,6 +15,7 @@ export default async function NewPurchaseOrderPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
   if (!(await resolveBusinessId(session.user))) redirect("/");
+  if (!(await api.settings.modules()).purchaseOrders) redirect("/");
 
   // Kicked off before the awaited nextNumber so all three fetches run concurrently.
   void api.item.list.prefetch();

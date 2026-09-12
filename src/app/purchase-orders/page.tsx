@@ -14,6 +14,7 @@ export default async function PurchaseOrdersPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
   if (!(await resolveBusinessId(session.user))) redirect("/");
+  if (!(await api.settings.modules()).purchaseOrders) redirect("/");
 
   void api.purchaseOrder.list.prefetch();
 

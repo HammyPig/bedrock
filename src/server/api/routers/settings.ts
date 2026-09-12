@@ -1,3 +1,4 @@
+import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
@@ -40,6 +41,7 @@ export const settingsInput = z.object({
 
 const modulesInput = z.object({
   tieredPricing: z.boolean(),
+  purchaseOrders: z.boolean(),
 }) satisfies z.ZodType<Modules>;
 
 function toSettings(row: typeof businessSettings.$inferSelect): BusinessSettings {
@@ -100,6 +102,19 @@ export async function loadModules(db: typeof database, businessId: string): Prom
   });
   return row?.modules ?? defaultModules();
 }
+
+/**
+ * Business procedure that additionally requires the Purchase orders module.
+ * Gating the routers — not just the routes — keeps a turned-off module from
+ * being reachable through a stale client or a hand-rolled request.
+ */
+export const purchaseOrdersProcedure = businessProcedure.use(async ({ ctx, next }) => {
+  const modules = await loadModules(ctx.db, ctx.businessId);
+  if (!modules.purchaseOrders) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Purchase orders are turned off." });
+  }
+  return next();
+});
 
 export const settingsRouter = createTRPCRouter({
   get: businessProcedure.query(({ ctx }) => loadEffectiveSettings(ctx.db, ctx.businessId)),

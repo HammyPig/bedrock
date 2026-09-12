@@ -4,7 +4,8 @@ import { z } from "zod";
 
 import { type Vendor, type VendorDetails } from "~/app/purchase-orders/_lib/types";
 import { addressInput } from "~/server/api/routers/customer";
-import { businessProcedure, createTRPCRouter } from "~/server/api/trpc";
+import { purchaseOrdersProcedure } from "~/server/api/routers/settings";
+import { createTRPCRouter } from "~/server/api/trpc";
 import { vendors } from "~/server/db/schema";
 
 /** Vendor details without an id — also the purchase order's vendor snapshot shape. */
@@ -28,7 +29,7 @@ function toVendor(row: typeof vendors.$inferSelect): Vendor {
 }
 
 export const vendorRouter = createTRPCRouter({
-  list: businessProcedure.query(async ({ ctx }) => {
+  list: purchaseOrdersProcedure.query(async ({ ctx }) => {
     const rows = await ctx.db.query.vendors.findMany({
       where: eq(vendors.businessId, ctx.businessId),
       orderBy: [asc(vendors.name)],
@@ -36,14 +37,14 @@ export const vendorRouter = createTRPCRouter({
     return rows.map(toVendor);
   }),
 
-  get: businessProcedure.input(z.object({ id: z.string() })).query(async ({ ctx, input }) => {
+  get: purchaseOrdersProcedure.input(z.object({ id: z.string() })).query(async ({ ctx, input }) => {
     const row = await ctx.db.query.vendors.findFirst({
       where: and(eq(vendors.id, input.id), eq(vendors.businessId, ctx.businessId)),
     });
     return row ? toVendor(row) : null;
   }),
 
-  create: businessProcedure.input(vendorDetailsInput).mutation(async ({ ctx, input }) => {
+  create: purchaseOrdersProcedure.input(vendorDetailsInput).mutation(async ({ ctx, input }) => {
     const [created] = await ctx.db
       .insert(vendors)
       .values({ ...input, businessId: ctx.businessId })
@@ -52,7 +53,7 @@ export const vendorRouter = createTRPCRouter({
     return { id: created.id };
   }),
 
-  update: businessProcedure
+  update: purchaseOrdersProcedure
     .input(z.object({ id: z.string(), details: vendorDetailsInput }))
     .mutation(async ({ ctx, input }) => {
       const [updated] = await ctx.db
@@ -63,12 +64,14 @@ export const vendorRouter = createTRPCRouter({
       if (!updated) throw new TRPCError({ code: "NOT_FOUND" });
     }),
 
-  delete: businessProcedure.input(z.object({ id: z.string() })).mutation(async ({ ctx, input }) => {
-    const [deleted] = await ctx.db
-      .delete(vendors)
-      .where(and(eq(vendors.id, input.id), eq(vendors.businessId, ctx.businessId)))
-      .returning({ id: vendors.id });
-    if (!deleted) throw new TRPCError({ code: "NOT_FOUND" });
-    return { id: input.id };
-  }),
+  delete: purchaseOrdersProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const [deleted] = await ctx.db
+        .delete(vendors)
+        .where(and(eq(vendors.id, input.id), eq(vendors.businessId, ctx.businessId)))
+        .returning({ id: vendors.id });
+      if (!deleted) throw new TRPCError({ code: "NOT_FOUND" });
+      return { id: input.id };
+    }),
 });
