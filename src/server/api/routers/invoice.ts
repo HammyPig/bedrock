@@ -44,10 +44,10 @@ const draftInput = z.object({
       "Line item ids must be unique.",
     ),
   discount: z
-    .discriminatedUnion("mode", [
-      z.object({ mode: z.literal("percent"), percent: z.number().min(0) }),
-      z.object({ mode: z.literal("fixed"), amountCents: z.number().int().min(0) }),
-    ])
+    .object({
+      percent: z.number().min(0).max(100),
+      amountCents: z.number().int().min(0),
+    })
     .nullable(),
   deliveryCents: z.number().int().min(0),
   deliveryTaxPercent: z.number().min(0).max(100),
@@ -61,15 +61,32 @@ const draftInput = z.object({
  */
 function toRows(draft: z.infer<typeof draftInput>) {
   const breakdown = computeBreakdown(draft);
-  const { lineItems, ...columns } = draft;
+  const { lineItems, discount, ...columns } = draft;
   return {
-    columns: { ...columns, deliveryTaxCents: breakdown.deliveryTaxCents },
+    columns: {
+      ...columns,
+      discountPercent: discount?.percent ?? 0,
+      discountCents: breakdown.discountCents,
+      deliveryTaxCents: breakdown.deliveryTaxCents,
+    },
     lineItems: lineItems.map((line, position) => ({
       ...line,
       position,
+      discountCents: breakdown.lines[position]?.discountCents ?? 0,
       taxCents: breakdown.lines[position]?.taxCents ?? 0,
     })),
   };
+}
+
+/**
+ * The stored discount, or null when none was given. Cents is always written, so
+ * a discount exists when it came to something or when a rate was recorded —
+ * a discount of exactly nothing is not one worth keeping.
+ */
+function rowDiscount(row: { discountCents: number; discountPercent: number }) {
+  return row.discountCents > 0 || row.discountPercent > 0
+    ? { percent: row.discountPercent, amountCents: row.discountCents }
+    : null;
 }
 
 type InvoiceRow = typeof invoices.$inferSelect & {
@@ -106,7 +123,7 @@ function toInvoice(row: InvoiceRow): Invoice {
         taxPercent: line.taxPercent,
         backordered: line.backordered,
       })),
-      discount: row.discount,
+      discount: rowDiscount(row),
       deliveryCents: row.deliveryCents,
       deliveryTaxPercent: row.deliveryTaxPercent,
       notes: row.notes,
@@ -243,7 +260,10 @@ export const invoiceRouter = createTRPCRouter({
       // Balances come from the database, not the client, so a stale page can't over-record.
       const values = rows.flatMap((row) => {
         if (row.isQuote) return [];
-        const { balanceCents } = computeTotals(row, paymentsTotalCents(row.payments));
+        const { balanceCents } = computeTotals(
+          { ...row, discount: rowDiscount(row) },
+          paymentsTotalCents(row.payments),
+        );
         return balanceCents > 0
           ? [{ invoiceId: row.id, amountCents: balanceCents, paidDate: input.paidDate }]
           : [];

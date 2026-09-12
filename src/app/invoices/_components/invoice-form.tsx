@@ -27,7 +27,12 @@ import {
   repriceLineItems,
   validateDraft,
 } from "../_lib/invoice";
-import { computeTotals, documentTaxPercent, paymentsTotalCents } from "../_lib/money";
+import {
+  computeTotals,
+  documentTaxPercent,
+  paymentsTotalCents,
+  resolveDiscount,
+} from "../_lib/money";
 import { type InvoiceAction, type InvoiceDraft, type Payment } from "../_lib/types";
 import { CustomerDetailsSection } from "./customer-details-section";
 import { InvoiceMeta } from "./invoice-meta";
@@ -54,7 +59,7 @@ function createInitialDraft(invoiceNumber: string, taxPercent: number): InvoiceD
   };
 }
 
-function invoiceReducer(draft: InvoiceDraft, action: InvoiceAction): InvoiceDraft {
+function applyAction(draft: InvoiceDraft, action: InvoiceAction): InvoiceDraft {
   switch (action.type) {
     case "patch":
       return { ...draft, ...action.patch };
@@ -88,6 +93,17 @@ function invoiceReducer(draft: InvoiceDraft, action: InvoiceAction): InvoiceDraf
         ),
       };
   }
+}
+
+/**
+ * Every action re-settles the discount, so editing a line can never leave a
+ * percent discount showing cents from the subtotal it had a moment ago, or a
+ * fixed one larger than what is left to discount.
+ */
+function invoiceReducer(draft: InvoiceDraft, action: InvoiceAction): InvoiceDraft {
+  const next = applyAction(draft, action);
+  const discount = resolveDiscount(next.discount, next.lineItems);
+  return discount === next.discount ? next : { ...next, discount };
 }
 
 interface InvoiceFormProps {

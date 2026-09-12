@@ -88,8 +88,8 @@ const INVOICE_EXPORT_FIELDS = [
   "Backordered",
   "Delivery",
   "Delivery GST %",
-  "Discount mode",
-  "Discount value",
+  "Discount %",
+  "Discount",
   "Paid",
   "Notes",
 ];
@@ -120,12 +120,8 @@ export function invoicesCsv(invoices: Invoice[]): string {
       line.backordered ? "yes" : "",
       dollars(draft.deliveryCents),
       String(draft.deliveryTaxPercent),
-      draft.discount?.mode ?? "",
-      draft.discount === null
-        ? ""
-        : draft.discount.mode === "fixed"
-          ? dollars(draft.discount.amountCents)
-          : String(draft.discount.percent),
+      draft.discount === null ? "" : String(draft.discount.percent),
+      draft.discount === null ? "" : dollars(draft.discount.amountCents),
       dollars(paymentsTotalCents(payments)),
       draft.notes,
     ]),

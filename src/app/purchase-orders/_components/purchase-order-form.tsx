@@ -10,7 +10,7 @@ import { Textarea } from "~/components/ui/textarea";
 import { todayIsoDate } from "~/lib/dates";
 import { cn } from "~/lib/utils";
 import { api } from "~/trpc/react";
-import { documentTaxPercent } from "~/app/invoices/_lib/money";
+import { documentTaxPercent, resolveDiscount } from "~/app/invoices/_lib/money";
 import { emptyVendorDetails, purchaseOrderTotals, validateDraft } from "../_lib/purchase-order";
 import { type PurchaseOrderAction, type PurchaseOrderDraft } from "../_lib/types";
 import { LineItemsGrid } from "./line-items-grid";
@@ -34,10 +34,7 @@ function createInitialDraft(poNumber: string, taxPercent: number): PurchaseOrder
   };
 }
 
-function purchaseOrderReducer(
-  draft: PurchaseOrderDraft,
-  action: PurchaseOrderAction,
-): PurchaseOrderDraft {
+function applyAction(draft: PurchaseOrderDraft, action: PurchaseOrderAction): PurchaseOrderDraft {
   switch (action.type) {
     case "patch":
       return { ...draft, ...action.patch };
@@ -59,6 +56,16 @@ function purchaseOrderReducer(
     case "removeLineItem":
       return { ...draft, lineItems: draft.lineItems.filter((item) => item.id !== action.id) };
   }
+}
+
+/** Mirrors the invoice form: every action re-settles the discount against the lines. */
+function purchaseOrderReducer(
+  draft: PurchaseOrderDraft,
+  action: PurchaseOrderAction,
+): PurchaseOrderDraft {
+  const next = applyAction(draft, action);
+  const discount = resolveDiscount(next.discount, next.lineItems);
+  return discount === next.discount ? next : { ...next, discount };
 }
 
 interface PurchaseOrderFormProps {

@@ -2,7 +2,7 @@ import { relations } from "drizzle-orm";
 import { index, pgTableCreator, primaryKey, uniqueIndex } from "drizzle-orm/pg-core";
 import { type AdapterAccount } from "next-auth/adapters";
 
-import type { Address, CustomerDetails, Discount, PaymentTerms } from "~/app/invoices/_lib/types";
+import type { Address, CustomerDetails, PaymentTerms } from "~/app/invoices/_lib/types";
 import type { VendorDetails } from "~/app/purchase-orders/_lib/types";
 import {
   DEFAULT_EMAIL_BODY,
@@ -343,7 +343,10 @@ export const invoices = createTable(
     issueDate: d.date({ mode: "string" }).notNull(),
     terms: d.varchar({ length: 16 }).$type<PaymentTerms>().notNull(),
     customDueDate: d.date({ mode: "string" }),
-    discount: d.jsonb().$type<Discount>(),
+    /** Non-zero only when the discount was given as a percent, never as the amount itself. */
+    discountPercent: d.doublePrecision().notNull(),
+    /** What the discount came to; 0 when none was given. */
+    discountCents: d.integer().notNull(),
     deliveryCents: d.integer().notNull(),
     deliveryTaxPercent: d.doublePrecision().notNull(),
     deliveryTaxCents: d.integer().notNull(),
@@ -415,6 +418,7 @@ export const invoiceLineItems = createTable(
     quantity: d.doublePrecision().notNull(),
     unitPriceCents: d.integer().notNull(),
     discountPercent: d.doublePrecision().notNull(),
+    discountCents: d.integer().notNull(),
     /** GST is charged line by line, at the business's rate when the line was written. */
     taxPercent: d.doublePrecision().notNull(),
     taxCents: d.integer().notNull(),
@@ -484,7 +488,10 @@ export const purchaseOrders = createTable(
     sourceVendorId: d.varchar({ length: 255 }),
     orderDate: d.date({ mode: "string" }).notNull(),
     expectedDate: d.date({ mode: "string" }),
-    discount: d.jsonb().$type<Discount>(),
+    /** Non-zero only when the discount was given as a percent, never as the amount itself. */
+    discountPercent: d.doublePrecision().notNull(),
+    /** What the discount came to; 0 when none was given. */
+    discountCents: d.integer().notNull(),
     deliveryCents: d.integer().notNull(),
     deliveryTaxPercent: d.doublePrecision().notNull(),
     deliveryTaxCents: d.integer().notNull(),
@@ -520,6 +527,7 @@ export const purchaseOrderLineItems = createTable(
     quantity: d.doublePrecision().notNull(),
     unitPriceCents: d.integer().notNull(),
     discountPercent: d.doublePrecision().notNull(),
+    discountCents: d.integer().notNull(),
     /** GST is charged line by line, at the business's rate when the line was written. */
     taxPercent: d.doublePrecision().notNull(),
     taxCents: d.integer().notNull(),

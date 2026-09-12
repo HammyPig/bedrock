@@ -8,15 +8,18 @@ export interface Tier {
   name: string;
 }
 
+/** How a discount was asked for. Derived from the discount itself — never stored. */
 export type DiscountMode = "percent" | "fixed";
 
 /**
- * The two modes carry different units, so they carry different fields — a
- * percent can never be misread as cents. Fixed amounts are integer cents.
+ * A discount. amountCents is always what actually comes off, so the money is
+ * readable without re-running the math; percent records how it was asked for,
+ * and is 0 when it was entered as a straight amount.
  */
-export type Discount =
-  | { mode: "percent"; percent: number }
-  | { mode: "fixed"; amountCents: number };
+export interface Discount {
+  percent: number;
+  amountCents: number;
+}
 
 /** Line-item fields shared with purchase orders. */
 export interface LineItemBase {

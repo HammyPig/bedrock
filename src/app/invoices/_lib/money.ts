@@ -1,4 +1,4 @@
-import { type Discount, type LineItemBase, type Totals } from "./types";
+import { type Discount, type DiscountMode, type LineItemBase, type Totals } from "./types";
 
 /** The only tax rate the app charges: a business is registered for GST or it isn't. */
 export const GST_RATE_PERCENT = 10;
@@ -14,21 +14,67 @@ interface TaxableDocument {
   deliveryTaxPercent: number;
 }
 
-/** The tax a single line contributes, derived from the rate on the line. */
+/** The cents a single line contributes, each derived from a percent on the line. */
 export interface LineBreakdown {
+  discountCents: number;
+  subtotalCents: number;
   taxCents: number;
 }
 
 /** Every cents figure a document records, derived from the percents it stores. */
 export interface Breakdown {
   lines: LineBreakdown[];
+  /** The document-level discount, in cents — for a percent discount and a
+   * fixed one alike, so what was taken off is recorded either way. */
+  discountCents: number;
   deliveryTaxCents: number;
   totals: Totals;
+}
+
+/** The lines' combined subtotal, before any document-level discount. */
+export function subtotalCents(lineItems: LineItemBase[]): number {
+  return lineItems.reduce((sum, item) => sum + lineItemSubtotalCents(item), 0);
+}
+
+/** How a discount was asked for — read off the discount rather than stored beside it. */
+export function discountMode(discount: Discount): DiscountMode {
+  return discount.percent > 0 ? "percent" : "fixed";
+}
+
+/**
+ * What a discount actually takes off: a percent of the subtotal, or the amount
+ * given — never more than there is to discount. The clamp is the reason a
+ * stored amountCents can be trusted as-is.
+ */
+export function discountAmountCents(discount: Discount, subtotal: number): number {
+  const cents =
+    discount.percent > 0 ? Math.round((subtotal * discount.percent) / 100) : discount.amountCents;
+  return Math.min(cents, subtotal);
+}
+
+/**
+ * A discount with its cents brought back in step with the lines it comes off.
+ * Both form reducers run every action through this, so a draft's amountCents is
+ * always what would actually be taken off — no percent left pointing at a stale
+ * subtotal, no fixed amount larger than the invoice.
+ */
+export function resolveDiscount(
+  discount: Discount | null,
+  lineItems: LineItemBase[],
+): Discount | null {
+  if (discount === null) return null;
+  const amountCents = discountAmountCents(discount, subtotalCents(lineItems));
+  return amountCents === discount.amountCents ? discount : { ...discount, amountCents };
 }
 
 /** Line subtotal: qty x unit price, less the per-line discount. */
 export function lineItemSubtotalCents(item: LineItemBase): number {
   return Math.round(item.quantity * item.unitPriceCents * (1 - item.discountPercent / 100));
+}
+
+/** What the per-line discount took off — the gap to the undiscounted line, so the two reconcile exactly. */
+export function lineItemDiscountCents(item: LineItemBase): number {
+  return Math.round(item.quantity * item.unitPriceCents) - lineItemSubtotalCents(item);
 }
 
 /** The rate a document is written at; a fresh one with no lines falls back to its delivery rate. */
@@ -65,31 +111,33 @@ function allocateCents(amountCents: number, weights: number[]): number[] {
  */
 export function computeBreakdown(doc: TaxableDocument, paidCents = 0): Breakdown {
   const lineSubtotals = doc.lineItems.map(lineItemSubtotalCents);
-  const subtotalCents = lineSubtotals.reduce((sum, cents) => sum + cents, 0);
+  const subtotal = lineSubtotals.reduce((sum, cents) => sum + cents, 0);
 
-  let discountCents = 0;
-  if (doc.discount) {
-    discountCents =
-      doc.discount.mode === "percent"
-        ? Math.round((subtotalCents * doc.discount.percent) / 100)
-        : Math.min(doc.discount.amountCents, subtotalCents);
-  }
+  // Re-derived rather than read off the draft, so a client can't bank a
+  // discount that disagrees with the percent it claims to come from.
+  const discountCents = doc.discount === null ? 0 : discountAmountCents(doc.discount, subtotal);
 
   const discountShares = allocateCents(discountCents, lineSubtotals);
   const lines = doc.lineItems.map((item, i) => {
-    const taxableCents = (lineSubtotals[i] ?? 0) - (discountShares[i] ?? 0);
-    return { taxCents: Math.round((taxableCents * item.taxPercent) / 100) };
+    const lineSubtotal = lineSubtotals[i] ?? 0;
+    const taxableCents = lineSubtotal - (discountShares[i] ?? 0);
+    return {
+      discountCents: lineItemDiscountCents(item),
+      subtotalCents: lineSubtotal,
+      taxCents: Math.round((taxableCents * item.taxPercent) / 100),
+    };
   });
 
   const deliveryTaxCents = Math.round((doc.deliveryCents * doc.deliveryTaxPercent) / 100);
   const taxCents = lines.reduce((sum, line) => sum + line.taxCents, 0) + deliveryTaxCents;
-  const totalCents = subtotalCents - discountCents + doc.deliveryCents + taxCents;
+  const totalCents = subtotal - discountCents + doc.deliveryCents + taxCents;
 
   return {
     lines,
+    discountCents,
     deliveryTaxCents,
     totals: {
-      subtotalCents,
+      subtotalCents: subtotal,
       discountCents,
       taxCents,
       totalCents,

@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { XIcon } from "lucide-react";
 
 import { MoneyInput } from "~/components/money-input";
 import { Button } from "~/components/ui/button";
 import { formatCents } from "~/lib/money";
+import { discountMode } from "../_lib/money";
 import { cn } from "~/lib/utils";
 import {
   type Discount,
@@ -39,15 +41,19 @@ export function TotalsPanel({
   payments,
   dispatch,
 }: TotalsPanelProps) {
-  const setDiscountMode = (mode: DiscountMode) => {
-    if (discount?.mode !== mode) {
-      dispatch({
-        type: "patch",
-        patch: {
-          discount: mode === "percent" ? { mode, percent: 0 } : { mode, amountCents: 0 },
-        },
-      });
-    }
+  /**
+   * Which input the discount is being typed into. Local because a zeroed
+   * discount reads as fixed either way — the stored data can only tell you the
+   * mode once a number has been entered, and that is too late to render.
+   */
+  const [mode, setMode] = useState<DiscountMode>(() =>
+    discount === null ? "percent" : discountMode(discount),
+  );
+
+  const switchMode = (next: DiscountMode) => {
+    if (next === mode) return;
+    setMode(next);
+    dispatch({ type: "patch", patch: { discount: { percent: 0, amountCents: 0 } } });
   };
 
   return (
@@ -62,9 +68,10 @@ export function TotalsPanel({
           variant="link"
           size="sm"
           className="h-auto p-0"
-          onClick={() =>
-            dispatch({ type: "patch", patch: { discount: { mode: "percent", percent: 0 } } })
-          }
+          onClick={() => {
+            setMode("percent");
+            dispatch({ type: "patch", patch: { discount: { percent: 0, amountCents: 0 } } });
+          }}
         >
           Add discount
         </Button>
@@ -73,30 +80,30 @@ export function TotalsPanel({
           <div className="flex items-center gap-1.5">
             <span className="text-muted-foreground text-sm">Discount</span>
             <div className="flex overflow-hidden rounded-md border">
-              {(["percent", "fixed"] as const).map((mode) => (
+              {(["percent", "fixed"] as const).map((option) => (
                 <button
-                  key={mode}
+                  key={option}
                   type="button"
                   className={cn(
                     "px-1.5 py-0.5 text-xs",
-                    discount.mode === mode
+                    option === mode
                       ? "bg-muted font-medium text-foreground"
                       : "text-muted-foreground hover:bg-muted/50",
                   )}
-                  onClick={() => setDiscountMode(mode)}
+                  onClick={() => switchMode(option)}
                 >
-                  {mode === "percent" ? "%" : "$"}
+                  {option === "percent" ? "%" : "$"}
                 </button>
               ))}
             </div>
-            {discount.mode === "percent" ? (
+            {mode === "percent" ? (
               <NumberInput
                 className="h-7 w-14 px-1.5 text-sm"
                 aria-label="Discount percent"
                 max={100}
                 value={discount.percent}
                 onValueChange={(percent) =>
-                  dispatch({ type: "patch", patch: { discount: { mode: "percent", percent } } })
+                  dispatch({ type: "patch", patch: { discount: { ...discount, percent } } })
                 }
               />
             ) : (
@@ -106,7 +113,7 @@ export function TotalsPanel({
                 aria-label="Discount amount"
                 valueCents={discount.amountCents}
                 onValueCentsChange={(amountCents) =>
-                  dispatch({ type: "patch", patch: { discount: { mode: "fixed", amountCents } } })
+                  dispatch({ type: "patch", patch: { discount: { percent: 0, amountCents } } })
                 }
               />
             )}

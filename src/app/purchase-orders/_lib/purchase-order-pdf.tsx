@@ -230,9 +230,9 @@ export function PurchaseOrderPdf({ draft, settings }: PurchaseOrderPdfProps) {
             {totals.discountCents > 0 && (
               <TotalsRow
                 label={
-                  draft.discount?.mode === "percent"
-                    ? `Discount (${draft.discount.percent}%)`
-                    : "Discount"
+                  draft.discount === null || draft.discount.percent === 0
+                    ? "Discount"
+                    : `Discount (${draft.discount.percent}%)`
                 }
                 value={`-${formatCents(totals.discountCents)}`}
               />
