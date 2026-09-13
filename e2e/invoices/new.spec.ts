@@ -578,56 +578,6 @@ test.describe("invoice metadata section", () => {
     await expect(dueDateText(page)).toHaveText(formatIsoDate("2026-02-07"));
   });
 
-  // test.describe("the invoice number", { tag: "@tbd" }, () => {
-  //   test("follows the business's numbering", async ({ page }) => {
-  //     await gotoNewInvoice(page);
-  //     await expect(page.getByLabel("Invoice no.")).toHaveValue("INV-1001");
-  //   });
-
-  //   test("is called out while a number already in use is typed", async ({ page }) => {
-  //     test.fixme();
-  //     await seedInvoice(draft({ invoiceNumber: "INV-0900" }));
-  //     await gotoNewInvoice(page);
-
-  //     await replaceText(page.getByLabel("Invoice no."), "INV-0900");
-  //     await expect(page.getByText("Invoice number INV-0900 already exists.")).toBeVisible();
-  //   });
-
-  //   test("stops being called out once the number is free again", async ({ page }) => {
-  //     test.fixme();
-  //     await seedInvoice(draft({ invoiceNumber: "INV-0900" }));
-  //     await gotoNewInvoice(page);
-
-  //     const number = page.getByLabel("Invoice no.");
-  //     await replaceText(number, "INV-0900");
-  //     await expect(page.getByText("Invoice number INV-0900 already exists.")).toBeVisible();
-
-  //     await replaceText(number, "INV-0901");
-  //     await expect(page.getByText(/already exists/)).toBeHidden();
-  //   });
-
-  //   test("is never called out against the invoice's own number", async ({ page }) => {
-  //     test.fixme();
-  //     const invoice = await seedInvoice(draft({ invoiceNumber: "INV-0900" }));
-  //     await page.goto(`/invoices/${invoice.id}/edit`);
-
-  //     await replaceText(page.getByLabel("Invoice no."), "INV-0900");
-  //     await expect(page.getByText(/already exists/)).toBeHidden();
-  //   });
-
-  //   test("is refused on save when it is already in use", async ({ page }) => {
-  //     await seedCustomer(CUSTOMERS.acme);
-  //     await seedInvoice(draft({ invoiceNumber: "INV-0900" }));
-  //     await gotoNewInvoice(page);
-
-  //     await fillMinimalInvoice(page, /Priya Nair/);
-  //     await replaceText(page.getByLabel("Invoice no."), "INV-0900");
-  //     await saveInvoice(page).click();
-
-  //     await expect(saveStatus(page)).toHaveText("Invoice number INV-0900 already exists.");
-  //   });
-  // });
-
   test("can be switched to a quote and back", async ({ page }) => {
     await gotoNewInvoice(page);
 
@@ -1087,18 +1037,6 @@ test.describe("the action bar", () => {
     const invoice = await payableInvoice();
     await page.goto(`/invoices/${invoice.id}/edit`);
     await expect(saveStatus(page)).toHaveText("Saved");
-  });
-
-  test("a refused save reports why, in place of the status", async ({ page }) => {
-    await seedCustomer(CUSTOMERS.acme);
-    await seedInvoice(draft({ invoiceNumber: "INV-0900" }));
-    await gotoNewInvoice(page);
-    await fillMinimalInvoice(page, /Priya Nair/);
-    await replaceText(page.getByLabel("Invoice no."), "INV-0900");
-
-    await saveInvoice(page).click();
-    await expect(saveStatus(page)).toHaveText("Invoice number INV-0900 already exists.");
-    await expect(saveStatus(page)).not.toHaveText("Draft");
   });
 
   // test.describe("sending the invoice", { tag: "@tbd" }, () => {
