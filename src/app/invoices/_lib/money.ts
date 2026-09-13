@@ -32,12 +32,15 @@ export function formatBasisPoints(basisPoints: number): string {
   return String(basisPoints / BASIS_POINTS_PER_PERCENT);
 }
 
+/** A line as the money math reads it: only invoice lines carry a per-line discount. */
+type PricedLine = LineItemBase & { discountBasisPoints?: number };
+
 /**
  * The shape the money math needs. Structural rather than Pick<InvoiceDraft, ...>
  * so purchase orders can use it too.
  */
 interface TaxableDocument {
-  lineItems: LineItemBase[];
+  lineItems: PricedLine[];
   discount: Discount | null;
   deliveryCents: number;
   deliveryTaxBasisPoints: number;
@@ -61,7 +64,7 @@ export interface Breakdown {
 }
 
 /** The lines' combined subtotal, before any document-level discount. */
-export function subtotalCents(lineItems: LineItemBase[]): number {
+export function subtotalCents(lineItems: PricedLine[]): number {
   return lineItems.reduce((sum, item) => sum + lineItemSubtotalCents(item), 0);
 }
 
@@ -91,7 +94,7 @@ export function discountAmountCents(discount: Discount, subtotal: number): numbe
  */
 export function resolveDiscount(
   discount: Discount | null,
-  lineItems: LineItemBase[],
+  lineItems: PricedLine[],
 ): Discount | null {
   if (discount === null) return null;
   const amountCents = discountAmountCents(discount, subtotalCents(lineItems));
@@ -99,15 +102,15 @@ export function resolveDiscount(
 }
 
 /** Line subtotal: qty x unit price, less the per-line discount. */
-export function lineItemSubtotalCents(item: LineItemBase): number {
+export function lineItemSubtotalCents(item: PricedLine): number {
   // Divided down to cents before the rate is applied: the product of two
   // integers is exact, and only this last step rounds.
   const grossCents = (item.quantityMilli * item.unitPriceCents) / MILLI_PER_UNIT;
-  return Math.round(grossCents * (1 - item.discountBasisPoints / MAX_BASIS_POINTS));
+  return Math.round(grossCents * (1 - (item.discountBasisPoints ?? 0) / MAX_BASIS_POINTS));
 }
 
 /** What the per-line discount took off — the gap to the undiscounted line, so the two reconcile exactly. */
-export function lineItemDiscountCents(item: LineItemBase): number {
+export function lineItemDiscountCents(item: PricedLine): number {
   const grossCents = Math.round((item.quantityMilli * item.unitPriceCents) / MILLI_PER_UNIT);
   return grossCents - lineItemSubtotalCents(item);
 }

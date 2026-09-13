@@ -529,9 +529,6 @@ export const purchaseOrderLineItems = createTable(
     /** Thousandths of a unit, so 2.5 is 2500 — quantities are integers too. */
     quantityMilli: d.integer().notNull(),
     unitPriceCents: d.integer().notNull(),
-    /** The discount asked for, in basis points; 0 when the line has none. */
-    discountBasisPoints: d.integer().notNull(),
-    discountCents: d.integer().notNull(),
     /** GST is charged line by line, at the business's rate when the line was written. */
     taxBasisPoints: d.integer().notNull(),
     taxCents: d.integer().notNull(),

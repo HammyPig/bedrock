@@ -51,13 +51,12 @@ export function makeLineItemBase(taxBasisPoints: number): LineItemBase {
     name: "",
     quantityMilli: MILLI_PER_UNIT,
     unitPriceCents: 0,
-    discountBasisPoints: 0,
     taxBasisPoints,
   };
 }
 
 export function makeLineItem(taxBasisPoints: number): LineItem {
-  return { ...makeLineItemBase(taxBasisPoints), backordered: false };
+  return { ...makeLineItemBase(taxBasisPoints), discountBasisPoints: 0, backordered: false };
 }
 
 /** Comparison key only — mirrors the server's SKU uniqueness check. */

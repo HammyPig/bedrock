@@ -51,7 +51,6 @@ function toRows(draft: z.infer<typeof draftInput>) {
     lineItems: lineItems.map((line, position) => ({
       ...line,
       position,
-      discountCents: breakdown.lines[position]?.discountCents ?? 0,
       taxCents: breakdown.lines[position]?.taxCents ?? 0,
     })),
   };
@@ -87,7 +86,6 @@ function toPurchaseOrder(row: PurchaseOrderRow): PurchaseOrder {
         name: line.name,
         quantityMilli: line.quantityMilli,
         unitPriceCents: line.unitPriceCents,
-        discountBasisPoints: line.discountBasisPoints,
         taxBasisPoints: line.taxBasisPoints,
       })),
       discount: rowDiscount(row),

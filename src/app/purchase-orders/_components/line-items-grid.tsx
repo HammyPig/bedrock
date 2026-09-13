@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { GripVerticalIcon, PlusIcon, Trash2Icon } from "lucide-react";
 
-import { PercentInput } from "~/app/invoices/_components/percent-input";
 import { QuantityInput } from "~/app/invoices/_components/quantity-input";
 import { makeLineItemBase } from "~/app/invoices/_lib/invoice";
 import { lineItemSubtotalCents } from "~/app/invoices/_lib/money";
@@ -19,13 +18,13 @@ import { cn } from "~/lib/utils";
 import { type PurchaseOrderAction } from "../_lib/types";
 import { Highlight } from "~/components/highlight";
 
-type CellField = "sku" | "name" | "quantity" | "unitPrice" | "discount";
+type CellField = "sku" | "name" | "quantity" | "unitPrice";
 
 /** The name cell is a textarea; every other cell is an input. */
 type CellElement = HTMLInputElement | HTMLTextAreaElement;
 
 const GRID_COLS =
-  "grid grid-cols-[1.25rem_5.5rem_minmax(0,1fr)_3rem_5.5rem_3rem_5.5rem_2rem] items-center gap-2";
+  "grid grid-cols-[1.25rem_5.5rem_minmax(0,1fr)_3rem_5.5rem_5.5rem_2rem] items-center gap-2";
 
 interface LineItemsGridProps {
   items: LineItemBase[];
@@ -77,7 +76,7 @@ export function LineItemsGrid({
     const index = items.findIndex((item) => item.id === id);
     const isLastRow = index === items.length - 1;
 
-    if (e.key === "Tab" && !e.shiftKey && field === "discount" && isLastRow) {
+    if (e.key === "Tab" && !e.shiftKey && field === "unitPrice" && isLastRow) {
       e.preventDefault();
       appendRow("sku");
       return;
@@ -120,7 +119,6 @@ export function LineItemsGrid({
         <span>Name</span>
         <span className="text-right">Qty</span>
         <span className="text-right">Unit cost</span>
-        <span className="text-right">Disc. %</span>
         <span className="text-right">Subtotal</span>
         <span />
       </div>
@@ -170,14 +168,6 @@ export function LineItemsGrid({
                 aria-label={`Line ${index + 1} unit cost`}
                 onValueCentsChange={(cents) => patchItem({ unitPriceCents: cents })}
                 onKeyDown={(e) => handleCellKeyDown(e, item.id, "unitPrice")}
-              />
-              <PercentInput
-                ref={registerCell(item.id, "discount")}
-                className="px-1.5"
-                basisPoints={item.discountBasisPoints}
-                aria-label={`Line ${index + 1} discount percent`}
-                onBasisPointsChange={(discountBasisPoints) => patchItem({ discountBasisPoints })}
-                onKeyDown={(e) => handleCellKeyDown(e, item.id, "discount")}
               />
               <div className="text-muted-foreground text-right text-sm tabular-nums">
                 {formatCents(lineItemSubtotalCents(item))}

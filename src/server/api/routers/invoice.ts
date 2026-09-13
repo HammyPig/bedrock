@@ -27,11 +27,13 @@ export const lineItemBaseInput = z.object({
   name: z.string().min(1),
   quantityMilli: quantityMilliSchema,
   unitPriceCents: centsSchema,
-  discountBasisPoints: basisPointsSchema,
   taxBasisPoints: basisPointsSchema,
 });
 
-const lineItemInput = lineItemBaseInput.extend({ backordered: z.boolean() });
+const lineItemInput = lineItemBaseInput.extend({
+  discountBasisPoints: basisPointsSchema,
+  backordered: z.boolean(),
+});
 
 const draftInput = z.object({
   isQuote: z.boolean(),

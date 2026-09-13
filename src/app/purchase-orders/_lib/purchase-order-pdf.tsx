@@ -64,7 +64,6 @@ const styles = StyleSheet.create({
   colName: { flex: 1, paddingRight: 8 },
   colQty: { width: 40, textAlign: "right" },
   colUnit: { width: 75, textAlign: "right" },
-  colDisc: { width: 45, textAlign: "right" },
   colAmount: { width: 80, textAlign: "right" },
   summary: { flexDirection: "row", justifyContent: "space-between", marginTop: 12 },
   // paddingTop matches the totals rows' paddingVertical so both columns start level.
@@ -128,7 +127,6 @@ export function PurchaseOrderPdf({ draft, settings }: PurchaseOrderPdfProps) {
   const taxBasisPoints = documentTaxBasisPoints(draft);
   const items = draft.lineItems.filter((item) => item.name.trim() !== "" || item.sku.trim() !== "");
   const showSku = items.some((item) => item.sku.trim() !== "");
-  const showDiscount = items.some((item) => item.discountBasisPoints > 0);
   const businessContact = [settings.phone, settings.email, settings.website].filter(
     (value) => value.trim() !== "",
   );
@@ -210,7 +208,6 @@ export function PurchaseOrderPdf({ draft, settings }: PurchaseOrderPdfProps) {
           <Text style={[styles.colName, styles.bold]}>Item</Text>
           <Text style={[styles.colQty, styles.bold]}>Qty</Text>
           <Text style={[styles.colUnit, styles.bold]}>Unit cost</Text>
-          {showDiscount && <Text style={[styles.colDisc, styles.bold]}>Disc.</Text>}
           <Text style={[styles.colAmount, styles.bold]}>Amount</Text>
         </View>
         {items.map((item) => (
@@ -219,13 +216,6 @@ export function PurchaseOrderPdf({ draft, settings }: PurchaseOrderPdfProps) {
             <Text style={styles.colName}>{item.name}</Text>
             <Text style={styles.colQty}>{formatQuantity(item.quantityMilli)}</Text>
             <Text style={styles.colUnit}>{formatCents(item.unitPriceCents)}</Text>
-            {showDiscount && (
-              <Text style={styles.colDisc}>
-                {item.discountBasisPoints > 0
-                  ? `${formatBasisPoints(item.discountBasisPoints)}%`
-                  : ""}
-              </Text>
-            )}
             <Text style={styles.colAmount}>{formatCents(lineItemSubtotalCents(item))}</Text>
           </View>
         ))}

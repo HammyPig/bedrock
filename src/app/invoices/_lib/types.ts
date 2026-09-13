@@ -29,8 +29,6 @@ export interface LineItemBase {
   /** Quantity in thousandths of a unit, so 2.5 is 2500 — no float in the money path. */
   quantityMilli: number;
   unitPriceCents: number;
-  /** Per-line discount in basis points, 0-10000; 0 when none was given. */
-  discountBasisPoints: number;
   /** GST rate applied to this line, in basis points. Never edited — it is the
    * business's rate, captured when the line was written, so a saved document
    * keeps its own. */
@@ -38,7 +36,9 @@ export interface LineItemBase {
 }
 
 export interface LineItem extends LineItemBase {
-  /** On backorder — still billed on this invoice, ships separately. */
+  /** Per-line discount in basis points, 0-10000; 0 when none was given (Line discounts module). */
+  discountBasisPoints: number;
+  /** On backorder — still billed on this invoice, ships separately (Backorders module). */
   backordered: boolean;
 }
 
