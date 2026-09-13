@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
-
 import { Input } from "~/components/ui/input";
-import { formatCents, parseMoneyInput } from "~/lib/money";
+import { useAmountInput } from "~/components/use-amount-input";
+import { CENTS_PER_DOLLAR, centsSchema, formatCents } from "~/lib/money";
 import { cn } from "~/lib/utils";
 
 type MoneyInputProps = Omit<
@@ -24,26 +23,25 @@ export function MoneyInput({
   className,
   ...props
 }: MoneyInputProps) {
-  const [text, setText] = useState<string | null>(null);
+  const field = useAmountInput({
+    value: valueCents,
+    editText: (valueCents / 100).toFixed(2),
+    scale: CENTS_PER_DOLLAR,
+    schema: centsSchema,
+    label: props["aria-label"],
+    onCommit: onValueCentsChange,
+  });
 
   return (
     <Input
       inputMode="decimal"
       className={cn("text-right tabular-nums", className)}
-      value={text ?? (plain ? (valueCents / 100).toFixed(2) : formatCents(valueCents))}
-      onFocus={(e) => {
-        setText(valueCents === 0 ? "" : (valueCents / 100).toFixed(2));
-        e.currentTarget.select();
-      }}
-      onChange={(e) => setText(e.currentTarget.value)}
-      onBlur={() => {
-        if (text !== null) {
-          const parsed = parseMoneyInput(text);
-          if (parsed !== null) onValueCentsChange(parsed);
-        }
-        setText(null);
-      }}
+      value={field.text ?? (plain ? (valueCents / 100).toFixed(2) : formatCents(valueCents))}
+      onFocus={field.onFocus}
+      onChange={field.onChange}
+      onBlur={field.onBlur}
       {...props}
+      aria-invalid={field.invalid || props["aria-invalid"]}
     />
   );
 }

@@ -1,11 +1,11 @@
 "use client";
 
-import { BASIS_POINTS_PER_PERCENT, MAX_BASIS_POINTS } from "../_lib/money";
+import { BASIS_POINTS_PER_PERCENT, basisPointsSchema } from "../_lib/money";
 import { NumberInput } from "./number-input";
 
 type PercentInputProps = Omit<
   React.ComponentProps<typeof NumberInput>,
-  "value" | "onValueChange" | "max"
+  "value" | "onValueChange" | "scale" | "schema"
 > & {
   basisPoints: number;
   onBasisPointsChange: (basisPoints: number) => void;
@@ -18,11 +18,10 @@ type PercentInputProps = Omit<
 export function PercentInput({ basisPoints, onBasisPointsChange, ...props }: PercentInputProps) {
   return (
     <NumberInput
-      value={basisPoints / BASIS_POINTS_PER_PERCENT}
-      max={MAX_BASIS_POINTS / BASIS_POINTS_PER_PERCENT}
-      onValueChange={(percent) =>
-        onBasisPointsChange(Math.round(percent * BASIS_POINTS_PER_PERCENT))
-      }
+      value={basisPoints}
+      scale={BASIS_POINTS_PER_PERCENT}
+      schema={basisPointsSchema}
+      onValueChange={onBasisPointsChange}
       {...props}
     />
   );
