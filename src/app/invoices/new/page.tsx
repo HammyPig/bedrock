@@ -16,9 +16,10 @@ export default async function NewInvoicePage() {
   if (!session?.user) redirect("/login");
   if (!(await resolveBusinessId(session.user))) redirect("/");
 
-  // Kicked off before the awaited settings so all three fetches run concurrently.
+  // Kicked off before the awaited settings so all four fetches run concurrently.
   void api.item.list.prefetch();
   void api.customer.list.prefetch();
+  void api.settings.modules.prefetch();
 
   const settings = await api.settings.get();
 

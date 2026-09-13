@@ -29,6 +29,8 @@ interface TotalsPanelProps {
   invoiceId?: string;
   isQuote: boolean;
   payments: Payment[];
+  /** Locks the discount and delivery, never payments — those are recorded apart from the invoice's save. */
+  locked: boolean;
   dispatch: (action: InvoiceAction) => void;
 }
 
@@ -40,6 +42,7 @@ export function TotalsPanel({
   invoiceId,
   isQuote,
   payments,
+  locked,
   dispatch,
 }: TotalsPanelProps) {
   /**
@@ -64,92 +67,94 @@ export function TotalsPanel({
         <span className="text-sm tabular-nums">{formatCents(totals.subtotalCents)}</span>
       </div>
 
-      {discount === null ? (
-        <Button
-          variant="link"
-          size="sm"
-          className="h-auto p-0"
-          onClick={() => {
-            setMode("percent");
-            dispatch({ type: "patch", patch: { discount: { basisPoints: 0, amountCents: 0 } } });
-          }}
-        >
-          Add discount
-        </Button>
-      ) : (
+      <fieldset disabled={locked} className="min-w-0 space-y-2.5">
+        {discount === null ? (
+          <Button
+            variant="link"
+            size="sm"
+            className="h-auto p-0"
+            onClick={() => {
+              setMode("percent");
+              dispatch({ type: "patch", patch: { discount: { basisPoints: 0, amountCents: 0 } } });
+            }}
+          >
+            Add discount
+          </Button>
+        ) : (
+          <FieldErrors>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5">
+                <span className="text-muted-foreground text-sm">Discount</span>
+                <div className="flex overflow-hidden rounded-md border">
+                  {(["percent", "fixed"] as const).map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      className={cn(
+                        "px-1.5 py-0.5 text-xs",
+                        option === mode
+                          ? "bg-muted font-medium text-foreground"
+                          : "text-muted-foreground hover:bg-muted/50",
+                      )}
+                      onClick={() => switchMode(option)}
+                    >
+                      {option === "percent" ? "%" : "$"}
+                    </button>
+                  ))}
+                </div>
+                {mode === "percent" ? (
+                  <PercentInput
+                    className="h-7 w-14 px-1.5 text-sm"
+                    aria-label="Discount percent"
+                    basisPoints={discount.basisPoints}
+                    onBasisPointsChange={(basisPoints) =>
+                      dispatch({ type: "patch", patch: { discount: { ...discount, basisPoints } } })
+                    }
+                  />
+                ) : (
+                  <MoneyInput
+                    plain
+                    className="h-7 w-20 px-1.5 text-sm"
+                    aria-label="Discount amount"
+                    valueCents={discount.amountCents}
+                    onValueCentsChange={(amountCents) =>
+                      dispatch({
+                        type: "patch",
+                        patch: { discount: { basisPoints: 0, amountCents } },
+                      })
+                    }
+                  />
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label="Remove discount"
+                  onClick={() => dispatch({ type: "patch", patch: { discount: null } })}
+                >
+                  <XIcon />
+                </Button>
+              </div>
+              <span className="text-sm tabular-nums">-{formatCents(totals.discountCents)}</span>
+            </div>
+          </FieldErrors>
+        )}
+
         <FieldErrors>
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5">
-              <span className="text-muted-foreground text-sm">Discount</span>
-              <div className="flex overflow-hidden rounded-md border">
-                {(["percent", "fixed"] as const).map((option) => (
-                  <button
-                    key={option}
-                    type="button"
-                    className={cn(
-                      "px-1.5 py-0.5 text-xs",
-                      option === mode
-                        ? "bg-muted font-medium text-foreground"
-                        : "text-muted-foreground hover:bg-muted/50",
-                    )}
-                    onClick={() => switchMode(option)}
-                  >
-                    {option === "percent" ? "%" : "$"}
-                  </button>
-                ))}
-              </div>
-              {mode === "percent" ? (
-                <PercentInput
-                  className="h-7 w-14 px-1.5 text-sm"
-                  aria-label="Discount percent"
-                  basisPoints={discount.basisPoints}
-                  onBasisPointsChange={(basisPoints) =>
-                    dispatch({ type: "patch", patch: { discount: { ...discount, basisPoints } } })
-                  }
-                />
-              ) : (
-                <MoneyInput
-                  plain
-                  className="h-7 w-20 px-1.5 text-sm"
-                  aria-label="Discount amount"
-                  valueCents={discount.amountCents}
-                  onValueCentsChange={(amountCents) =>
-                    dispatch({
-                      type: "patch",
-                      patch: { discount: { basisPoints: 0, amountCents } },
-                    })
-                  }
-                />
-              )}
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                aria-label="Remove discount"
-                onClick={() => dispatch({ type: "patch", patch: { discount: null } })}
-              >
-                <XIcon />
-              </Button>
-            </div>
-            <span className="text-sm tabular-nums">-{formatCents(totals.discountCents)}</span>
+            <label htmlFor="delivery-cents" className="text-muted-foreground text-sm">
+              Delivery
+            </label>
+            <MoneyInput
+              id="delivery-cents"
+              className="h-7 w-24 px-1.5 text-sm"
+              valueCents={deliveryCents}
+              onValueCentsChange={(cents) =>
+                dispatch({ type: "patch", patch: { deliveryCents: cents } })
+              }
+            />
           </div>
         </FieldErrors>
-      )}
-
-      <FieldErrors>
-        <div className="flex items-center justify-between gap-2">
-          <label htmlFor="delivery-cents" className="text-muted-foreground text-sm">
-            Delivery
-          </label>
-          <MoneyInput
-            id="delivery-cents"
-            className="h-7 w-24 px-1.5 text-sm"
-            valueCents={deliveryCents}
-            onValueCentsChange={(cents) =>
-              dispatch({ type: "patch", patch: { deliveryCents: cents } })
-            }
-          />
-        </div>
-      </FieldErrors>
+      </fieldset>
 
       {taxBasisPoints > 0 && (
         <div className="flex items-center justify-between gap-2">

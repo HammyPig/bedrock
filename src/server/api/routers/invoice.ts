@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { and, asc, eq, inArray, ne } from "drizzle-orm";
 import { z } from "zod";
 
+import { lockingModules } from "~/app/invoices/_lib/invoice";
 import {
   basisPointsSchema,
   computeBreakdown,
@@ -9,10 +10,10 @@ import {
   paymentsTotalCents,
   quantityMilliSchema,
 } from "~/app/invoices/_lib/money";
-import { type Invoice, type InvoiceDraft } from "~/app/invoices/_lib/types";
+import { type Invoice, type InvoiceDraft, type LineItem } from "~/app/invoices/_lib/types";
 import { centsSchema } from "~/lib/money";
 import { customerDetailsInput } from "~/server/api/routers/customer";
-import { assignNextInvoiceNumber, loadSettings } from "~/server/api/routers/settings";
+import { assignNextInvoiceNumber, loadModules, loadSettings } from "~/server/api/routers/settings";
 import { businessProcedure, createTRPCRouter } from "~/server/api/trpc";
 import { sendInvoiceEmail } from "~/server/email";
 import { invoiceLineItems, invoices, payments } from "~/server/db/schema";
@@ -170,6 +171,17 @@ async function assertInvoiceNumberFree(
   }
 }
 
+/** The server side of the editor's lock: an invoice using a turned-off module can't be saved. */
+async function assertModulesOn(db: typeof database, businessId: string, lineItems: LineItem[]) {
+  const locking = lockingModules(lineItems, await loadModules(db, businessId));
+  if (locking.length > 0) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: `Turn on ${locking.join(" and ")} in Settings → Modules to save this invoice.`,
+    });
+  }
+}
+
 export const invoiceRouter = createTRPCRouter({
   list: businessProcedure.query(async ({ ctx }) => {
     const rows = await ctx.db.query.invoices.findMany({
@@ -189,6 +201,7 @@ export const invoiceRouter = createTRPCRouter({
 
   create: businessProcedure.input(createInput).mutation(async ({ ctx, input }) => {
     const businessId = ctx.businessId;
+    await assertModulesOn(ctx.db, businessId, input.lineItems);
     return ctx.db.transaction(async (tx) => {
       // Inside the transaction, so a number is only spent by an invoice that saves.
       const invoiceNumber = await assignNextInvoiceNumber(tx, businessId);
@@ -210,6 +223,7 @@ export const invoiceRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const businessId = ctx.businessId;
       await assertInvoiceNumberFree(ctx.db, businessId, input.draft.invoiceNumber, input.id);
+      await assertModulesOn(ctx.db, businessId, input.draft.lineItems);
 
       const { columns, lineItems } = toRows(input.draft);
       await ctx.db.transaction(async (tx) => {

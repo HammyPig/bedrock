@@ -30,9 +30,10 @@ export default async function EditInvoicePage({ params }: EditInvoicePageProps) 
   if (!session?.user) redirect("/login");
   if (!(await resolveBusinessId(session.user))) redirect("/");
 
-  // Kicked off before the awaited get so all three fetches run concurrently.
+  // Kicked off before the awaited get so all four fetches run concurrently.
   void api.item.list.prefetch();
   void api.customer.list.prefetch();
+  void api.settings.modules.prefetch();
 
   const { invoiceId } = await params;
   const invoice = await getInvoice(invoiceId);

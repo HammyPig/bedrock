@@ -1,3 +1,4 @@
+import { type Modules } from "~/app/settings/_lib/settings";
 import { addDaysIso } from "~/lib/dates";
 import { tierUnitPriceCents, type SavedItem } from "~/lib/items";
 import { MILLI_PER_UNIT } from "./money";
@@ -57,6 +58,27 @@ export function makeLineItemBase(taxBasisPoints: number): LineItemBase {
 
 export function makeLineItem(taxBasisPoints: number): LineItem {
   return { ...makeLineItemBase(taxBasisPoints), discountBasisPoints: 0, backordered: false };
+}
+
+const LINE_MODULES = [
+  {
+    key: "lineDiscounts",
+    name: "Line discounts",
+    usedBy: (line: LineItem) => line.discountBasisPoints > 0,
+  },
+  { key: "backorders", name: "Backorders", usedBy: (line: LineItem) => line.backordered },
+] as const;
+
+/**
+ * The turned-off modules an invoice's lines use. An invoice using any is locked
+ * — the editor won't change it and the server won't save it — until they're
+ * back on. Payments, export and email don't go through the invoice's save, so
+ * they carry on regardless.
+ */
+export function lockingModules(lineItems: LineItem[], modules: Modules): string[] {
+  return LINE_MODULES.filter(({ key, usedBy }) => !modules[key] && lineItems.some(usedBy)).map(
+    ({ name }) => name,
+  );
 }
 
 /** Comparison key only — mirrors the server's SKU uniqueness check. */

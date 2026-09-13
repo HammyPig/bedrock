@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useReducer, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { BackLink } from "~/components/back-link";
@@ -24,6 +25,7 @@ import {
   customerDisplayName,
   DOCUMENT_TYPE_OPTIONS,
   emptyCustomerDetails,
+  lockingModules,
   makeLineItem,
   repriceLineItems,
   validateDraft,
@@ -131,6 +133,7 @@ export function InvoiceForm({
   const router = useRouter();
   const utils = api.useUtils();
   const [savedItems] = api.item.list.useSuspenseQuery();
+  const [modules] = api.settings.modules.useSuspenseQuery();
 
   const [draft, rawDispatch] = useReducer(
     invoiceReducer,
@@ -239,6 +242,8 @@ export function InvoiceForm({
   const paidCents = paymentsTotalCents(payments);
 
   const totals = computeTotals(draft, paidCents);
+  const locking = lockingModules(draft.lineItems, modules);
+  const locked = locking.length > 0;
   // Only an edit has a number field, so only an edit can be missing a number.
   const editing = invoiceId !== undefined;
   const errors = showErrors ? validateDraft(draft, editing) : null;
@@ -311,6 +316,11 @@ export function InvoiceForm({
 
   const persist = (onSaved?: SavedHandler) => {
     if (saving) return;
+    // Nothing on a locked invoice can change, so export and email go ahead without a save.
+    if (locked) {
+      if (invoiceId) onSaved?.(invoiceId, draft.invoiceNumber);
+      return;
+    }
     if (validateDraft(draft, editing) || fieldErrors.size > 0) {
       setShowErrors(true);
       return;
@@ -382,6 +392,7 @@ export function InvoiceForm({
             <button
               key={option.label}
               type="button"
+              disabled={locked}
               className={cn(
                 "px-3 py-1.5 text-sm",
                 draft.isQuote === option.isQuote
@@ -395,38 +406,52 @@ export function InvoiceForm({
           ))}
         </div>
       </div>
+      {locked && (
+        <div className="mb-4 flex items-center justify-between gap-4 rounded-lg border px-4 py-3">
+          <p className="text-sm">
+            This {draft.isQuote ? "quote" : "invoice"} can&apos;t be edited while{" "}
+            {locking.join(" and ")} {locking.length > 1 ? "are" : "is"} turned off.
+          </p>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/settings/modules">Module settings</Link>
+          </Button>
+        </div>
+      )}
       <div className="bg-card rounded-xl border shadow-sm">
         <FieldErrorsContext value={reportFieldError}>
           <div className="space-y-8 p-8 sm:p-10">
-            <CustomerDetailsSection
-              customerDetails={draft.customerDetails}
-              customerId={draft.customerId}
-              creating={creatingCustomer}
-              hasDeliveryAddress={draft.hasDeliveryAddress}
-              deliverySameAsBilling={draft.deliverySameAsBilling}
-              error={errors?.customerDetails}
-              dispatch={dispatch}
-            />
-            <InvoiceMeta
-              draft={draft}
-              showInvoiceNumber={editing}
-              invoiceNumberError={invoiceNumberError}
-              dispatch={dispatch}
-            />
-            <LineItemsGrid
-              items={draft.lineItems}
-              savedItems={savedItems}
-              tierId={draft.customerDetails.tierId}
-              invalidItemIds={errors?.invalidLineItemIds ?? []}
-              error={errors?.lineItems}
-              taxBasisPoints={documentTaxBasisPoints(draft)}
-              dispatch={dispatch}
-            />
+            <fieldset disabled={locked} className="min-w-0 space-y-8">
+              <CustomerDetailsSection
+                customerDetails={draft.customerDetails}
+                customerId={draft.customerId}
+                creating={creatingCustomer}
+                hasDeliveryAddress={draft.hasDeliveryAddress}
+                deliverySameAsBilling={draft.deliverySameAsBilling}
+                error={errors?.customerDetails}
+                dispatch={dispatch}
+              />
+              <InvoiceMeta
+                draft={draft}
+                showInvoiceNumber={editing}
+                invoiceNumberError={invoiceNumberError}
+                dispatch={dispatch}
+              />
+              <LineItemsGrid
+                items={draft.lineItems}
+                savedItems={savedItems}
+                tierId={draft.customerDetails.tierId}
+                invalidItemIds={errors?.invalidLineItemIds ?? []}
+                error={errors?.lineItems}
+                taxBasisPoints={documentTaxBasisPoints(draft)}
+                dispatch={dispatch}
+              />
+            </fieldset>
             <div className="flex flex-col gap-8 sm:flex-row sm:items-start">
               <section className="flex-1 space-y-2">
                 <Label htmlFor="invoice-notes">Notes</Label>
                 <Textarea
                   id="invoice-notes"
+                  disabled={locked}
                   rows={4}
                   placeholder={`Notes to appear on the ${draft.isQuote ? "quote" : "invoice"}...`}
                   value={draft.notes}
@@ -443,6 +468,7 @@ export function InvoiceForm({
                 invoiceId={invoiceId}
                 isQuote={draft.isQuote}
                 payments={payments}
+                locked={locked}
                 dispatch={dispatch}
               />
             </div>
@@ -453,6 +479,7 @@ export function InvoiceForm({
           autosaveStatus={saving ? "saving" : saved ? "saved" : "idle"}
           saveError={saveError}
           errorsAbove={errorsAbove}
+          locked={locked}
           exporting={exporting}
           sending={sendEmail.isPending}
           sendError={sendEmail.error?.message}

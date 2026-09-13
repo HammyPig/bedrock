@@ -16,6 +16,8 @@ interface StickyActionBarProps {
   sendError?: string;
   /** Address the invoice was emailed to, shown as confirmation until the next edit. */
   sentTo?: string;
+  /** The invoice can't be edited, so there's nothing to save — export and email go straight ahead. */
+  locked: boolean;
   onSave: () => void;
   onSaveAndExport: () => void;
   onSaveAndEmail: () => void;
@@ -30,6 +32,7 @@ export function StickyActionBar({
   sending,
   sendError,
   sentTo,
+  locked,
   onSave,
   onSaveAndExport,
   onSaveAndEmail,
@@ -65,14 +68,16 @@ export function StickyActionBar({
       <div className="flex items-center gap-3">
         <span className="text-muted-foreground text-sm">Balance due</span>
         <span className="font-semibold tabular-nums">{formatCents(balanceCents)}</span>
-        <Button variant="outline" disabled={busy} onClick={onSave}>
-          Save
-        </Button>
+        {!locked && (
+          <Button variant="outline" disabled={busy} onClick={onSave}>
+            Save
+          </Button>
+        )}
         <Button variant="outline" disabled={busy} onClick={onSaveAndExport}>
-          {exporting ? "Exporting…" : "Save + export"}
+          {exporting ? "Exporting…" : locked ? "Export" : "Save + export"}
         </Button>
         <Button disabled={busy} onClick={onSaveAndEmail}>
-          {sending ? "Sending…" : "Save + email"}
+          {sending ? "Sending…" : locked ? "Email" : "Save + email"}
         </Button>
       </div>
     </div>
