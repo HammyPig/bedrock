@@ -65,10 +65,12 @@ export function LineItemsGrid({
   // Names for the unit-price dropdown; harmlessly empty while Tiered pricing is off.
   const tiersQuery = api.tier.list.useQuery();
   const tiers = tiersQuery.data ?? [];
+  const modules = api.settings.modules.useQuery().data;
   const cellRefs = useRef(new Map<string, CellElement>());
   const [pendingFocus, setPendingFocus] = useState<{ id: string; field: CellField } | null>(null);
-  // Discount and backorder columns are opt-in; each starts visible when the
-  // invoice already uses it so saved data can never be hidden.
+  // Discount and backorder columns are opt-in, and only offered while their
+  // module is on; each starts visible when the invoice already uses it so
+  // saved data can never be hidden.
   const [discountToggle, setDiscountToggle] = useState(() =>
     items.some((item) => item.discountBasisPoints > 0),
   );
@@ -260,20 +262,24 @@ export function LineItemsGrid({
           Add item
         </Button>
         <div className="-mr-1 flex items-center gap-1">
-          <ColumnToggle
-            icon={<PercentIcon />}
-            label="Discounts"
-            show={showDiscount}
-            locked={hasDiscounts}
-            onToggle={() => setDiscountToggle(!showDiscount)}
-          />
-          <ColumnToggle
-            icon={<PackageIcon />}
-            label="Backorders"
-            show={showBackorder}
-            locked={hasBackorders}
-            onToggle={() => setBackorderToggle(!showBackorder)}
-          />
+          {modules?.lineDiscounts && (
+            <ColumnToggle
+              icon={<PercentIcon />}
+              label="Discounts"
+              show={showDiscount}
+              locked={hasDiscounts}
+              onToggle={() => setDiscountToggle(!showDiscount)}
+            />
+          )}
+          {modules?.backorders && (
+            <ColumnToggle
+              icon={<PackageIcon />}
+              label="Backorders"
+              show={showBackorder}
+              locked={hasBackorders}
+              onToggle={() => setBackorderToggle(!showBackorder)}
+            />
+          )}
         </div>
       </div>
     </section>

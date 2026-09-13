@@ -7,13 +7,17 @@ import { type Address } from "~/app/invoices/_lib/types";
  */
 export interface Modules {
   tieredPricing: boolean;
+  /** Per-line discounts on invoices. */
+  lineDiscounts: boolean;
+  /** Flagging invoice lines that are billed now but ship later. */
+  backorders: boolean;
   /** Purchase orders and the vendors they are raised against. */
   purchaseOrders: boolean;
 }
 
 /** Modules are opt-in: everything starts off. */
 export function defaultModules(): Modules {
-  return { tieredPricing: false, purchaseOrders: false };
+  return { tieredPricing: false, lineDiscounts: false, backorders: false, purchaseOrders: false };
 }
 
 /**

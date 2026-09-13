@@ -50,6 +50,22 @@ export function ModulesSection() {
           <TierManager />
         </ModuleToggle>
         <ModuleToggle
+          id="module-line-discounts"
+          title="Line discounts"
+          description="Take a percentage off individual lines on an invoice, on top of any discount on the invoice as a whole. Turning this off locks invoices with line discounts until you turn it back on; you can still record payments against them, export them and email them."
+          enabled={current?.lineDiscounts ?? false}
+          disabled={!current || setModules.isPending}
+          onChange={(enabled) => toggle("lineDiscounts", enabled)}
+        />
+        <ModuleToggle
+          id="module-backorders"
+          title="Backorders"
+          description="Mark invoice lines that are billed now but ship later, flagged on the invoice PDF. Turning this off locks invoices with backordered lines until you turn it back on; you can still record payments against them, export them and email them."
+          enabled={current?.backorders ?? false}
+          disabled={!current || setModules.isPending}
+          onChange={(enabled) => toggle("backorders", enabled)}
+        />
+        <ModuleToggle
           id="module-purchase-orders"
           title="Purchase orders"
           description="Record what you order from your suppliers: raise purchase orders, email them out, and keep a vendor list to raise them against. Turning this off hides purchase orders and vendors but keeps everything you've recorded."

@@ -41,6 +41,8 @@ export const settingsInput = z.object({
 
 const modulesInput = z.object({
   tieredPricing: z.boolean(),
+  lineDiscounts: z.boolean(),
+  backorders: z.boolean(),
   purchaseOrders: z.boolean(),
 }) satisfies z.ZodType<Modules>;
 
