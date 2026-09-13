@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { eq } from "drizzle-orm";
 
 import * as schema from "~/server/db/schema";
@@ -53,6 +53,60 @@ function savedCustomers() {
 function payableInvoice() {
   return seedInvoice(draft({ invoiceNumber: "INV-0900", lineItems: [line()] }));
 }
+
+/** Commits each value to an amount field and checks it was taken: shown as what it came to, unflagged. */
+async function expectAccepted(field: Locator, cases: { typed: string; shows: string }[]) {
+  for (const { typed, shows } of cases) {
+    await test.step(`accepts "${typed}"`, async () => {
+      await fillAndCommit(field, typed);
+      await expect(field).toHaveValue(shows);
+      await expect(field).not.toHaveAttribute("aria-invalid", "true");
+    });
+  }
+}
+
+/**
+ * Commits each value to an amount field and checks it was refused: kept as
+ * typed, flagged, and explained. Errors are listed apart from their fields, so
+ * most start with the field's name; `name` is that prefix.
+ */
+async function expectRefused(
+  page: Page,
+  field: Locator,
+  cases: { typed: string; error: string }[],
+  name?: string,
+) {
+  for (const { typed, error } of cases) {
+    await test.step(`refuses "${typed}"`, async () => {
+      await fillAndCommit(field, typed);
+      await expect(field).toHaveValue(typed);
+      await expect(field).toHaveAttribute("aria-invalid", "true");
+      await expect(
+        page.getByText(name === undefined ? error : `${name}: ${error}`, { exact: true }),
+      ).toBeVisible();
+    });
+  }
+}
+
+/** Every money field holds to the same rule: whole cents, never negative. */
+const MONEY = {
+  accepts: [
+    { typed: "12.3", shows: "$12.30" },
+    { typed: "12.340", shows: "$12.34" },
+    { typed: ".5", shows: "$0.50" },
+    { typed: "$1,200.50", shows: "$1,200.50" },
+    { typed: "0.01", shows: "$0.01" },
+    { typed: "", shows: "$0.00" },
+  ],
+  refuses: [
+    { typed: "-0.01", error: "Can't be less than 0." },
+    { typed: "12.345", error: "Use at most 2 decimal places." },
+    { typed: "0.001", error: "Use at most 2 decimal places." },
+    { typed: "abc", error: "Enter a number." },
+    { typed: "1e3", error: "Enter a number." },
+    { typed: "12.3.4", error: "Enter a number." },
+  ],
+};
 
 test.describe("customer section", () => {
   /**
@@ -670,6 +724,49 @@ test.describe("items section", () => {
     await expect(page.getByLabel("Line 1 subtotal")).toHaveCount(0);
   });
 
+  test("a line quantity takes any amount above 0, to three decimal places", async ({ page }) => {
+    await gotoNewInvoice(page);
+    await expectAccepted(page.getByLabel("Line 1 quantity", { exact: true }), [
+      { typed: "2.50", shows: "2.5" },
+      { typed: "0.001", shows: "0.001" },
+      { typed: "1.234", shows: "1.234" },
+      { typed: "1,000", shows: "1000" },
+    ]);
+  });
+
+  test("a line quantity refuses anything else", async ({ page }) => {
+    await gotoNewInvoice(page);
+    await expectRefused(
+      page,
+      page.getByLabel("Line 1 quantity", { exact: true }),
+      [
+        { typed: "0", error: "Must be more than 0." },
+        { typed: "", error: "Must be more than 0." },
+        { typed: "-1", error: "Must be more than 0." },
+        { typed: "1.2345", error: "Use at most 3 decimal places." },
+        { typed: "0.0001", error: "Use at most 3 decimal places." },
+        { typed: "abc", error: "Enter a number." },
+        { typed: "1e3", error: "Enter a number." },
+      ],
+      "Line 1 quantity",
+    );
+  });
+
+  test("a unit price takes any amount of $0 or more, to the cent", async ({ page }) => {
+    await gotoNewInvoice(page);
+    await expectAccepted(page.getByLabel("Line 1 unit price", { exact: true }), MONEY.accepts);
+  });
+
+  test("a unit price refuses anything else", async ({ page }) => {
+    await gotoNewInvoice(page);
+    await expectRefused(
+      page,
+      page.getByLabel("Line 1 unit price", { exact: true }),
+      MONEY.refuses,
+      "Line 1 unit price",
+    );
+  });
+
   test("adding a new line starts with empty fields ready to type into", async ({ page }) => {
     await gotoNewInvoice(page);
 
@@ -848,6 +945,46 @@ test.describe("balance section", () => {
     await expect(totalsPanel(page).getByRole("button", { name: "Add discount" })).toBeVisible();
   });
 
+  test("a discount percentage takes 0 to 100, to two decimal places", async ({ page }) => {
+    await gotoNewInvoice(page);
+    await totalsPanel(page).getByRole("button", { name: "Add discount" }).click();
+    await expectAccepted(page.getByLabel("Discount percent", { exact: true }), [
+      { typed: "12.50", shows: "12.5" },
+      { typed: "0.01", shows: "0.01" },
+      { typed: "100", shows: "100" },
+      { typed: "", shows: "0" },
+      { typed: "33.33", shows: "33.33" },
+      { typed: "0", shows: "0" },
+    ]);
+  });
+
+  test("a discount percentage refuses anything else", async ({ page }) => {
+    await gotoNewInvoice(page);
+    await totalsPanel(page).getByRole("button", { name: "Add discount" }).click();
+    await expectRefused(
+      page,
+      page.getByLabel("Discount percent", { exact: true }),
+      [
+        { typed: "100.01", error: "Can't be more than 100." },
+        { typed: "150", error: "Can't be more than 100." },
+        { typed: "-0.01", error: "Can't be less than 0." },
+        { typed: "33.333", error: "Use at most 2 decimal places." },
+        { typed: "abc", error: "Enter a number." },
+      ],
+      "Discount percent",
+    );
+  });
+
+  test("delivery takes any amount of $0 or more, to the cent", async ({ page }) => {
+    await gotoNewInvoice(page);
+    await expectAccepted(page.getByLabel("Delivery", { exact: true }), MONEY.accepts);
+  });
+
+  test("delivery refuses anything else", async ({ page }) => {
+    await gotoNewInvoice(page);
+    await expectRefused(page, page.getByLabel("Delivery", { exact: true }), MONEY.refuses);
+  });
+
   // test("a delivery cost is added before GST", { tag: "@tbd" }, async ({ page }) => {
   //   await gotoNewInvoice(page);
   //   await page.getByLabel("Line 1 name").fill("Widget");
@@ -1013,6 +1150,62 @@ test.describe("balance section", () => {
   //     await expect(balanceDue(page)).toHaveText("$70.00");
   //   });
   // });
+});
+
+test.describe("amount fields", () => {
+  test("the error follows the text as it is corrected", async ({ page }) => {
+    await gotoNewInvoice(page);
+    const quantity = page.getByLabel("Line 1 quantity");
+    await fillAndCommit(quantity, "1.2345");
+    await expect(page.getByText("Line 1 quantity: Use at most 3 decimal places.")).toBeVisible();
+
+    await quantity.click();
+    await quantity.fill("1.23a");
+    await expect(page.getByText("Line 1 quantity: Enter a number.")).toBeVisible();
+
+    await quantity.fill("1.25");
+    await expect(page.getByText(/^Line 1 quantity:/)).toBeHidden();
+    await expect(quantity).not.toHaveAttribute("aria-invalid", "true");
+
+    await quantity.blur();
+    await expect(quantity).toHaveValue("1.25");
+  });
+
+  test("removing the field removes its error", async ({ page }) => {
+    await gotoNewInvoice(page);
+    await page.getByRole("button", { name: "Add item" }).click();
+    await fillAndCommit(page.getByLabel("Line 2 quantity"), "1.2345");
+    await expect(saveStatus(page)).toHaveText("Fix the field above");
+
+    await page.getByRole("button", { name: "Remove line 2" }).click();
+
+    await expect(page.getByText(/^Line 2 quantity:/)).toBeHidden();
+    await expect(saveStatus(page)).toHaveText("Draft");
+  });
+
+  test("the invoice will not save until every one is fixed", async ({ page }) => {
+    await seedCustomer(CUSTOMERS.acme);
+    await gotoNewInvoice(page);
+    await fillMinimalInvoice(page, /Priya Nair/);
+    await fillAndCommit(page.getByLabel("Line 1 quantity"), "1.2345");
+    await fillAndCommit(page.getByLabel("Delivery", { exact: true }), "-5");
+
+    await saveInvoice(page).click();
+    await expect(saveStatus(page)).toHaveText("Fix 2 fields above");
+    expect(
+      await testDb.query.invoices.findMany({
+        where: eq(schema.invoices.businessId, TEST_BUSINESS_ID),
+      }),
+    ).toEqual([]);
+
+    await fillAndCommit(page.getByLabel("Delivery", { exact: true }), "5");
+    await expect(saveStatus(page)).toHaveText("Fix the field above");
+    await fillAndCommit(page.getByLabel("Line 1 quantity"), "1.5");
+    await expect(saveStatus(page)).toHaveText("Draft");
+
+    await saveNewInvoice(page);
+    await expect(page.getByLabel("Line 1 quantity")).toHaveValue("1.5");
+  });
 });
 
 test.describe("the action bar", () => {
