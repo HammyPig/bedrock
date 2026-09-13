@@ -39,6 +39,7 @@ import {
 } from "../support/invoice-page";
 import { pdfText } from "../support/pdf";
 import { trpcStreamResponse } from "../support/trpc";
+import { verified } from "../support/verified";
 
 test.beforeEach(async () => {
   await resetBusinessData();
@@ -108,7 +109,7 @@ const MONEY = {
   ],
 };
 
-test.describe("customer section", () => {
+test.describe("customer section", verified("2026-09-13"), () => {
   /**
    * Every invoice has a customer, so assigning one is the first thing the form
    * asks for. It is done through a search: either an existing customer is clicked
@@ -551,7 +552,7 @@ test.describe("customer section", () => {
   });
 });
 
-test.describe("invoice metadata section", () => {
+test.describe("invoice metadata section", verified("2026-09-13"), () => {
   test("a new invoice is issued today", async ({ page }) => {
     await gotoNewInvoice(page);
     await expect(page.getByLabel("Issue date")).toHaveValue(todayIsoDate());
@@ -600,7 +601,7 @@ test.describe("invoice metadata section", () => {
   });
 });
 
-test.describe("items section", () => {
+test.describe("items section", verified("2026-09-13"), () => {
   test("an initial line is ready to type into", async ({ page }) => {
     await seedCatalog();
     await gotoNewInvoice(page);

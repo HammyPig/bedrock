@@ -23,6 +23,10 @@ bun run db:push          # push schema changes (dev workflow; also db:generate /
 Playwright, in `e2e/`. Don't read, edit, or run them unless the task is the
 tests — and even then, run them only if asked.
 
+Describe blocks marked `verified("YYYY-MM-DD")` (`e2e/support/verified.ts`) were
+checked by a human reviewer on that date as correct, intended behaviour. Add or
+re-date the marker only when a human specifically asks you to.
+
 ## Gotchas & conventions
 
 - Env vars: `src/env.js` is the source of truth — a new var goes in its schema **and** its `runtimeEnv` block, plus `.env.example`.
