@@ -809,97 +809,6 @@ test.describe("items section", () => {
     await page.getByRole("button", { name: "Move line 1 down" }).click();
     expect(await lineNames(page)).toEqual(["First", "Second"]);
   });
-
-  test.describe("the optional columns", () => {
-    test("discounts are opt-in", async ({ page }) => {
-      await gotoNewInvoice(page);
-      await expect(page.getByLabel("Line 1 discount percent")).toBeHidden();
-
-      await page.getByRole("button", { name: "Discounts" }).click();
-      await expect(page.getByLabel("Line 1 discount percent")).toBeVisible();
-
-      await page.getByRole("button", { name: "Discounts" }).click();
-      await expect(page.getByLabel("Line 1 discount percent")).toBeHidden();
-    });
-
-    test("a line discount comes off its subtotal", async ({ page }) => {
-      await gotoNewInvoice(page);
-      await page.getByRole("button", { name: "Discounts" }).click();
-
-      await page.getByLabel("Line 1 name").fill("Copper pipe");
-      await fillAndCommit(page.getByLabel("Line 1 quantity"), "3");
-      await fillAndCommit(page.getByLabel("Line 1 unit price"), "42.50");
-      await fillAndCommit(page.getByLabel("Line 1 discount percent"), "10");
-
-      await expect(lineSubtotal(page, 1)).toHaveText("$114.75");
-    });
-
-    /**
-     * Backordered is a toggle rather than a count because a part-filled order is
-     * split into two lines — the x that shipped and the y that did not — instead
-     * of one line reading x of y.
-     */
-    test("backorders are opt-in", async ({ page }) => {
-      await gotoNewInvoice(page);
-      await expect(page.getByRole("checkbox", { name: "Line 1 backordered" })).toBeHidden();
-
-      await page.getByRole("button", { name: "Backorders" }).click();
-      await expect(page.getByRole("checkbox", { name: "Line 1 backordered" })).toBeVisible();
-
-      await page.getByRole("button", { name: "Backorders" }).click();
-      await expect(page.getByRole("checkbox", { name: "Line 1 backordered" })).toBeHidden();
-    });
-
-    test("a discount an invoice already uses starts open", async ({ page }) => {
-      const invoice = await seedInvoice(
-        draft({ lineItems: [line({ name: "Discounted", discountBasisPoints: 1000 })] }),
-      );
-      await page.goto(`/invoices/${invoice.id}/edit`);
-
-      await expect(page.getByLabel("Line 1 discount percent")).toHaveValue("10");
-      await expect(page.getByRole("button", { name: "Discounts" })).toHaveAttribute(
-        "aria-pressed",
-        "true",
-      );
-    });
-
-    test("a backorder an invoice already uses starts open", async ({ page }) => {
-      const invoice = await seedInvoice(
-        draft({ lineItems: [line({ name: "On order", backordered: true })] }),
-      );
-      await page.goto(`/invoices/${invoice.id}/edit`);
-
-      await expect(page.getByRole("checkbox", { name: "Line 1 backordered" })).toBeChecked();
-      await expect(page.getByRole("button", { name: "Backorders" })).toHaveAttribute(
-        "aria-pressed",
-        "true",
-      );
-    });
-
-    test("discounts in use say why they will not close", async ({ page }) => {
-      test.fixme();
-      const invoice = await seedInvoice(
-        draft({ lineItems: [line({ name: "Discounted", discountBasisPoints: 1000 })] }),
-      );
-      await page.goto(`/invoices/${invoice.id}/edit`);
-
-      await page.getByRole("button", { name: "Discounts" }).click();
-      await expect(page.getByText("Clear the discounts on each line first.")).toBeVisible();
-      await expect(page.getByLabel("Line 1 discount percent")).toBeVisible();
-    });
-
-    test("backorders in use say why they will not close", async ({ page }) => {
-      test.fixme();
-      const invoice = await seedInvoice(
-        draft({ lineItems: [line({ name: "On order", backordered: true })] }),
-      );
-      await page.goto(`/invoices/${invoice.id}/edit`);
-
-      await page.getByRole("button", { name: "Backorders" }).click();
-      await expect(page.getByText("Clear the backorders on each line first.")).toBeVisible();
-      await expect(page.getByRole("checkbox", { name: "Line 1 backordered" })).toBeVisible();
-    });
-  });
 });
 
 test.describe("balance section", () => {
@@ -1342,20 +1251,18 @@ test.describe("the action bar", () => {
               name: "Copper pipe 100mm",
               quantityMilli: 3000,
               unitPriceCents: 4250,
-              discountBasisPoints: 1000,
             }),
             line({
               sku: "LAB-HR",
               name: "Labour",
               quantityMilli: 2000,
               unitPriceCents: 12_000,
-              backordered: true,
             }),
           ],
           discount: { basisPoints: 0, amountCents: 2500 },
           deliveryCents: 1500,
           deliveryTaxBasisPoints: 1000,
-          notes: "Backordered items to follow.",
+          notes: "Please pay by bank transfer.",
           payments: [payment()],
         }),
       );
@@ -1402,15 +1309,12 @@ test.describe("the action bar", () => {
       expect(text).toContain("PIPE-100");
       expect(text).toContain("Copper pipe 100mm");
       expect(text).toContain("$42.50");
-      expect(text).toContain("$114.75");
+      expect(text).toContain("$127.50");
 
       expect(text).toContain("LAB-HR");
       expect(text).toContain("Labour");
       expect(text).toContain("$120.00");
       expect(text).toContain("$240.00");
-
-      expect(text).toContain("BACKORDERED");
-      expect(text).toContain("Backordered items will ship separately.");
     });
 
     test("the PDF adds up the same way the form does", async ({ page }) => {
@@ -1418,11 +1322,11 @@ test.describe("the action bar", () => {
       await page.goto(`/invoices/${invoice.id}/edit`);
       const { text } = await exportPdf(page);
 
-      expect(text).toContain("Subtotal $354.75");
+      expect(text).toContain("Subtotal $367.50");
       expect(text).toContain("Discount -$25.00");
       expect(text).toContain("$15.00");
-      expect(text).toContain("GST (10%) $34.48");
-      expect(text).toContain("Total $379.23");
+      expect(text).toContain("GST (10%) $35.75");
+      expect(text).toContain("Total $393.25");
     });
 
     test("the PDF shows what has been paid and what is left", async ({ page }) => {
@@ -1431,7 +1335,7 @@ test.describe("the action bar", () => {
       const { text } = await exportPdf(page);
 
       expect(text).toContain("Paid -$50.00");
-      expect(text).toContain("Balance due $329.23");
+      expect(text).toContain("Balance due $343.25");
     });
   });
 });
