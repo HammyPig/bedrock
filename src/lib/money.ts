@@ -1,7 +1,18 @@
+import { z } from "zod";
+
 const currencyFormatter = new Intl.NumberFormat("en-AU", {
   style: "currency",
   currency: "AUD",
 });
+
+export const CENTS_PER_DOLLAR = 100;
+
+/**
+ * Every stored amount of money: whole cents, never negative. The routers
+ * validate with it and money inputs check typed text against it, so the form
+ * can't accept an amount the server would refuse.
+ */
+export const centsSchema = z.number().int().min(0);
 
 export function formatCents(cents: number): string {
   return currencyFormatter.format(cents / 100);

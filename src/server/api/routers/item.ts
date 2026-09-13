@@ -3,6 +3,7 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
 import { hashItemColumns, type ItemColumnHashes } from "~/lib/import-verify";
+import { centsSchema } from "~/lib/money";
 import { loadModules } from "~/server/api/routers/settings";
 import { businessProcedure, createTRPCRouter } from "~/server/api/trpc";
 import { items, itemTierPrices, tiers } from "~/server/db/schema";
@@ -13,10 +14,10 @@ const itemInput = z.object({
   name: z.string().min(1).max(256),
   vendor: z.string().max(256),
   barcode: z.string().max(64),
-  unitPriceCents: z.number().int().min(0),
+  unitPriceCents: centsSchema,
   /** Tier id → price in cents; a $0 entry means "unset" and stores no row. */
-  tierPrices: z.record(z.string().max(255), z.number().int().min(0)),
-  costCents: z.number().int().min(0),
+  tierPrices: z.record(z.string().max(255), centsSchema),
+  costCents: centsSchema,
 });
 
 /** Comparison key only — the user's own casing/spacing is never rewritten. */

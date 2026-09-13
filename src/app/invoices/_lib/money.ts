@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 import { type Discount, type DiscountMode, type LineItemBase, type Totals } from "./types";
 
 /**
@@ -9,6 +11,13 @@ export const BASIS_POINTS_PER_PERCENT = 100;
 /** Quantities are stored in thousandths of a unit, so 2.5 is 2500. */
 export const MILLI_PER_UNIT = 1000;
 export const MAX_BASIS_POINTS = 100 * BASIS_POINTS_PER_PERCENT;
+
+/**
+ * The rules a stored quantity and rate are held to — shared, like centsSchema,
+ * by the routers and the inputs that write them.
+ */
+export const quantityMilliSchema = z.number().int().positive();
+export const basisPointsSchema = z.number().int().min(0).max(MAX_BASIS_POINTS);
 
 /** The only tax rate the app charges: a business is registered for GST or it isn't. */
 export const GST_RATE_BASIS_POINTS = 10 * BASIS_POINTS_PER_PERCENT;

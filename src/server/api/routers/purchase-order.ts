@@ -2,8 +2,9 @@ import { TRPCError } from "@trpc/server";
 import { and, asc, eq, ne } from "drizzle-orm";
 import { z } from "zod";
 
-import { computeBreakdown, MAX_BASIS_POINTS } from "~/app/invoices/_lib/money";
+import { basisPointsSchema, computeBreakdown } from "~/app/invoices/_lib/money";
 import { type PurchaseOrder, type PurchaseOrderDraft } from "~/app/purchase-orders/_lib/types";
+import { centsSchema } from "~/lib/money";
 import { isoDate, lineItemBaseInput } from "~/server/api/routers/invoice";
 import { vendorDetailsInput } from "~/server/api/routers/vendor";
 import { loadSettings, purchaseOrdersProcedure } from "~/server/api/routers/settings";
@@ -27,12 +28,12 @@ const draftInput = z.object({
     ),
   discount: z
     .object({
-      basisPoints: z.number().int().min(0).max(MAX_BASIS_POINTS),
-      amountCents: z.number().int().min(0),
+      basisPoints: basisPointsSchema,
+      amountCents: centsSchema,
     })
     .nullable(),
-  deliveryCents: z.number().int().min(0),
-  deliveryTaxBasisPoints: z.number().int().min(0).max(MAX_BASIS_POINTS),
+  deliveryCents: centsSchema,
+  deliveryTaxBasisPoints: basisPointsSchema,
   notes: z.string(),
 }) satisfies z.ZodType<PurchaseOrderDraft>;
 

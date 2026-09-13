@@ -3,12 +3,14 @@ import { and, asc, eq, inArray, ne } from "drizzle-orm";
 import { z } from "zod";
 
 import {
+  basisPointsSchema,
   computeBreakdown,
   computeTotals,
-  MAX_BASIS_POINTS,
   paymentsTotalCents,
+  quantityMilliSchema,
 } from "~/app/invoices/_lib/money";
 import { type Invoice, type InvoiceDraft } from "~/app/invoices/_lib/types";
+import { centsSchema } from "~/lib/money";
 import { customerDetailsInput } from "~/server/api/routers/customer";
 import { assignNextInvoiceNumber, loadSettings } from "~/server/api/routers/settings";
 import { businessProcedure, createTRPCRouter } from "~/server/api/trpc";
@@ -23,10 +25,10 @@ export const lineItemBaseInput = z.object({
   id: z.string().min(1).max(255),
   sku: z.string().max(64),
   name: z.string().min(1),
-  quantityMilli: z.number().int().positive(),
-  unitPriceCents: z.number().int().min(0),
-  discountBasisPoints: z.number().int().min(0).max(MAX_BASIS_POINTS),
-  taxBasisPoints: z.number().int().min(0).max(MAX_BASIS_POINTS),
+  quantityMilli: quantityMilliSchema,
+  unitPriceCents: centsSchema,
+  discountBasisPoints: basisPointsSchema,
+  taxBasisPoints: basisPointsSchema,
 });
 
 const lineItemInput = lineItemBaseInput.extend({ backordered: z.boolean() });
@@ -50,12 +52,12 @@ const draftInput = z.object({
     ),
   discount: z
     .object({
-      basisPoints: z.number().int().min(0).max(MAX_BASIS_POINTS),
-      amountCents: z.number().int().min(0),
+      basisPoints: basisPointsSchema,
+      amountCents: centsSchema,
     })
     .nullable(),
-  deliveryCents: z.number().int().min(0),
-  deliveryTaxBasisPoints: z.number().int().min(0).max(MAX_BASIS_POINTS),
+  deliveryCents: centsSchema,
+  deliveryTaxBasisPoints: basisPointsSchema,
   notes: z.string(),
 }) satisfies z.ZodType<InvoiceDraft>;
 
@@ -228,7 +230,7 @@ export const invoiceRouter = createTRPCRouter({
     .input(
       z.object({
         invoiceId: z.string(),
-        amountCents: z.number().int().positive(),
+        amountCents: centsSchema.positive(),
         paidDate: isoDate,
       }),
     )
