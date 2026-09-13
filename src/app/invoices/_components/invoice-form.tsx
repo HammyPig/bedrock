@@ -4,6 +4,7 @@ import { useCallback, useReducer, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { BackLink } from "~/components/back-link";
+import { FieldErrorsContext, useFieldErrors } from "~/components/field-errors";
 import { Button } from "~/components/ui/button";
 import {
   Dialog,
@@ -241,13 +242,16 @@ export function InvoiceForm({
   // Only an edit has a number field, so only an edit can be missing a number.
   const editing = invoiceId !== undefined;
   const errors = showErrors ? validateDraft(draft, editing) : null;
+  // Text an input refused to commit, held on its field until it is fixed.
+  const [fieldErrors, reportFieldError] = useFieldErrors();
   // Dropped as soon as the number is edited to anything else.
   const conflictError =
     numberConflict?.invoiceNumber === draft.invoiceNumber ? numberConflict.message : undefined;
   const invoiceNumberError = errors?.invoiceNumber ?? conflictError;
-  const errorsAbove = [invoiceNumberError, errors?.customerDetails, errors?.lineItems].filter(
-    (message) => message !== undefined,
-  ).length;
+  const errorsAbove =
+    [invoiceNumberError, errors?.customerDetails, errors?.lineItems].filter(
+      (message) => message !== undefined,
+    ).length + fieldErrors.size;
 
   const customers = api.customer.list.useQuery().data ?? [];
   const updateCustomer = api.customer.update.useMutation();
@@ -307,7 +311,7 @@ export function InvoiceForm({
 
   const persist = (onSaved?: SavedHandler) => {
     if (saving) return;
-    if (validateDraft(draft, editing)) {
+    if (validateDraft(draft, editing) || fieldErrors.size > 0) {
       setShowErrors(true);
       return;
     }
@@ -392,56 +396,58 @@ export function InvoiceForm({
         </div>
       </div>
       <div className="bg-card rounded-xl border shadow-sm">
-        <div className="space-y-8 p-8 sm:p-10">
-          <CustomerDetailsSection
-            customerDetails={draft.customerDetails}
-            customerId={draft.customerId}
-            creating={creatingCustomer}
-            hasDeliveryAddress={draft.hasDeliveryAddress}
-            deliverySameAsBilling={draft.deliverySameAsBilling}
-            error={errors?.customerDetails}
-            dispatch={dispatch}
-          />
-          <InvoiceMeta
-            draft={draft}
-            showInvoiceNumber={editing}
-            invoiceNumberError={invoiceNumberError}
-            dispatch={dispatch}
-          />
-          <LineItemsGrid
-            items={draft.lineItems}
-            savedItems={savedItems}
-            tierId={draft.customerDetails.tierId}
-            invalidItemIds={errors?.invalidLineItemIds ?? []}
-            error={errors?.lineItems}
-            taxBasisPoints={documentTaxBasisPoints(draft)}
-            dispatch={dispatch}
-          />
-          <div className="flex flex-col gap-8 sm:flex-row sm:items-start">
-            <section className="flex-1 space-y-2">
-              <Label htmlFor="invoice-notes">Notes</Label>
-              <Textarea
-                id="invoice-notes"
-                rows={4}
-                placeholder={`Notes to appear on the ${draft.isQuote ? "quote" : "invoice"}...`}
-                value={draft.notes}
-                onChange={(e) =>
-                  dispatch({ type: "patch", patch: { notes: e.currentTarget.value } })
-                }
-              />
-            </section>
-            <TotalsPanel
-              totals={totals}
-              discount={draft.discount}
-              deliveryCents={draft.deliveryCents}
-              taxBasisPoints={documentTaxBasisPoints(draft)}
-              invoiceId={invoiceId}
-              isQuote={draft.isQuote}
-              payments={payments}
+        <FieldErrorsContext value={reportFieldError}>
+          <div className="space-y-8 p-8 sm:p-10">
+            <CustomerDetailsSection
+              customerDetails={draft.customerDetails}
+              customerId={draft.customerId}
+              creating={creatingCustomer}
+              hasDeliveryAddress={draft.hasDeliveryAddress}
+              deliverySameAsBilling={draft.deliverySameAsBilling}
+              error={errors?.customerDetails}
               dispatch={dispatch}
             />
+            <InvoiceMeta
+              draft={draft}
+              showInvoiceNumber={editing}
+              invoiceNumberError={invoiceNumberError}
+              dispatch={dispatch}
+            />
+            <LineItemsGrid
+              items={draft.lineItems}
+              savedItems={savedItems}
+              tierId={draft.customerDetails.tierId}
+              invalidItemIds={errors?.invalidLineItemIds ?? []}
+              error={errors?.lineItems}
+              taxBasisPoints={documentTaxBasisPoints(draft)}
+              dispatch={dispatch}
+            />
+            <div className="flex flex-col gap-8 sm:flex-row sm:items-start">
+              <section className="flex-1 space-y-2">
+                <Label htmlFor="invoice-notes">Notes</Label>
+                <Textarea
+                  id="invoice-notes"
+                  rows={4}
+                  placeholder={`Notes to appear on the ${draft.isQuote ? "quote" : "invoice"}...`}
+                  value={draft.notes}
+                  onChange={(e) =>
+                    dispatch({ type: "patch", patch: { notes: e.currentTarget.value } })
+                  }
+                />
+              </section>
+              <TotalsPanel
+                totals={totals}
+                discount={draft.discount}
+                deliveryCents={draft.deliveryCents}
+                taxBasisPoints={documentTaxBasisPoints(draft)}
+                invoiceId={invoiceId}
+                isQuote={draft.isQuote}
+                payments={payments}
+                dispatch={dispatch}
+              />
+            </div>
           </div>
-        </div>
+        </FieldErrorsContext>
         <StickyActionBar
           balanceCents={totals.balanceCents}
           autosaveStatus={saving ? "saving" : saved ? "saved" : "idle"}

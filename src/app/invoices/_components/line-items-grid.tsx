@@ -3,12 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import { GripVerticalIcon, PackageIcon, PercentIcon, PlusIcon, Trash2Icon } from "lucide-react";
 
+import { FieldErrors } from "~/components/field-errors";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
 import { Input } from "~/components/ui/input";
 import { Textarea } from "~/components/ui/textarea";
+import { useAmountInput } from "~/components/use-amount-input";
 import { tierUnitPriceCents, type SavedItem } from "~/lib/items";
-import { formatCents, parseMoneyInput } from "~/lib/money";
+import { CENTS_PER_DOLLAR, centsSchema, formatCents } from "~/lib/money";
 import { matchesAllTokens, tokenize } from "~/lib/search";
 import { api } from "~/trpc/react";
 import { makeLineItem, normalizeSku } from "../_lib/invoice";
@@ -162,91 +164,95 @@ export function LineItemsGrid({
         {showBackorder && <span className="text-center">Backorder</span>}
         <span />
       </div>
-      <div className="space-y-2">
-        {items.map((item, index) => {
-          const showInvalid = invalidItemIds.includes(item.id);
-          const patchItem = (patch: Partial<Omit<LineItem, "id">>) =>
-            dispatch({ type: "updateLineItem", id: item.id, patch });
+      <FieldErrors>
+        <div className="space-y-2">
+          {items.map((item, index) => {
+            const showInvalid = invalidItemIds.includes(item.id);
+            const patchItem = (patch: Partial<Omit<LineItem, "id">>) =>
+              dispatch({ type: "updateLineItem", id: item.id, patch });
 
-          return (
-            <div key={item.id} className="grid items-center gap-2" style={gridStyle}>
-              {/* TODO: drag-to-reorder (later enhancement) */}
-              <GripVerticalIcon aria-hidden className="text-muted-foreground/40 size-4" />
-              <ItemLookupCell
-                field="sku"
-                item={item}
-                index={index}
-                savedItems={savedItems}
-                tierId={tierId}
-                cellRef={registerCell(item.id, "sku")}
-                onPatch={patchItem}
-                onPickSaved={(saved) => handlePickSaved(item.id, saved)}
-                onKeyDown={(e) => handleCellKeyDown(e, item.id, "sku")}
-              />
-              <ItemLookupCell
-                field="name"
-                item={item}
-                index={index}
-                savedItems={savedItems}
-                tierId={tierId}
-                invalid={showInvalid && item.name.trim() === ""}
-                cellRef={registerCell(item.id, "name")}
-                onPatch={patchItem}
-                onPickSaved={(saved) => handlePickSaved(item.id, saved)}
-                onKeyDown={(e) => handleCellKeyDown(e, item.id, "name")}
-              />
-              <QuantityInput
-                ref={registerCell(item.id, "quantity")}
-                className="px-1.5"
-                quantityMilli={item.quantityMilli}
-                aria-label={`Line ${index + 1} quantity`}
-                aria-invalid={showInvalid && item.quantityMilli <= 0}
-                onQuantityMilliChange={(quantityMilli) => patchItem({ quantityMilli })}
-                onKeyDown={(e) => handleCellKeyDown(e, item.id, "quantity")}
-              />
-              <UnitPriceCell
-                item={item}
-                index={index}
-                savedItems={savedItems}
-                tiers={tiers}
-                cellRef={registerCell(item.id, "unitPrice")}
-                onPatch={patchItem}
-                onKeyDown={(e) => handleCellKeyDown(e, item.id, "unitPrice")}
-              />
-              {showDiscount && (
-                <PercentInput
-                  ref={registerCell(item.id, "discount")}
+            return (
+              <div key={item.id} className="grid items-center gap-2" style={gridStyle}>
+                {/* TODO: drag-to-reorder (later enhancement) */}
+                <GripVerticalIcon aria-hidden className="text-muted-foreground/40 size-4" />
+                <ItemLookupCell
+                  field="sku"
+                  item={item}
+                  index={index}
+                  savedItems={savedItems}
+                  tierId={tierId}
+                  cellRef={registerCell(item.id, "sku")}
+                  onPatch={patchItem}
+                  onPickSaved={(saved) => handlePickSaved(item.id, saved)}
+                  onKeyDown={(e) => handleCellKeyDown(e, item.id, "sku")}
+                />
+                <ItemLookupCell
+                  field="name"
+                  item={item}
+                  index={index}
+                  savedItems={savedItems}
+                  tierId={tierId}
+                  invalid={showInvalid && item.name.trim() === ""}
+                  cellRef={registerCell(item.id, "name")}
+                  onPatch={patchItem}
+                  onPickSaved={(saved) => handlePickSaved(item.id, saved)}
+                  onKeyDown={(e) => handleCellKeyDown(e, item.id, "name")}
+                />
+                <QuantityInput
+                  ref={registerCell(item.id, "quantity")}
                   className="px-1.5"
-                  basisPoints={item.discountBasisPoints}
-                  aria-label={`Line ${index + 1} discount percent`}
-                  onBasisPointsChange={(discountBasisPoints) => patchItem({ discountBasisPoints })}
-                  onKeyDown={(e) => handleCellKeyDown(e, item.id, "discount")}
+                  quantityMilli={item.quantityMilli}
+                  aria-label={`Line ${index + 1} quantity`}
+                  aria-invalid={showInvalid && item.quantityMilli <= 0}
+                  onQuantityMilliChange={(quantityMilli) => patchItem({ quantityMilli })}
+                  onKeyDown={(e) => handleCellKeyDown(e, item.id, "quantity")}
                 />
-              )}
-              <div className="text-muted-foreground text-right text-sm tabular-nums">
-                {formatCents(lineItemSubtotalCents(item))}
+                <UnitPriceCell
+                  item={item}
+                  index={index}
+                  savedItems={savedItems}
+                  tiers={tiers}
+                  cellRef={registerCell(item.id, "unitPrice")}
+                  onPatch={patchItem}
+                  onKeyDown={(e) => handleCellKeyDown(e, item.id, "unitPrice")}
+                />
+                {showDiscount && (
+                  <PercentInput
+                    ref={registerCell(item.id, "discount")}
+                    className="px-1.5"
+                    basisPoints={item.discountBasisPoints}
+                    aria-label={`Line ${index + 1} discount percent`}
+                    onBasisPointsChange={(discountBasisPoints) =>
+                      patchItem({ discountBasisPoints })
+                    }
+                    onKeyDown={(e) => handleCellKeyDown(e, item.id, "discount")}
+                  />
+                )}
+                <div className="text-muted-foreground text-right text-sm tabular-nums">
+                  {formatCents(lineItemSubtotalCents(item))}
+                </div>
+                {showBackorder && (
+                  <Checkbox
+                    className="justify-self-center"
+                    checked={item.backordered}
+                    aria-label={`Line ${index + 1} backordered`}
+                    onCheckedChange={(checked) => patchItem({ backordered: checked === true })}
+                  />
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  disabled={items.length === 1}
+                  aria-label={`Remove line ${index + 1}`}
+                  onClick={() => handleRemove(item.id)}
+                >
+                  <Trash2Icon />
+                </Button>
               </div>
-              {showBackorder && (
-                <Checkbox
-                  className="justify-self-center"
-                  checked={item.backordered}
-                  aria-label={`Line ${index + 1} backordered`}
-                  onCheckedChange={(checked) => patchItem({ backordered: checked === true })}
-                />
-              )}
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                disabled={items.length === 1}
-                aria-label={`Remove line ${index + 1}`}
-                onClick={() => handleRemove(item.id)}
-              >
-                <Trash2Icon />
-              </Button>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      </FieldErrors>
       {error && <p className="text-destructive text-sm">{error}</p>}
       <div className="flex items-center justify-between">
         <Button variant="ghost" size="sm" className="-ml-1" onClick={() => appendRow("sku")}>
@@ -326,8 +332,16 @@ function UnitPriceCell({
   onPatch: (patch: Partial<Omit<LineItem, "id">>) => void;
   onKeyDown: (e: React.KeyboardEvent<CellElement>) => void;
 }) {
-  const [text, setText] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const label = `Line ${index + 1} unit price`;
+  const field = useAmountInput({
+    value: item.unitPriceCents,
+    editText: (item.unitPriceCents / 100).toFixed(2),
+    scale: CENTS_PER_DOLLAR,
+    schema: centsSchema,
+    label,
+    onCommit: (unitPriceCents) => onPatch({ unitPriceCents }),
+  });
 
   const saved =
     item.sku.trim() === ""
@@ -349,7 +363,7 @@ function UnitPriceCell({
   const handlePick = (cents: number) => {
     onPatch({ unitPriceCents: cents });
     // Replace the in-progress text so the later blur commits the same amount.
-    setText((cents / 100).toFixed(2));
+    field.setText((cents / 100).toFixed(2));
     setOpen(false);
   };
 
@@ -359,20 +373,16 @@ function UnitPriceCell({
         ref={cellRef}
         inputMode="decimal"
         className="text-right tabular-nums"
-        value={text ?? formatCents(item.unitPriceCents)}
-        aria-label={`Line ${index + 1} unit price`}
+        value={field.text ?? formatCents(item.unitPriceCents)}
+        aria-label={label}
+        aria-invalid={field.invalid}
         onFocus={(e) => {
-          setText(item.unitPriceCents === 0 ? "" : (item.unitPriceCents / 100).toFixed(2));
+          field.onFocus(e);
           setOpen(true);
-          e.currentTarget.select();
         }}
-        onChange={(e) => setText(e.currentTarget.value)}
+        onChange={field.onChange}
         onBlur={() => {
-          if (text !== null) {
-            const parsed = parseMoneyInput(text);
-            if (parsed !== null) onPatch({ unitPriceCents: parsed });
-          }
-          setText(null);
+          field.onBlur();
           setOpen(false);
         }}
         onKeyDown={onKeyDown}
