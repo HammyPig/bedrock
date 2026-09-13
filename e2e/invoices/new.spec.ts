@@ -628,64 +628,15 @@ test.describe("invoice metadata section", () => {
   //   });
   // });
 
-  // test.describe("the document type", { tag: "@tbd" }, () => {
-  //   test("the document can be issued as a quote instead", async ({ page }) => {
-  //     await gotoNewInvoice(page);
-  //     await expect(page.getByRole("heading", { name: "New invoice" })).toBeVisible();
+  test("can be switched to a quote and back", async ({ page }) => {
+    await gotoNewInvoice(page);
 
-  //     await documentType(page).getByRole("button", { name: "Quote" }).click();
-  //     await expect(page.getByRole("heading", { name: "New quote" })).toBeVisible();
-  //   });
+    await documentType(page).getByRole("button", { name: "Quote" }).click();
+    await expect(page.getByRole("heading", { name: "New quote" })).toBeVisible();
 
-  //   test("a quote asks for a quote number", async ({ page }) => {
-  //     await gotoNewInvoice(page);
-  //     await expect(page.getByLabel("Invoice no.")).toBeVisible();
-
-  //     await documentType(page).getByRole("button", { name: "Quote" }).click();
-  //     await expect(page.getByLabel("Quote no.")).toHaveValue("INV-1001");
-  //     await expect(page.getByLabel("Invoice no.")).toBeHidden();
-  //   });
-
-  //   test("a quote is not payable", async ({ page }) => {
-  //     const quote = await seedInvoice(draft({ isQuote: true, invoiceNumber: "QUO-0001" }));
-  //     const invoice = await seedInvoice(draft({ invoiceNumber: "INV-0900" }));
-
-  //     await page.goto(`/invoices/${quote.id}/edit`);
-  //     await expect(page.getByRole("button", { name: "Record full payment" })).toBeHidden();
-
-  //     await page.goto(`/invoices/${invoice.id}/edit`);
-  //     await expect(page.getByRole("button", { name: "Record full payment" })).toBeVisible();
-  //   });
-
-  //   test("the document type survives a save", async ({ page }) => {
-  //     await seedCustomer(CUSTOMERS.acme);
-  //     await gotoNewInvoice(page);
-
-  //     await fillMinimalInvoice(page, /Priya Nair/);
-  //     await documentType(page).getByRole("button", { name: "Quote" }).click();
-  //     await saveNewInvoice(page);
-  //     await expect(saveStatus(page)).toHaveText("Saved");
-
-  //     await page.reload();
-  //     await expect(page.getByLabel("Quote no.")).toBeVisible();
-  //   });
-
-  //   test("a saved quote can become an invoice", async ({ page }) => {
-  //     await seedCustomer(CUSTOMERS.acme);
-  //     const quote = await seedInvoice(
-  //       draft({ isQuote: true, invoiceNumber: "QUO-0001", lineItems: [line()] }),
-  //     );
-
-  //     await page.goto(`/invoices/${quote.id}/edit`);
-  //     await documentType(page).getByRole("button", { name: "Invoice" }).click();
-  //     await saveInvoice(page).click();
-  //     await expect(saveStatus(page)).toHaveText("Saved");
-
-  //     await page.reload();
-  //     await expect(page.getByLabel("Invoice no.")).toBeVisible();
-  //     await expect(page.getByRole("button", { name: "Record full payment" })).toBeVisible();
-  //   });
-  // });
+    await documentType(page).getByRole("button", { name: "Invoice" }).click();
+    await expect(page.getByRole("heading", { name: "New invoice" })).toBeVisible();
+  });
 });
 
 test.describe("items section", () => {
