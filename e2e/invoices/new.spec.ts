@@ -362,49 +362,6 @@ test.describe("customer section", () => {
     expect(await savedCustomers()).toEqual([]);
   });
 
-  test.describe("the email field", () => {
-    /**
-     * Addresses are bubbles rather than one comma-separated string so it is plain
-     * that an invoice can go to more than one of them.
-     */
-    test("turns each address into a bubble", async ({ page }) => {
-      test.fixme();
-      await gotoNewInvoice(page);
-      await startNewCustomer(page, "Kelly Brooks");
-
-      await customerDetailsField(page, "Email").fill("kelly@brooks.example");
-      await page.keyboard.press("Space");
-      await expect(
-        customerDetailsSection(page).getByRole("button", { name: "Remove kelly@brooks.example" }),
-      ).toBeVisible();
-      await expect(customerDetailsField(page, "Email")).toHaveValue("");
-
-      await customerDetailsField(page, "Email").fill("accounts@brooks.example");
-      await page.keyboard.press("Space");
-      await expect(
-        customerDetailsSection(page).getByRole("button", {
-          name: "Remove accounts@brooks.example",
-        }),
-      ).toBeVisible();
-    });
-
-    test("takes an address back out again", async ({ page }) => {
-      test.fixme();
-      await gotoNewInvoice(page);
-      await startNewCustomer(page, "Kelly Brooks");
-
-      await customerDetailsField(page, "Email").fill("kelly@brooks.example");
-      await page.keyboard.press("Space");
-      await customerDetailsSection(page)
-        .getByRole("button", { name: "Remove kelly@brooks.example" })
-        .click();
-
-      await expect(
-        customerDetailsSection(page).getByRole("button", { name: "Remove kelly@brooks.example" }),
-      ).toBeHidden();
-    });
-  });
-
   test.describe("switching customer", () => {
     test("from a saved or new customer to another saved customer resets every field and fills in their details", async ({
       page,
