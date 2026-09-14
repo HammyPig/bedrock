@@ -776,15 +776,16 @@ test.describe("balance section", () => {
     await expect(page.getByLabel("Notes")).toHaveValue("Please pay by bank transfer.");
   });
 
-  test("the subtotal is the sum of the lines", async ({ page }) => {
+  test("the subtotal is the sum of the line subtotals", async ({ page }) => {
     await gotoNewInvoice(page);
     await page.getByLabel("Line 1 name").fill("Widget");
+    await fillAndCommit(page.getByLabel("Line 1 quantity"), "2");
     await fillAndCommit(page.getByLabel("Line 1 unit price"), "100");
     await page.getByRole("button", { name: "Add item" }).click();
     await page.getByLabel("Line 2 name").fill("Labour");
     await fillAndCommit(page.getByLabel("Line 2 unit price"), "120");
 
-    await expect(totalsAmount(page, "Subtotal")).toHaveText("$220.00");
+    await expect(totalsAmount(page, "Subtotal")).toHaveText("$320.00");
   });
 
   test("a discount is a percentage or an amount", async ({ page }) => {
