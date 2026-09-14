@@ -206,16 +206,17 @@ export function totalsPanel(page: Page): Locator {
 }
 
 /**
- * The amount against a totals line. Each row owns its amount as a direct child
- * span; the label may be a sibling of it (Subtotal, Total) or tucked into a
- * group of controls beside it (Discount, GST).
+ * The amount against a totals line: the dollar figure its row holds as a direct
+ * child span. The label may be a sibling of it (Subtotal, Total) or tucked into
+ * a group of controls beside it (Discount), and rows can sit inside the fieldset
+ * that locks the discount and delivery, so rows are matched at any depth.
  */
 export function totalsAmount(page: Page, label: string): Locator {
   return totalsPanel(page)
-    .locator("> div")
+    .locator("div")
     .filter({ has: page.getByText(label, { exact: true }) })
-    .locator("> span")
-    .last();
+    .filter({ has: page.locator(":scope > span", { hasText: "$" }) })
+    .locator(":scope > span", { hasText: "$" });
 }
 
 /** Balance due, which sits in a block of its own below the payments. */

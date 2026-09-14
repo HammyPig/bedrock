@@ -55,6 +55,15 @@ function payableInvoice() {
   return seedInvoice(draft({ invoiceNumber: "INV-0900", lineItems: [line()] }));
 }
 
+/** A $200 line with 25% off and $20 delivery: $170.00 in total, $15.45 of it GST. */
+async function fillTotalsExample(page: Page) {
+  await page.getByLabel("Line 1 name").fill("Widget");
+  await fillAndCommit(page.getByLabel("Line 1 unit price"), "200");
+  await totalsPanel(page).getByRole("button", { name: "Add discount" }).click();
+  await fillAndCommit(page.getByLabel("Discount percent"), "25");
+  await fillAndCommit(page.getByLabel("Delivery", { exact: true }), "20");
+}
+
 /** Commits each value to an amount field and checks it was taken: shown as what it came to, unflagged. */
 async function expectAccepted(field: Locator, cases: { typed: string; shows: string }[]) {
   for (const { typed, shows } of cases) {
@@ -769,7 +778,7 @@ test.describe("items section", verified("2026-09-13"), () => {
   });
 });
 
-test.describe("balance section", () => {
+test.describe("balance section", verified("2026-09-14"), () => {
   test("notes can be written on the invoice", async ({ page }) => {
     await gotoNewInvoice(page);
     await page.getByLabel("Notes").fill("Please pay by bank transfer.");
@@ -788,6 +797,18 @@ test.describe("balance section", () => {
     await expect(totalsAmount(page, "Subtotal")).toHaveText("$320.00");
   });
 
+  test("a discount can be added", async ({ page }) => {
+    await gotoNewInvoice(page);
+    await page.getByLabel("Line 1 name").fill("Widget");
+    await fillAndCommit(page.getByLabel("Line 1 unit price"), "200");
+    await expect(page.getByLabel("Discount percent")).toBeHidden();
+
+    await totalsPanel(page).getByRole("button", { name: "Add discount" }).click();
+    await fillAndCommit(page.getByLabel("Discount percent"), "10");
+
+    await expect(totalsAmount(page, "Discount")).toHaveText("-$20.00");
+  });
+
   test("a discount is a percentage or an amount", async ({ page }) => {
     await gotoNewInvoice(page);
     await page.getByLabel("Line 1 name").fill("Widget");
@@ -801,16 +822,6 @@ test.describe("balance section", () => {
     await expect(page.getByLabel("Discount amount")).toHaveValue("0.00");
     await fillAndCommit(page.getByLabel("Discount amount"), "30");
     await expect(totalsAmount(page, "Discount")).toHaveText("-$30.00");
-  });
-
-  test("a discount can be taken off again", async ({ page }) => {
-    await gotoNewInvoice(page);
-    await totalsPanel(page).getByRole("button", { name: "Add discount" }).click();
-    await expect(page.getByLabel("Discount percent")).toBeVisible();
-
-    await totalsPanel(page).getByRole("button", { name: "Remove discount" }).click();
-    await expect(page.getByLabel("Discount percent")).toBeHidden();
-    await expect(totalsPanel(page).getByRole("button", { name: "Add discount" })).toBeVisible();
   });
 
   test("a discount percentage takes 0 to 100, to two decimal places", async ({ page }) => {
@@ -843,6 +854,16 @@ test.describe("balance section", () => {
     );
   });
 
+  test("a discount can be taken off again", async ({ page }) => {
+    await gotoNewInvoice(page);
+    await totalsPanel(page).getByRole("button", { name: "Add discount" }).click();
+    await expect(page.getByLabel("Discount percent")).toBeVisible();
+
+    await totalsPanel(page).getByRole("button", { name: "Remove discount" }).click();
+    await expect(page.getByLabel("Discount percent")).toBeHidden();
+    await expect(totalsPanel(page).getByRole("button", { name: "Add discount" })).toBeVisible();
+  });
+
   test("delivery takes any amount of $0 or more, to the cent", async ({ page }) => {
     await gotoNewInvoice(page);
     await expectAccepted(page.getByLabel("Delivery", { exact: true }), MONEY.accepts);
@@ -853,171 +874,40 @@ test.describe("balance section", () => {
     await expectRefused(page, page.getByLabel("Delivery", { exact: true }), MONEY.refuses);
   });
 
-  // test("a delivery cost is added before GST", { tag: "@tbd" }, async ({ page }) => {
-  //   await gotoNewInvoice(page);
-  //   await page.getByLabel("Line 1 name").fill("Widget");
-  //   await fillAndCommit(page.getByLabel("Line 1 unit price"), "100");
-  //   await fillAndCommit(page.getByLabel("Delivery", { exact: true }), "20");
+  test("the total is the subtotal less the discount, plus delivery", async ({ page }) => {
+    await gotoNewInvoice(page);
+    await fillTotalsExample(page);
 
-  //   await expect(totalsAmount(page, "GST")).toHaveText("$12.00");
-  // });
+    await expect(totalsAmount(page, "Subtotal")).toHaveText("$200.00");
+    await expect(totalsAmount(page, "Discount")).toHaveText("-$50.00");
+    await expect(totalsAmount(page, "Total")).toHaveText("$170.00");
+  });
 
-  // test("the total is what the invoice comes to", { tag: "@tbd" }, async ({ page }) => {
-  //   await gotoNewInvoice(page);
-  //   await page.getByLabel("Line 1 name").fill("Widget");
-  //   await fillAndCommit(page.getByLabel("Line 1 unit price"), "100");
-  //   await fillAndCommit(page.getByLabel("Delivery", { exact: true }), "20");
+  test("GST only shows for a business registered for GST", async ({ page }) => {
+    await gotoNewInvoice(page);
+    await fillTotalsExample(page);
+    await expect(totalsPanel(page).getByText("Includes GST (10%)")).toBeVisible();
 
-  //   await expect(totalsAmount(page, "Total")).toHaveText("$132.00");
-  // });
+    // Settings outlive the per-test reset, so registration is put back even if this fails.
+    const testBusiness = eq(schema.businessSettings.businessId, TEST_BUSINESS_ID);
+    await testDb.update(schema.businessSettings).set({ gstRegistered: false }).where(testBusiness);
+    try {
+      await gotoNewInvoice(page);
+      await fillTotalsExample(page);
+      await expect(totalsPanel(page).getByText(/GST/)).toBeHidden();
+      await expect(totalsAmount(page, "Total")).toHaveText("$170.00");
+    } finally {
+      await testDb.update(schema.businessSettings).set({ gstRegistered: true }).where(testBusiness);
+    }
+  });
 
-  // test("the balance shown is the balance calculated", async ({ page }) => {
-  //   await gotoNewInvoice(page);
-  //   await page.getByLabel("Line 1 name").fill("Widget");
-  //   await fillAndCommit(page.getByLabel("Line 1 quantity"), "3");
-  //   await fillAndCommit(page.getByLabel("Line 1 unit price"), "19.99");
-  //   await totalsPanel(page).getByRole("button", { name: "Add discount" }).click();
-  //   await fillAndCommit(page.getByLabel("Discount percent"), "15");
-  //   await fillAndCommit(page.getByLabel("Delivery", { exact: true }), "12.50");
+  test("the GST shown is the total divided by 11", async ({ page }) => {
+    await gotoNewInvoice(page);
+    await fillTotalsExample(page);
 
-  //   const expected = computeTotals({
-  //     lineItems: [line({ quantityMilli: 3000, unitPriceCents: 1999 })],
-  //     discount: { basisPoints: 1500, amountCents: 0 },
-  //     deliveryCents: 1250,
-  //     taxRatePercent: 10,
-  //   });
-  //   await expect(balanceDue(page)).toHaveText(formatCents(expected.balanceCents));
-  // });
-
-  // test.describe("payments", () => {
-  //   test("an unsaved invoice can take one", async ({ page }) => {
-  //     await seedCustomer(CUSTOMERS.acme);
-  //     await gotoNewInvoice(page);
-  //     await fillMinimalInvoice(page, /Priya Nair/);
-  //     await expect(balanceDue(page)).toHaveText("$165.00");
-
-  //     await page.getByRole("button", { name: "Record full payment" }).click();
-
-  //     await expect(
-  //       totalsPanel(page).getByText(`Paid ${formatIsoDate(todayIsoDate())}`),
-  //     ).toBeVisible();
-  //     await expect(balanceDue(page)).toHaveText("$0.00");
-  //   });
-
-  //   test("one taken before the first save is written with the invoice", async ({ page }) => {
-  //     await seedCustomer(CUSTOMERS.acme);
-  //     await gotoNewInvoice(page);
-  //     await fillMinimalInvoice(page, /Priya Nair/);
-
-  //     await page.getByRole("button", { name: "Record partial payment" }).click();
-  //     await fillAndCommit(page.getByLabel("Payment amount"), "65");
-  //     await page.getByRole("button", { name: "Record", exact: true }).click();
-  //     await expect(balanceDue(page)).toHaveText("$100.00");
-
-  //     await saveNewInvoice(page);
-  //     await page.reload();
-
-  //     await expect(totalsPanel(page).getByText("-$65.00")).toBeVisible();
-  //     await expect(balanceDue(page)).toHaveText("$100.00");
-  //   });
-
-  //   test("recording one leaves the invoice unsaved until it is saved", async ({ page }) => {
-  //     const invoice = await payableInvoice();
-  //     await page.goto(`/invoices/${invoice.id}/edit`);
-
-  //     await page.getByRole("button", { name: "Record full payment" }).click();
-  //     await expect(saveStatus(page)).toHaveText("Draft");
-
-  //     await saveInvoice(page).click();
-  //     await expect(saveStatus(page)).toHaveText("Saved");
-
-  //     await page.reload();
-  //     await expect(balanceDue(page)).toHaveText("$0.00");
-  //   });
-
-  //   test("the full payment is dated today for the whole balance", async ({ page }) => {
-  //     const invoice = await payableInvoice();
-  //     await page.goto(`/invoices/${invoice.id}/edit`);
-  //     await expect(balanceDue(page)).toHaveText("$110.00");
-
-  //     await page.getByRole("button", { name: "Record full payment" }).click();
-
-  //     await expect(
-  //       totalsPanel(page).getByText(`Paid ${formatIsoDate(todayIsoDate())}`),
-  //     ).toBeVisible();
-  //     await expect(totalsPanel(page).getByText("-$110.00")).toBeVisible();
-  //     await expect(balanceDue(page)).toHaveText("$0.00");
-  //   });
-
-  //   test("part of the balance can be paid", async ({ page }) => {
-  //     const invoice = await payableInvoice();
-  //     await page.goto(`/invoices/${invoice.id}/edit`);
-
-  //     await page.getByRole("button", { name: "Record partial payment" }).click();
-  //     await expect(page.getByLabel("Payment date")).toHaveValue(todayIsoDate());
-
-  //     await fillAndCommit(page.getByLabel("Payment amount"), "40");
-  //     await page.getByRole("button", { name: "Record", exact: true }).click();
-
-  //     await expect(balanceDue(page)).toHaveText("$70.00");
-  //   });
-
-  //   test("one can be taken back off", async ({ page }) => {
-  //     const invoice = await payableInvoice();
-  //     await page.goto(`/invoices/${invoice.id}/edit`);
-
-  //     await page.getByRole("button", { name: "Record full payment" }).click();
-  //     await expect(balanceDue(page)).toHaveText("$0.00");
-
-  //     await page.getByRole("button", { name: "Delete payment" }).click();
-  //     await expect(balanceDue(page)).toHaveText("$110.00");
-  //   });
-
-  //   test("a settled invoice stops asking for one", async ({ page }) => {
-  //     const invoice = await payableInvoice();
-  //     await page.goto(`/invoices/${invoice.id}/edit`);
-
-  //     await page.getByRole("button", { name: "Record full payment" }).click();
-  //     await expect(balanceDue(page)).toHaveText("$0.00");
-
-  //     await expect(page.getByRole("button", { name: "Record full payment" })).toBeHidden();
-  //     await expect(page.getByRole("button", { name: "Record partial payment" })).toBeHidden();
-  //   });
-
-  //   test("one records how it was paid", async ({ page }) => {
-  //     test.fixme();
-  //     const invoice = await payableInvoice();
-  //     await page.goto(`/invoices/${invoice.id}/edit`);
-
-  //     await page.getByRole("button", { name: "Record partial payment" }).click();
-  //     await expect(page.getByLabel("Payment method")).toHaveValue("card");
-
-  //     await page.getByLabel("Payment method").selectOption("bank_transfer");
-  //     await fillAndCommit(page.getByLabel("Payment amount"), "40");
-  //     await page.getByRole("button", { name: "Record", exact: true }).click();
-
-  //     await expect(totalsPanel(page).getByText(/Bank transfer/)).toBeVisible();
-  //   });
-
-  //   test("a recorded one can be edited", async ({ page }) => {
-  //     test.fixme();
-  //     const invoice = await payableInvoice();
-  //     await page.goto(`/invoices/${invoice.id}/edit`);
-  //     await page.getByRole("button", { name: "Record full payment" }).click();
-
-  //     await page.getByRole("button", { name: "Edit payment" }).click();
-  //     await page.getByLabel("Payment date").fill("2026-08-20");
-  //     await page.getByLabel("Payment method").selectOption("bank_transfer");
-  //     await fillAndCommit(page.getByLabel("Payment amount"), "40");
-  //     await page.getByRole("button", { name: "Record", exact: true }).click();
-
-  //     await expect(
-  //       totalsPanel(page).getByText(`Paid ${formatIsoDate("2026-08-20")}`),
-  //     ).toBeVisible();
-  //     await expect(totalsPanel(page).getByText(/Bank transfer/)).toBeVisible();
-  //     await expect(balanceDue(page)).toHaveText("$70.00");
-  //   });
-  // });
+    await expect(totalsAmount(page, "Total")).toHaveText("$170.00");
+    await expect(totalsAmount(page, "Includes GST (10%)")).toHaveText("$15.45");
+  });
 });
 
 test.describe("amount fields", () => {
