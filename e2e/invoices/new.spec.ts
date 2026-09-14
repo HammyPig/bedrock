@@ -916,7 +916,7 @@ test.describe("balance section", verified("2026-09-14"), () => {
   });
 });
 
-test.describe("amount field errors", () => {
+test.describe("amount field errors", verified("2026-09-14"), () => {
   test("the error follows the text as it is corrected", async ({ page }) => {
     await gotoNewInvoice(page);
     const quantity = page.getByLabel("Line 1 quantity");
@@ -948,7 +948,7 @@ test.describe("amount field errors", () => {
   });
 });
 
-test.describe("the action bar", () => {
+test.describe("the action bar", verified("2026-09-14"), () => {
   test("a new invoice is a draft", async ({ page }) => {
     await gotoNewInvoice(page);
     await expect(saveStatus(page)).toHaveText("Draft");
