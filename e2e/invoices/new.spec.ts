@@ -998,113 +998,113 @@ test.describe("the action bar", () => {
     expect(page.url()).toMatch(new RegExp(`/invoices/${invoices[0]?.id}/edit$`));
     await expect(page.getByLabel("Line 1 name")).toHaveValue("Callout fee");
   });
+});
 
-  test.describe("exporting the invoice", () => {
-    function loadedInvoice() {
-      return seedInvoice(
-        draft({
-          invoiceNumber: "INV-0900",
-          customerDetails: customerDetails({
-            name: "Priya Nair",
-            company: "Acme Constructions",
-            email: "priya@acme.example",
-            phone: "02 9111 2222",
-            billingAddress: CUSTOMERS.acme.billingAddress,
-            deliveryAddress: CUSTOMERS.acme.deliveryAddress,
-          }),
-          hasDeliveryAddress: true,
-          deliverySameAsBilling: false,
-          lineItems: [
-            line({
-              sku: "PIPE-100",
-              name: "Copper pipe 100mm",
-              quantityMilli: 3000,
-              unitPriceCents: 4250,
-            }),
-            line({
-              sku: "LAB-HR",
-              name: "Labour",
-              quantityMilli: 2000,
-              unitPriceCents: 12_000,
-            }),
-          ],
-          discount: { basisPoints: 0, amountCents: 2500 },
-          deliveryCents: 1500,
-          deliveryTaxBasisPoints: 1000,
-          notes: "Please pay by bank transfer.",
-          payments: [payment()],
+test.describe("exporting the invoice", () => {
+  function loadedInvoice() {
+    return seedInvoice(
+      draft({
+        invoiceNumber: "INV-0900",
+        customerDetails: customerDetails({
+          name: "Priya Nair",
+          company: "Acme Constructions",
+          email: "priya@acme.example",
+          phone: "02 9111 2222",
+          billingAddress: CUSTOMERS.acme.billingAddress,
+          deliveryAddress: CUSTOMERS.acme.deliveryAddress,
         }),
-      );
-    }
+        hasDeliveryAddress: true,
+        deliverySameAsBilling: false,
+        lineItems: [
+          line({
+            sku: "PIPE-100",
+            name: "Copper pipe 100mm",
+            quantityMilli: 3000,
+            unitPriceCents: 4250,
+          }),
+          line({
+            sku: "LAB-HR",
+            name: "Labour",
+            quantityMilli: 2000,
+            unitPriceCents: 12_000,
+          }),
+        ],
+        discount: { basisPoints: 0, amountCents: 2500 },
+        deliveryCents: 1500,
+        deliveryTaxBasisPoints: 1000,
+        notes: "Please pay by bank transfer.",
+        payments: [payment()],
+      }),
+    );
+  }
 
-    async function exportPdf(page: Page) {
-      const download = page.waitForEvent("download");
-      await actionBar(page).getByRole("button", { name: "Save + export" }).click();
-      const file = await download;
-      const savedAt = await file.path();
-      return { filename: file.suggestedFilename(), text: await pdfText(fs.readFileSync(savedAt)) };
-    }
+  async function exportPdf(page: Page) {
+    const download = page.waitForEvent("download");
+    await actionBar(page).getByRole("button", { name: "Save + export" }).click();
+    const file = await download;
+    const savedAt = await file.path();
+    return { filename: file.suggestedFilename(), text: await pdfText(fs.readFileSync(savedAt)) };
+  }
 
-    test("the export is named after the invoice", async ({ page }) => {
-      const invoice = await loadedInvoice();
-      await page.goto(`/invoices/${invoice.id}/edit`);
+  test("the export is named after the invoice", async ({ page }) => {
+    const invoice = await loadedInvoice();
+    await page.goto(`/invoices/${invoice.id}/edit`);
 
-      const { filename, text } = await exportPdf(page);
-      expect(filename).toBe("INV-0900.pdf");
-      expect(text).not.toBe("");
-    });
+    const { filename, text } = await exportPdf(page);
+    expect(filename).toBe("INV-0900.pdf");
+    expect(text).not.toBe("");
+  });
 
-    test("the PDF says who it is for and when it is due", async ({ page }) => {
-      const invoice = await loadedInvoice();
-      await page.goto(`/invoices/${invoice.id}/edit`);
-      const { text } = await exportPdf(page);
+  test("the PDF says who it is for and when it is due", async ({ page }) => {
+    const invoice = await loadedInvoice();
+    await page.goto(`/invoices/${invoice.id}/edit`);
+    const { text } = await exportPdf(page);
 
-      expect(text).toContain("Tax invoice");
-      expect(text).toContain("INV-0900");
-      expect(text).toContain("Priya Nair");
-      expect(text).toContain("Acme Constructions");
-      expect(text).toContain("priya@acme.example");
-      expect(text).toContain("02 9111 2222");
-      expect(text).toContain(formatIsoDate("2026-08-26"));
-      expect(text).toContain(formatIsoDate("2026-09-25"));
-      expect(text).toContain("Alexandria");
-    });
+    expect(text).toContain("Tax invoice");
+    expect(text).toContain("INV-0900");
+    expect(text).toContain("Priya Nair");
+    expect(text).toContain("Acme Constructions");
+    expect(text).toContain("priya@acme.example");
+    expect(text).toContain("02 9111 2222");
+    expect(text).toContain(formatIsoDate("2026-08-26"));
+    expect(text).toContain(formatIsoDate("2026-09-25"));
+    expect(text).toContain("Alexandria");
+  });
 
-    test("the PDF lists every line as it was billed", async ({ page }) => {
-      const invoice = await loadedInvoice();
-      await page.goto(`/invoices/${invoice.id}/edit`);
-      const { text } = await exportPdf(page);
+  test("the PDF lists every line as it was billed", async ({ page }) => {
+    const invoice = await loadedInvoice();
+    await page.goto(`/invoices/${invoice.id}/edit`);
+    const { text } = await exportPdf(page);
 
-      expect(text).toContain("PIPE-100");
-      expect(text).toContain("Copper pipe 100mm");
-      expect(text).toContain("$42.50");
-      expect(text).toContain("$127.50");
+    expect(text).toContain("PIPE-100");
+    expect(text).toContain("Copper pipe 100mm");
+    expect(text).toContain("$42.50");
+    expect(text).toContain("$127.50");
 
-      expect(text).toContain("LAB-HR");
-      expect(text).toContain("Labour");
-      expect(text).toContain("$120.00");
-      expect(text).toContain("$240.00");
-    });
+    expect(text).toContain("LAB-HR");
+    expect(text).toContain("Labour");
+    expect(text).toContain("$120.00");
+    expect(text).toContain("$240.00");
+  });
 
-    test("the PDF adds up the same way the form does", async ({ page }) => {
-      const invoice = await loadedInvoice();
-      await page.goto(`/invoices/${invoice.id}/edit`);
-      const { text } = await exportPdf(page);
+  test("the PDF adds up the same way the form does", async ({ page }) => {
+    const invoice = await loadedInvoice();
+    await page.goto(`/invoices/${invoice.id}/edit`);
+    const { text } = await exportPdf(page);
 
-      expect(text).toContain("Subtotal $367.50");
-      expect(text).toContain("Discount -$25.00");
-      expect(text).toContain("$15.00");
-      expect(text).toContain("GST (10%) $35.75");
-      expect(text).toContain("Total $393.25");
-    });
+    expect(text).toContain("Subtotal $367.50");
+    expect(text).toContain("Discount -$25.00");
+    expect(text).toContain("$15.00");
+    expect(text).toContain("GST (10%) $35.75");
+    expect(text).toContain("Total $393.25");
+  });
 
-    test("the PDF shows what has been paid and what is left", async ({ page }) => {
-      const invoice = await loadedInvoice();
-      await page.goto(`/invoices/${invoice.id}/edit`);
-      const { text } = await exportPdf(page);
+  test("the PDF shows what has been paid and what is left", async ({ page }) => {
+    const invoice = await loadedInvoice();
+    await page.goto(`/invoices/${invoice.id}/edit`);
+    const { text } = await exportPdf(page);
 
-      expect(text).toContain("Paid -$50.00");
-      expect(text).toContain("Balance due $343.25");
-    });
+    expect(text).toContain("Paid -$50.00");
+    expect(text).toContain("Balance due $343.25");
   });
 });
