@@ -35,6 +35,9 @@ export function ModulesSection() {
     if (!current) return;
     setModules.mutate({ ...current, [module]: enabled });
   };
+  const lockedStillAllowed = current?.payments
+    ? "record payments against them, export them and email them"
+    : "export them and email them";
 
   return (
     <div className="bg-card rounded-xl border shadow-sm">
@@ -52,7 +55,7 @@ export function ModulesSection() {
         <ModuleToggle
           id="module-line-discounts"
           title="Line discounts"
-          description="Take a percentage off individual lines on an invoice, on top of any discount on the invoice as a whole. Turning this off locks invoices with line discounts until you turn it back on; you can still record payments against them, export them and email them."
+          description={`Take a percentage off individual lines on an invoice, on top of any discount on the invoice as a whole. Turning this off locks invoices with line discounts until you turn it back on; you can still ${lockedStillAllowed}.`}
           enabled={current?.lineDiscounts ?? false}
           disabled={!current || setModules.isPending}
           onChange={(enabled) => toggle("lineDiscounts", enabled)}
@@ -60,10 +63,18 @@ export function ModulesSection() {
         <ModuleToggle
           id="module-backorders"
           title="Backorders"
-          description="Mark invoice lines that are billed now but ship later, flagged on the invoice PDF. Turning this off locks invoices with backordered lines until you turn it back on; you can still record payments against them, export them and email them."
+          description={`Mark invoice lines that are billed now but ship later, flagged on the invoice PDF. Turning this off locks invoices with backordered lines until you turn it back on; you can still ${lockedStillAllowed}.`}
           enabled={current?.backorders ?? false}
           disabled={!current || setModules.isPending}
           onChange={(enabled) => toggle("backorders", enabled)}
+        />
+        <ModuleToggle
+          id="module-payments"
+          title="Payments"
+          description="Record the payments customers make against invoices, and see what's paid, what's overdue and what each customer owes. Turning this off hides payments, statuses and balances everywhere but keeps every payment you've recorded."
+          enabled={current?.payments ?? false}
+          disabled={!current || setModules.isPending}
+          onChange={(enabled) => toggle("payments", enabled)}
         />
         <ModuleToggle
           id="module-purchase-orders"

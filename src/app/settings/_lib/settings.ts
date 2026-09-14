@@ -11,13 +11,21 @@ export interface Modules {
   lineDiscounts: boolean;
   /** Flagging invoice lines that are billed now but ship later. */
   backorders: boolean;
+  /** Payments recorded against invoices, and the paid statuses and balances derived from them. */
+  payments: boolean;
   /** Purchase orders and the vendors they are raised against. */
   purchaseOrders: boolean;
 }
 
 /** Modules are opt-in: everything starts off. */
 export function defaultModules(): Modules {
-  return { tieredPricing: false, lineDiscounts: false, backorders: false, purchaseOrders: false };
+  return {
+    tieredPricing: false,
+    lineDiscounts: false,
+    backorders: false,
+    payments: false,
+    purchaseOrders: false,
+  };
 }
 
 /**

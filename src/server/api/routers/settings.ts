@@ -43,6 +43,7 @@ const modulesInput = z.object({
   tieredPricing: z.boolean(),
   lineDiscounts: z.boolean(),
   backorders: z.boolean(),
+  payments: z.boolean(),
   purchaseOrders: z.boolean(),
 }) satisfies z.ZodType<Modules>;
 
@@ -146,6 +147,15 @@ export const purchaseOrdersProcedure = businessProcedure.use(async ({ ctx, next 
   const modules = await loadModules(ctx.db, ctx.businessId);
   if (!modules.purchaseOrders) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Purchase orders are turned off." });
+  }
+  return next();
+});
+
+/** Business procedure that additionally requires the Payments module. */
+export const paymentsProcedure = businessProcedure.use(async ({ ctx, next }) => {
+  const modules = await loadModules(ctx.db, ctx.businessId);
+  if (!modules.payments) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Payments are turned off." });
   }
   return next();
 });
