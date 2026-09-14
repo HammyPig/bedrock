@@ -237,18 +237,18 @@ export function PurchaseOrderPdf({ draft, settings }: PurchaseOrderPdfProps) {
             {draft.deliveryCents > 0 && (
               <TotalsRow label="Delivery" value={formatCents(draft.deliveryCents)} />
             )}
-            {taxBasisPoints > 0 && (
-              <TotalsRow
-                label={`GST (${formatBasisPoints(taxBasisPoints)}%)`}
-                value={formatCents(totals.taxCents)}
-              />
-            )}
             <TotalsRow
               label="Total"
               value={formatCents(totals.totalCents)}
               bold
               ruleColor={accent}
             />
+            {taxBasisPoints > 0 && (
+              <TotalsRow
+                label={`Includes GST (${formatBasisPoints(taxBasisPoints)}%)`}
+                value={formatCents(totals.taxCents)}
+              />
+            )}
           </View>
         </View>
 

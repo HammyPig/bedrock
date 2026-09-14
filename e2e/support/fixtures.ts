@@ -135,7 +135,7 @@ export async function seedInvoice(
       ...rest,
       discountCents: breakdown.discountCents,
       discountBasisPoints: discount?.basisPoints ?? 0,
-      deliveryTaxCents: breakdown.deliveryTaxCents,
+      taxCents: breakdown.totals.taxCents,
     })
     .returning();
   if (!invoice) throw new Error(`Failed to seed invoice ${draft.invoiceNumber}`);
@@ -152,7 +152,6 @@ export async function seedInvoice(
         discountBasisPoints: item.discountBasisPoints,
         discountCents: breakdown.lines[position]?.discountCents ?? 0,
         taxBasisPoints: item.taxBasisPoints,
-        taxCents: breakdown.lines[position]?.taxCents ?? 0,
         backordered: item.backordered,
       })),
     );

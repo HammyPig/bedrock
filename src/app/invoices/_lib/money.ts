@@ -50,7 +50,6 @@ interface TaxableDocument {
 export interface LineBreakdown {
   discountCents: number;
   subtotalCents: number;
-  taxCents: number;
 }
 
 /** Every cents figure a document records, derived from the percents it stores. */
@@ -59,7 +58,6 @@ export interface Breakdown {
   /** The document-level discount, in cents — for a percent discount and a
    * fixed one alike, so what was taken off is recorded either way. */
   discountCents: number;
-  deliveryTaxCents: number;
   totals: Totals;
 }
 
@@ -127,27 +125,18 @@ export function paymentsTotalCents(payments: { amountCents: number }[]): number 
   return payments.reduce((sum, payment) => sum + payment.amountCents, 0);
 }
 
-/**
- * Splits an amount across weighted parts in whole cents. Each part is floored
- * to its share and the rounding remainder lands on the last, so the parts
- * always add back up to the amount.
- */
-function allocateCents(amountCents: number, weights: number[]): number[] {
-  if (weights.length === 0) return [];
-  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
-  if (totalWeight <= 0) return weights.map(() => 0);
-
-  const shares = weights.map((weight) => Math.floor((amountCents * weight) / totalWeight));
-  const remainder = amountCents - shares.reduce((sum, share) => sum + share, 0);
-  return shares.map((share, i) => (i === shares.length - 1 ? share + remainder : share));
+/** The GST inside a GST-inclusive amount, unrounded: rate ÷ (100% + rate) of it, so 1/11 at 10%. */
+function includedTaxCents(amountCents: number, taxBasisPoints: number): number {
+  return (amountCents * taxBasisPoints) / (MAX_BASIS_POINTS + taxBasisPoints);
 }
 
 /**
- * Resolves a document's percents into the cents it stores. Tax is charged per
- * line: a document-level discount comes off the lines it was given against, so
- * it is shared out across them before they are taxed, and delivery — part of
- * the GST base — is taxed on its own. Total tax is then exactly the sum of the
- * line tax and the delivery tax, with no invoice-level rate to reconcile.
+ * Resolves a document's percents into the cents it stores. Prices include GST,
+ * so the total is the lines less the discount, plus delivery, and GST is the
+ * part of that total which is tax. Lines and delivery each keep their own rate,
+ * so the document discount is shared out over the lines before their GST is
+ * taken; the GST is added up unrounded and rounded once for the whole document,
+ * per the ATO's total invoice rule. With every rate at 10%, it is the total ÷ 11.
  */
 export function computeBreakdown(doc: TaxableDocument, paidCents = 0): Breakdown {
   const lineSubtotals = doc.lineItems.map(lineItemSubtotalCents);
@@ -157,27 +146,24 @@ export function computeBreakdown(doc: TaxableDocument, paidCents = 0): Breakdown
   // discount that disagrees with the percent it claims to come from.
   const discountCents = doc.discount === null ? 0 : discountAmountCents(doc.discount, subtotal);
 
-  const discountShares = allocateCents(discountCents, lineSubtotals);
-  const lines = doc.lineItems.map((item, i) => {
-    const lineSubtotalCents = lineSubtotals[i] ?? 0;
-    const taxableCents = lineSubtotalCents - (discountShares[i] ?? 0);
-    return {
-      discountCents: lineItemDiscountCents(item),
-      subtotalCents: lineSubtotalCents,
-      taxCents: Math.round((taxableCents * item.taxBasisPoints) / MAX_BASIS_POINTS),
-    };
-  });
-
-  const deliveryTaxCents = Math.round(
-    (doc.deliveryCents * doc.deliveryTaxBasisPoints) / MAX_BASIS_POINTS,
+  // What is left of each line once the document discount is shared out.
+  const keptShare = subtotal === 0 ? 0 : (subtotal - discountCents) / subtotal;
+  const lineTax = doc.lineItems.reduce(
+    (sum, item, i) =>
+      sum + includedTaxCents((lineSubtotals[i] ?? 0) * keptShare, item.taxBasisPoints),
+    0,
   );
-  const taxCents = lines.reduce((sum, line) => sum + line.taxCents, 0) + deliveryTaxCents;
-  const totalCents = subtotal - discountCents + doc.deliveryCents + taxCents;
+  const taxCents = Math.round(
+    lineTax + includedTaxCents(doc.deliveryCents, doc.deliveryTaxBasisPoints),
+  );
+  const totalCents = subtotal - discountCents + doc.deliveryCents;
 
   return {
-    lines,
+    lines: doc.lineItems.map((item, i) => ({
+      discountCents: lineItemDiscountCents(item),
+      subtotalCents: lineSubtotals[i] ?? 0,
+    })),
     discountCents,
-    deliveryTaxCents,
     totals: {
       subtotalCents: subtotal,
       discountCents,

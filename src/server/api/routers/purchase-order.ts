@@ -46,13 +46,9 @@ function toRows(draft: z.infer<typeof draftInput>) {
       ...columns,
       discountCents: breakdown.discountCents,
       discountBasisPoints: discount?.basisPoints ?? 0,
-      deliveryTaxCents: breakdown.deliveryTaxCents,
+      taxCents: breakdown.totals.taxCents,
     },
-    lineItems: lineItems.map((line, position) => ({
-      ...line,
-      position,
-      taxCents: breakdown.lines[position]?.taxCents ?? 0,
-    })),
+    lineItems: lineItems.map((line, position) => ({ ...line, position })),
   };
 }
 

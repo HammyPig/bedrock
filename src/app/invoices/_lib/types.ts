@@ -29,9 +29,9 @@ export interface LineItemBase {
   /** Quantity in thousandths of a unit, so 2.5 is 2500 — no float in the money path. */
   quantityMilli: number;
   unitPriceCents: number;
-  /** GST rate applied to this line, in basis points. Never edited — it is the
-   * business's rate, captured when the line was written, so a saved document
-   * keeps its own. */
+  /** GST rate this line's price includes, in basis points. Never edited — it is
+   * the business's rate, captured when the line was written, so a saved
+   * document keeps its own. */
   taxBasisPoints: number;
 }
 
@@ -100,6 +100,7 @@ export interface Payment {
 export interface Totals {
   subtotalCents: number;
   discountCents: number;
+  /** GST included in the total — part of it, never added on top. */
   taxCents: number;
   totalCents: number;
   balanceCents: number;

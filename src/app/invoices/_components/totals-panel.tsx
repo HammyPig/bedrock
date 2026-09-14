@@ -156,19 +156,21 @@ export function TotalsPanel({
         </FieldErrors>
       </fieldset>
 
-      {taxBasisPoints > 0 && (
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-muted-foreground text-sm">
-            GST ({formatBasisPoints(taxBasisPoints)}%)
-          </span>
-          <span className="text-sm tabular-nums">{formatCents(totals.taxCents)}</span>
-        </div>
-      )}
-
       <div className="flex items-center justify-between border-t pt-2.5">
         <span className="text-sm font-medium">Total</span>
         <span className="text-sm font-medium tabular-nums">{formatCents(totals.totalCents)}</span>
       </div>
+
+      {taxBasisPoints > 0 && (
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-muted-foreground text-sm">
+            Includes GST ({formatBasisPoints(taxBasisPoints)}%)
+          </span>
+          <span className="text-muted-foreground text-sm tabular-nums">
+            {formatCents(totals.taxCents)}
+          </span>
+        </div>
+      )}
 
       {/* A payment is recorded on its own, not by the invoice's save, so its
           half-typed amount mustn't hold that save up. */}

@@ -349,7 +349,8 @@ export const invoices = createTable(
     discountCents: d.integer().notNull(),
     deliveryCents: d.integer().notNull(),
     deliveryTaxBasisPoints: d.integer().notNull(),
-    deliveryTaxCents: d.integer().notNull(),
+    /** GST included in the total, worked out once for the whole invoice (ATO total invoice rule). */
+    taxCents: d.integer().notNull(),
     notes: d.text().notNull(),
     createdAt: d
       .timestamp({ withTimezone: true })
@@ -421,9 +422,8 @@ export const invoiceLineItems = createTable(
     /** The discount asked for, in basis points; 0 when the line has none. */
     discountBasisPoints: d.integer().notNull(),
     discountCents: d.integer().notNull(),
-    /** GST is charged line by line, at the business's rate when the line was written. */
+    /** The GST rate the price includes, at the business's rate when the line was written. */
     taxBasisPoints: d.integer().notNull(),
-    taxCents: d.integer().notNull(),
     backordered: d.boolean().notNull().default(false),
   }),
   (t) => [index("invoice_line_item_invoice_id_idx").on(t.invoiceId)],
@@ -496,7 +496,8 @@ export const purchaseOrders = createTable(
     discountCents: d.integer().notNull(),
     deliveryCents: d.integer().notNull(),
     deliveryTaxBasisPoints: d.integer().notNull(),
-    deliveryTaxCents: d.integer().notNull(),
+    /** GST included in the total, worked out once for the whole order (ATO total invoice rule). */
+    taxCents: d.integer().notNull(),
     notes: d.text().notNull(),
     createdAt: d
       .timestamp({ withTimezone: true })
@@ -529,9 +530,8 @@ export const purchaseOrderLineItems = createTable(
     /** Thousandths of a unit, so 2.5 is 2500 — quantities are integers too. */
     quantityMilli: d.integer().notNull(),
     unitPriceCents: d.integer().notNull(),
-    /** GST is charged line by line, at the business's rate when the line was written. */
+    /** The GST rate the price includes, at the business's rate when the line was written. */
     taxBasisPoints: d.integer().notNull(),
-    taxCents: d.integer().notNull(),
   }),
   (t) => [index("purchase_order_line_item_po_id_idx").on(t.purchaseOrderId)],
 );
