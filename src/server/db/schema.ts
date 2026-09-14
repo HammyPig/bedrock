@@ -314,8 +314,9 @@ export const vendors = createTable(
  * Columns mirror InvoiceDraft minus lineItems. customerDetails is a jsonb
  * snapshot taken at invoice time, so editing a customer never rewrites their
  * old invoices; customerId is a required FK to the customer billed, restricted
- * on delete so invoice history can't be orphaned. Due date, status, and totals
- * stay derived — never stored — and so do the cents a rate works out to: the
+ * on delete so invoice history can't be orphaned. Due date, status, and the
+ * cents a rate works out to stay derived — never stored — except totalCents,
+ * worked out on every save so the total can be read without the lines. The
  * only discount cents kept are a fixed discount's amount.
  */
 export const invoices = createTable(
@@ -348,6 +349,8 @@ export const invoices = createTable(
     discountCents: d.integer().notNull(),
     deliveryCents: d.integer().notNull(),
     deliveryTaxBasisPoints: d.integer().notNull(),
+    /** What the invoice comes to, worked out from the columns above and its lines. */
+    totalCents: d.integer().notNull(),
     notes: d.text().notNull(),
     createdAt: d
       .timestamp({ withTimezone: true })

@@ -74,8 +74,9 @@ const draftInput = z.object({
 const createInput = draftInput.omit({ invoiceNumber: true });
 
 /**
- * The rows a draft is stored as: rates and amounts as they were asked for, never
- * the cents worked out from them, so nothing stored can disagree with the totals.
+ * The rows a draft is stored as: rates and amounts as they were asked for, plus
+ * the total — the one worked-out figure kept, so a read that only needs the total
+ * can skip the lines. It's worked out here, never taken from the client.
  */
 function toRows(draft: z.infer<typeof draftInput>) {
   const { lineItems, discount, ...columns } = draft;
@@ -84,6 +85,7 @@ function toRows(draft: z.infer<typeof draftInput>) {
       ...columns,
       discountCents: storedDiscountCents(discount, lineItems),
       discountBasisPoints: discount?.basisPoints ?? 0,
+      totalCents: computeTotals(draft).totalCents,
     },
     lineItems: lineItems.map((line, position) => ({ ...line, position })),
   };
@@ -140,6 +142,7 @@ function toInvoice(row: InvoiceRow, paymentsOn: boolean): Invoice {
       deliveryTaxBasisPoints: row.deliveryTaxBasisPoints,
       notes: row.notes,
     },
+    totalCents: row.totalCents,
     // With the module off, payments stay out of every read so balances, the
     // PDF and the email all fall back to the invoice's total.
     payments: paymentsOn
@@ -287,15 +290,12 @@ export const invoiceRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const rows = await ctx.db.query.invoices.findMany({
         where: and(eq(invoices.businessId, ctx.businessId), inArray(invoices.id, input.invoiceIds)),
-        with: invoiceWith,
+        with: { payments: true },
       });
       // Balances come from the database, not the client, so a stale page can't over-record.
       const values = rows.flatMap((row) => {
         if (row.isQuote) return [];
-        const { balanceCents } = computeTotals(
-          { ...row, discount: rowDiscount(row) },
-          paymentsTotalCents(row.payments),
-        );
+        const balanceCents = row.totalCents - paymentsTotalCents(row.payments);
         return balanceCents > 0
           ? [{ invoiceId: row.id, amountCents: balanceCents, paidDate: input.paidDate }]
           : [];

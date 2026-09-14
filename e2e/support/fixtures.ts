@@ -1,5 +1,5 @@
 import * as schema from "~/server/db/schema";
-import { storedDiscountCents } from "~/app/invoices/_lib/money";
+import { computeTotals, storedDiscountCents } from "~/app/invoices/_lib/money";
 import { type Address, type InvoiceDraft } from "~/app/invoices/_lib/types";
 import { TEST_BUSINESS_ID, testDb } from "./db";
 
@@ -134,6 +134,7 @@ export async function seedInvoice(
       // Stored the way the invoice router stores it.
       discountCents: storedDiscountCents(discount, lineItems),
       discountBasisPoints: discount?.basisPoints ?? 0,
+      totalCents: computeTotals(draft).totalCents,
     })
     .returning();
   if (!invoice) throw new Error(`Failed to seed invoice ${draft.invoiceNumber}`);

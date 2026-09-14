@@ -133,6 +133,8 @@ export type InvoiceAction =
 export interface Invoice {
   id: string;
   draft: InvoiceDraft;
+  /** The total as last saved. The editor works out its own from the draft as it changes. */
+  totalCents: number;
   payments: Payment[];
 }
 
