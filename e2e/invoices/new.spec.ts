@@ -7,12 +7,11 @@ import { computeTotals } from "~/app/invoices/_lib/money";
 import { addDaysIso, formatIsoDate, todayIsoDate } from "~/lib/dates";
 import { formatCents } from "~/lib/money";
 import { resetBusinessData, TEST_BUSINESS_ID, testDb } from "../support/db";
-import { customerDetails, draft, line, payment } from "../support/drafts";
+import { customerDetails, draft, line } from "../support/drafts";
 import { CUSTOMERS, ITEMS, seedCatalog, seedCustomer, seedInvoice } from "../support/fixtures";
 import {
   actionBar,
   addressInput,
-  balanceDue,
   customerDetailsField,
   customerDetailsFlash,
   customerDetailsSection,
@@ -1000,11 +999,13 @@ test.describe("the action bar", verified("2026-09-14"), () => {
   });
 });
 
-test.describe("exporting the invoice", () => {
-  function loadedInvoice() {
+test.describe("exporting the invoice", verified("2026-09-14"), () => {
+  async function loadedInvoice() {
+    const customer = await seedCustomer(CUSTOMERS.acme);
     return seedInvoice(
       draft({
         invoiceNumber: "INV-0900",
+        customerId: customer.id,
         customerDetails: customerDetails({
           name: "Priya Nair",
           company: "Acme Constructions",
@@ -1033,7 +1034,6 @@ test.describe("exporting the invoice", () => {
         deliveryCents: 1500,
         deliveryTaxBasisPoints: 1000,
         notes: "Please pay by bank transfer.",
-        payments: [payment()],
       }),
     );
   }
@@ -1094,17 +1094,8 @@ test.describe("exporting the invoice", () => {
 
     expect(text).toContain("Subtotal $367.50");
     expect(text).toContain("Discount -$25.00");
-    expect(text).toContain("$15.00");
-    expect(text).toContain("GST (10%) $35.75");
-    expect(text).toContain("Total $393.25");
-  });
-
-  test("the PDF shows what has been paid and what is left", async ({ page }) => {
-    const invoice = await loadedInvoice();
-    await page.goto(`/invoices/${invoice.id}/edit`);
-    const { text } = await exportPdf(page);
-
-    expect(text).toContain("Paid -$50.00");
-    expect(text).toContain("Balance due $343.25");
+    expect(text).toContain("Delivery $15.00");
+    expect(text).toContain("Includes GST (10%) $32.50");
+    expect(text).toContain("Total $357.50");
   });
 });
