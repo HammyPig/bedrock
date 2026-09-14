@@ -96,10 +96,14 @@ export function storedDiscountCents(discount: Discount | null, lineItems: Priced
 
 /** Line subtotal: qty x unit price, less the per-line discount. */
 export function lineItemSubtotalCents(item: PricedLine): number {
-  // Divided down to cents before the rate is applied: the product of two
-  // integers is exact, and only this last step rounds.
-  const grossCents = (item.quantityMilli * item.unitPriceCents) / MILLI_PER_UNIT;
-  return Math.round(grossCents * (1 - (item.discountBasisPoints ?? 0) / MAX_BASIS_POINTS));
+  // Whole numbers until a single division, so a half cent comes out as exactly
+  // half and rounds up. Scaling by (1 - rate) first can't promise that: most
+  // rates, like 67%, have no exact binary fraction and land just under the half.
+  const keptBasisPoints = MAX_BASIS_POINTS - (item.discountBasisPoints ?? 0);
+  return Math.round(
+    (item.quantityMilli * item.unitPriceCents * keptBasisPoints) /
+      (MILLI_PER_UNIT * MAX_BASIS_POINTS),
+  );
 }
 
 /** The rate a document is written at; a fresh one with no lines falls back to its delivery rate. */
