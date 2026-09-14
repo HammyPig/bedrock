@@ -29,6 +29,8 @@ interface TotalsPanelProps {
   invoiceId?: string;
   isQuote: boolean;
   payments: Payment[];
+  /** Payments module: off hides the payments section and the balance due, leaving the total as the headline figure. */
+  showPayments: boolean;
   /** Locks the discount and delivery, never payments — those are recorded apart from the invoice's save. */
   locked: boolean;
   dispatch: (action: InvoiceAction) => void;
@@ -42,6 +44,7 @@ export function TotalsPanel({
   invoiceId,
   isQuote,
   payments,
+  showPayments,
   locked,
   dispatch,
 }: TotalsPanelProps) {
@@ -156,9 +159,21 @@ export function TotalsPanel({
         </FieldErrors>
       </fieldset>
 
-      <div className="flex items-center justify-between border-t pt-2.5">
-        <span className="text-sm font-medium">Total</span>
-        <span className="text-sm font-medium tabular-nums">{formatCents(totals.totalCents)}</span>
+      <div
+        className={cn(
+          "flex justify-between border-t pt-2.5",
+          showPayments ? "items-center" : "items-baseline",
+        )}
+      >
+        <span className={cn("font-medium", showPayments && "text-sm")}>Total</span>
+        <span
+          className={cn(
+            "tabular-nums",
+            showPayments ? "text-sm font-medium" : "text-lg font-semibold",
+          )}
+        >
+          {formatCents(totals.totalCents)}
+        </span>
       </div>
 
       {taxBasisPoints > 0 && (
@@ -172,25 +187,29 @@ export function TotalsPanel({
         </div>
       )}
 
-      {/* A payment is recorded on its own, not by the invoice's save, so its
-          half-typed amount mustn't hold that save up. */}
-      <FieldErrorsContext value={null}>
-        <PaymentsSection
-          invoiceId={invoiceId}
-          isQuote={isQuote}
-          payments={payments}
-          balanceCents={totals.balanceCents}
-        />
-      </FieldErrorsContext>
+      {showPayments && (
+        <>
+          {/* A payment is recorded on its own, not by the invoice's save, so its
+              half-typed amount mustn't hold that save up. */}
+          <FieldErrorsContext value={null}>
+            <PaymentsSection
+              invoiceId={invoiceId}
+              isQuote={isQuote}
+              payments={payments}
+              balanceCents={totals.balanceCents}
+            />
+          </FieldErrorsContext>
 
-      <div className="border-t pt-2.5">
-        <div className="flex items-baseline justify-between">
-          <span className="font-medium">Balance due</span>
-          <span className="text-lg font-semibold tabular-nums">
-            {formatCents(totals.balanceCents)}
-          </span>
-        </div>
-      </div>
+          <div className="border-t pt-2.5">
+            <div className="flex items-baseline justify-between">
+              <span className="font-medium">Balance due</span>
+              <span className="text-lg font-semibold tabular-nums">
+                {formatCents(totals.balanceCents)}
+              </span>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

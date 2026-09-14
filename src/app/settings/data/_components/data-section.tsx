@@ -37,12 +37,12 @@ function ExportFields() {
     setExporting(kind);
     setError(null);
     try {
+      // Tier and Paid columns come and go with their modules.
+      const modules = await utils.settings.modules.fetch();
       let csv: string;
       if (kind === "invoices") {
-        csv = invoicesCsv(await utils.invoice.list.fetch());
+        csv = invoicesCsv(await utils.invoice.list.fetch(), modules.payments);
       } else {
-        // Tier columns come and go with the Tiered pricing module.
-        const modules = await utils.settings.modules.fetch();
         const tiers = modules.tieredPricing ? await utils.tier.list.fetch() : null;
         csv =
           kind === "items"

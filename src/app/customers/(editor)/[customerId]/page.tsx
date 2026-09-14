@@ -33,6 +33,7 @@ export default async function CustomerPage({ params }: CustomerPageProps) {
 
   // Kicked off before the awaited get so both fetches run concurrently.
   void api.invoice.list.prefetch();
+  void api.settings.modules.prefetch();
 
   const { customerId } = await params;
   const customer = await getCustomer(customerId);

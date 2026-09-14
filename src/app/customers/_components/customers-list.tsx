@@ -18,6 +18,7 @@ export function CustomersList() {
   const router = useRouter();
   const [customers] = api.customer.list.useSuspenseQuery();
   const [invoices] = api.invoice.list.useSuspenseQuery();
+  const [modules] = api.settings.modules.useSuspenseQuery();
   const [query, setQuery] = useState("");
 
   const openByCustomer = openInvoicesByCustomer(invoices);
@@ -78,7 +79,7 @@ export function CustomersList() {
                   <th className="pr-4 pb-2 font-medium">Company</th>
                   <th className="pr-4 pb-2 font-medium">Phone</th>
                   <th className="pr-4 pb-2 font-medium">Email</th>
-                  <th className="pb-2 text-right font-medium">Balance</th>
+                  {modules.payments && <th className="pb-2 text-right font-medium">Balance</th>}
                 </tr>
               </thead>
               <tbody>
@@ -111,9 +112,11 @@ export function CustomersList() {
                       <td className="text-muted-foreground max-w-48 truncate py-3 pr-4">
                         {customer.email}
                       </td>
-                      <td className="py-3 text-right tabular-nums">
-                        {owedCents > 0 ? formatCents(owedCents) : "—"}
-                      </td>
+                      {modules.payments && (
+                        <td className="py-3 text-right tabular-nums">
+                          {owedCents > 0 ? formatCents(owedCents) : "—"}
+                        </td>
+                      )}
                     </tr>
                   );
                 })}

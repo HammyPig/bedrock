@@ -31,6 +31,7 @@ import { InvoiceStatusBadge } from "./invoice-status-badge";
 export function InvoicesList() {
   const router = useRouter();
   const [invoices] = api.invoice.list.useSuspenseQuery();
+  const [modules] = api.settings.modules.useSuspenseQuery();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
@@ -40,7 +41,11 @@ export function InvoicesList() {
   const tokens = tokenize(query);
 
   const rows = invoiceSummaries
-    .map((invoice) => ({ invoice, status: listStatus(invoice, today) }))
+    // Paid, unpaid and overdue come from payments; a quote is a quote either way.
+    .map((invoice) => ({
+      invoice,
+      status: modules.payments || invoice.isQuote ? listStatus(invoice, today) : null,
+    }))
     .filter(
       ({ invoice, status }) =>
         (statusFilter === "all" || status === statusFilter) &&
@@ -75,7 +80,9 @@ export function InvoicesList() {
         <div>
           <h1 className="mb-1 text-2xl font-semibold tracking-tight">Invoices</h1>
           <p className="text-muted-foreground text-sm">
-            {"Everything you've billed, and what's still owing."}
+            {modules.payments
+              ? "Everything you've billed, and what's still owing."
+              : "Everything you've billed."}
           </p>
         </div>
         <Button asChild>
@@ -95,24 +102,28 @@ export function InvoicesList() {
               aria-label="Search invoices"
               onChange={(e) => setQuery(e.currentTarget.value)}
             />
-            <Select
-              value={statusFilter}
-              onValueChange={(value) => setStatusFilter(value as StatusFilter)}
-            >
-              <SelectTrigger className="w-36" aria-label="Filter by status">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {STATUS_FILTER_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {modules.payments && (
+              <Select
+                value={statusFilter}
+                onValueChange={(value) => setStatusFilter(value as StatusFilter)}
+              >
+                <SelectTrigger className="w-36" aria-label="Filter by status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUS_FILTER_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             <span className="text-muted-foreground ml-auto text-sm tabular-nums">
               {countLabel}
-              {outstandingCents > 0 && ` · ${formatCents(outstandingCents)} outstanding`}
+              {modules.payments &&
+                outstandingCents > 0 &&
+                ` · ${formatCents(outstandingCents)} outstanding`}
             </span>
           </div>
           {emptyMessage ? (
@@ -126,7 +137,9 @@ export function InvoicesList() {
                   <th className="pr-4 pb-2 font-medium">Issued</th>
                   <th className="pr-4 pb-2 font-medium">Due</th>
                   <th className="pr-4 pb-2 text-right font-medium">Total</th>
-                  <th className="pr-4 pb-2 text-right font-medium">Balance</th>
+                  {modules.payments && (
+                    <th className="pr-4 pb-2 text-right font-medium">Balance</th>
+                  )}
                   <th className="pb-2 text-right font-medium">Status</th>
                 </tr>
               </thead>
@@ -160,11 +173,13 @@ export function InvoicesList() {
                       <td className="py-3 pr-4 text-right tabular-nums">
                         {formatCents(invoice.totalCents)}
                       </td>
-                      <td className="py-3 pr-4 text-right tabular-nums">
-                        {balance > 0 ? formatCents(balance) : "—"}
-                      </td>
+                      {modules.payments && (
+                        <td className="py-3 pr-4 text-right tabular-nums">
+                          {balance > 0 ? formatCents(balance) : "—"}
+                        </td>
+                      )}
                       <td className="py-3 text-right">
-                        <InvoiceStatusBadge status={status} />
+                        {status && <InvoiceStatusBadge status={status} />}
                       </td>
                     </tr>
                   );

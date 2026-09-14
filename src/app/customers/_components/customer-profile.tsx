@@ -23,7 +23,7 @@ interface CustomerProfileProps {
 }
 
 /**
- * A customer's contact details and what they owe. The open-invoice table is
+ * A customer's contact details and, with Payments on, what they owe. The open-invoice table is
  * read-only until "Record payment" switches it into a selection mode, so the
  * page reads as a view first and only acts on intent — like the Edit button.
  */
@@ -31,10 +31,8 @@ export function CustomerProfile({ customer }: CustomerProfileProps) {
   const router = useRouter();
   const utils = api.useUtils();
   const [invoices] = api.invoice.list.useSuspenseQuery();
-  const modules = api.settings.modules.useQuery();
-  const tiers = api.tier.list.useQuery(undefined, {
-    enabled: modules.data?.tieredPricing === true,
-  });
+  const [modules] = api.settings.modules.useSuspenseQuery();
+  const tiers = api.tier.list.useQuery(undefined, { enabled: modules.tieredPricing });
   const [recording, setRecording] = useState(false);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
 
@@ -93,7 +91,7 @@ export function CustomerProfile({ customer }: CustomerProfileProps) {
     { label: "Email", value: customer.email },
     { label: "Billing address", value: formatAddressOneLine(customer.billingAddress) },
     { label: "Delivery address", value: formatAddressOneLine(customer.deliveryAddress) },
-    ...(modules.data?.tieredPricing ? [{ label: "Tier", value: tierName }] : []),
+    ...(modules.tieredPricing ? [{ label: "Tier", value: tierName }] : []),
   ];
 
   return (
@@ -131,107 +129,111 @@ export function CustomerProfile({ customer }: CustomerProfileProps) {
             </dl>
           </section>
 
-          <section>
-            <div className="mb-4 flex items-baseline justify-between gap-4">
-              <div>
-                <h2 className="font-medium">Balance owed</h2>
-                <p className="text-muted-foreground text-sm">
-                  {openInvoices.length === 0
-                    ? "Nothing owing."
-                    : `${openInvoices.length} open invoice${openInvoices.length === 1 ? "" : "s"}`}
-                </p>
+          {modules.payments && (
+            <section>
+              <div className="mb-4 flex items-baseline justify-between gap-4">
+                <div>
+                  <h2 className="font-medium">Balance owed</h2>
+                  <p className="text-muted-foreground text-sm">
+                    {openInvoices.length === 0
+                      ? "Nothing owing."
+                      : `${openInvoices.length} open invoice${openInvoices.length === 1 ? "" : "s"}`}
+                  </p>
+                </div>
+                <span className="text-2xl font-semibold tabular-nums">
+                  {formatCents(owedCents)}
+                </span>
               </div>
-              <span className="text-2xl font-semibold tabular-nums">{formatCents(owedCents)}</span>
-            </div>
-            {openInvoices.length > 0 && (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-muted-foreground border-b text-left text-xs">
-                    {recording && (
-                      <th className="w-8 pb-2">
-                        <Checkbox
-                          aria-label="Select all open invoices"
-                          checked={
-                            allSelected
-                              ? true
-                              : selectedInvoices.length > 0
-                                ? "indeterminate"
-                                : false
-                          }
-                          onCheckedChange={toggleAll}
-                        />
-                      </th>
-                    )}
-                    <th className="pr-4 pb-2 font-medium">Invoice</th>
-                    <th className="pr-4 pb-2 font-medium">Issued</th>
-                    <th className="pr-4 pb-2 font-medium">Due</th>
-                    <th className="pr-4 pb-2 text-right font-medium">Total</th>
-                    <th className="pr-4 pb-2 text-right font-medium">Balance</th>
-                    <th className="pb-2 text-right font-medium">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {openInvoices.map((invoice) => {
-                    const checked = recording && selected.has(invoice.id);
+              {openInvoices.length > 0 && (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-muted-foreground border-b text-left text-xs">
+                      {recording && (
+                        <th className="w-8 pb-2">
+                          <Checkbox
+                            aria-label="Select all open invoices"
+                            checked={
+                              allSelected
+                                ? true
+                                : selectedInvoices.length > 0
+                                  ? "indeterminate"
+                                  : false
+                            }
+                            onCheckedChange={toggleAll}
+                          />
+                        </th>
+                      )}
+                      <th className="pr-4 pb-2 font-medium">Invoice</th>
+                      <th className="pr-4 pb-2 font-medium">Issued</th>
+                      <th className="pr-4 pb-2 font-medium">Due</th>
+                      <th className="pr-4 pb-2 text-right font-medium">Total</th>
+                      <th className="pr-4 pb-2 text-right font-medium">Balance</th>
+                      <th className="pb-2 text-right font-medium">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {openInvoices.map((invoice) => {
+                      const checked = recording && selected.has(invoice.id);
 
-                    return (
-                      <tr
-                        key={invoice.id}
-                        className={cn(
-                          "hover:bg-muted/50 cursor-pointer border-b transition-colors last:border-0",
-                          checked && "bg-muted/30",
-                        )}
-                        // Outside the mode a row opens the invoice, like every other list.
-                        onClick={() =>
-                          recording
-                            ? toggle(invoice.id)
-                            : router.push(`/invoices/${invoice.id}/edit`)
-                        }
-                      >
-                        {recording && (
-                          <td className="py-3">
-                            <Checkbox
-                              aria-label={`Select ${invoice.invoiceNumber}`}
-                              checked={checked}
-                              onCheckedChange={() => toggle(invoice.id)}
+                      return (
+                        <tr
+                          key={invoice.id}
+                          className={cn(
+                            "hover:bg-muted/50 cursor-pointer border-b transition-colors last:border-0",
+                            checked && "bg-muted/30",
+                          )}
+                          // Outside the mode a row opens the invoice, like every other list.
+                          onClick={() =>
+                            recording
+                              ? toggle(invoice.id)
+                              : router.push(`/invoices/${invoice.id}/edit`)
+                          }
+                        >
+                          {recording && (
+                            <td className="py-3">
+                              <Checkbox
+                                aria-label={`Select ${invoice.invoiceNumber}`}
+                                checked={checked}
+                                onCheckedChange={() => toggle(invoice.id)}
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            </td>
+                          )}
+                          <td className="py-3 pr-4 font-medium whitespace-nowrap">
+                            {/* Real link inside the clickable row, for middle-click and keyboard users. */}
+                            <Link
+                              href={`/invoices/${invoice.id}/edit`}
+                              className="hover:underline"
                               onClick={(e) => e.stopPropagation()}
-                            />
+                            >
+                              {invoice.invoiceNumber}
+                            </Link>
                           </td>
-                        )}
-                        <td className="py-3 pr-4 font-medium whitespace-nowrap">
-                          {/* Real link inside the clickable row, for middle-click and keyboard users. */}
-                          <Link
-                            href={`/invoices/${invoice.id}/edit`}
-                            className="hover:underline"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {invoice.invoiceNumber}
-                          </Link>
-                        </td>
-                        <td className="text-muted-foreground py-3 pr-4 whitespace-nowrap">
-                          {formatIsoDate(invoice.issueDate)}
-                        </td>
-                        <td className="text-muted-foreground py-3 pr-4 whitespace-nowrap">
-                          {formatIsoDate(invoice.dueDate)}
-                        </td>
-                        <td className="py-3 pr-4 text-right tabular-nums">
-                          {formatCents(invoice.totalCents)}
-                        </td>
-                        <td className="py-3 pr-4 text-right tabular-nums">
-                          {formatCents(balanceCents(invoice))}
-                        </td>
-                        <td className="py-3 text-right">
-                          <InvoiceStatusBadge status={listStatus(invoice, today)} />
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-          </section>
+                          <td className="text-muted-foreground py-3 pr-4 whitespace-nowrap">
+                            {formatIsoDate(invoice.issueDate)}
+                          </td>
+                          <td className="text-muted-foreground py-3 pr-4 whitespace-nowrap">
+                            {formatIsoDate(invoice.dueDate)}
+                          </td>
+                          <td className="py-3 pr-4 text-right tabular-nums">
+                            {formatCents(invoice.totalCents)}
+                          </td>
+                          <td className="py-3 pr-4 text-right tabular-nums">
+                            {formatCents(balanceCents(invoice))}
+                          </td>
+                          <td className="py-3 text-right">
+                            <InvoiceStatusBadge status={listStatus(invoice, today)} />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </section>
+          )}
         </div>
-        {openInvoices.length > 0 && (
+        {modules.payments && openInvoices.length > 0 && (
           <div className="bg-card/95 sticky bottom-0 flex items-center justify-between gap-4 rounded-b-xl border-t px-8 py-4 backdrop-blur sm:px-10">
             {!recording ? (
               <Button className="ml-auto" onClick={startRecording}>

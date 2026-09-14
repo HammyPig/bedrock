@@ -27,6 +27,7 @@ export type SettingsSection = keyof typeof SECTION_FIELDS;
  */
 export function SettingsForm({ section }: { section: SettingsSection }) {
   const [initial] = api.settings.get.useSuspenseQuery();
+  const [modules] = api.settings.modules.useSuspenseQuery();
   const [settings, setSettings] = useState<BusinessSettings>(initial);
   /** Last-saved snapshot, reset to the server's canonical values after each save. */
   const [savedSettings, setSavedSettings] = useState<BusinessSettings>(initial);
@@ -68,7 +69,12 @@ export function SettingsForm({ section }: { section: SettingsSection }) {
   return (
     <div className="bg-card rounded-xl border shadow-sm">
       <div className="space-y-10 p-8 sm:p-10">
-        <Fields value={settings} onChange={patch} invoiceNumberTaken={invoiceNumberTaken} />
+        <Fields
+          value={settings}
+          onChange={patch}
+          invoiceNumberTaken={invoiceNumberTaken}
+          paymentsOn={modules.payments}
+        />
       </div>
       <SaveBar
         summary={dirty ? "Unsaved changes" : null}

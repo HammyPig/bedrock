@@ -20,6 +20,11 @@ export interface SettingsFieldsProps {
    * knows — a business being created has no invoices to check against.
    */
   invoiceNumberTaken?: boolean;
+  /**
+   * Whether the Payments module is on, which offers {balanceDue} to the email
+   * templates. A business being created starts with every module off.
+   */
+  paymentsOn?: boolean;
 }
 
 /** Name, tax ID, and contact details — the invoice header block. */
@@ -248,14 +253,16 @@ export function InvoiceAppearanceFields({
 }
 
 /** Subject and body templates for the email invoices are sent with. */
-export function InvoiceEmailFields({ value, onChange }: SettingsFieldsProps) {
+export function InvoiceEmailFields({ value, onChange, paymentsOn = false }: SettingsFieldsProps) {
   return (
     <section>
       <h2 className="mb-1 font-medium">Invoice email</h2>
       <p className="text-muted-foreground mb-4 text-sm">
         The email your customers receive when you send them an invoice — the PDF is attached
         automatically. Placeholders are filled in per invoice:{" "}
-        {EMAIL_TEMPLATE_PLACEHOLDERS.map((placeholder, i) => (
+        {EMAIL_TEMPLATE_PLACEHOLDERS.filter(
+          (placeholder) => paymentsOn || placeholder !== "balanceDue",
+        ).map((placeholder, i) => (
           <span key={placeholder}>
             {i > 0 && ", "}
             <code className="text-foreground">{`{${placeholder}}`}</code>

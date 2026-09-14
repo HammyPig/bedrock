@@ -6,7 +6,8 @@ import { Button } from "~/components/ui/button";
 import { formatCents } from "~/lib/money";
 
 interface StickyActionBarProps {
-  balanceCents: number;
+  /** The headline figure: the balance due, or the total while the Payments module is off. */
+  amount: { label: string; cents: number };
   autosaveStatus: "idle" | "saving" | "saved";
   saveError?: string;
   /** How many errors are shown against fields above; summarised rather than repeated. */
@@ -24,7 +25,7 @@ interface StickyActionBarProps {
 }
 
 export function StickyActionBar({
-  balanceCents,
+  amount,
   autosaveStatus,
   saveError,
   errorsAbove,
@@ -66,8 +67,8 @@ export function StickyActionBar({
         </p>
       )}
       <div className="flex items-center gap-3">
-        <span className="text-muted-foreground text-sm">Balance due</span>
-        <span className="font-semibold tabular-nums">{formatCents(balanceCents)}</span>
+        <span className="text-muted-foreground text-sm">{amount.label}</span>
+        <span className="font-semibold tabular-nums">{formatCents(amount.cents)}</span>
         {!locked && (
           <Button variant="outline" disabled={busy} onClick={onSave}>
             Save

@@ -468,6 +468,7 @@ export function InvoiceForm({
                 invoiceId={invoiceId}
                 isQuote={draft.isQuote}
                 payments={payments}
+                showPayments={modules.payments}
                 locked={locked}
                 dispatch={dispatch}
               />
@@ -475,7 +476,11 @@ export function InvoiceForm({
           </div>
         </FieldErrorsContext>
         <StickyActionBar
-          balanceCents={totals.balanceCents}
+          amount={
+            modules.payments
+              ? { label: "Balance due", cents: totals.balanceCents }
+              : { label: "Total", cents: totals.totalCents }
+          }
           autosaveStatus={saving ? "saving" : saved ? "saved" : "idle"}
           saveError={saveError}
           errorsAbove={errorsAbove}

@@ -13,7 +13,12 @@ import {
 import { type Invoice, type InvoiceDraft, type LineItem } from "~/app/invoices/_lib/types";
 import { centsSchema } from "~/lib/money";
 import { customerDetailsInput } from "~/server/api/routers/customer";
-import { assignNextInvoiceNumber, loadModules, loadSettings } from "~/server/api/routers/settings";
+import {
+  assignNextInvoiceNumber,
+  loadModules,
+  loadSettings,
+  paymentsProcedure,
+} from "~/server/api/routers/settings";
 import { businessProcedure, createTRPCRouter } from "~/server/api/trpc";
 import { sendInvoiceEmail } from "~/server/email";
 import { invoiceLineItems, invoices, payments } from "~/server/db/schema";
@@ -112,7 +117,7 @@ const invoiceWith = {
   payments: { orderBy: [asc(payments.paidDate), asc(payments.createdAt)] },
 };
 
-function toInvoice(row: InvoiceRow): Invoice {
+function toInvoice(row: InvoiceRow, paymentsOn: boolean): Invoice {
   return {
     id: row.id,
     draft: {
@@ -140,11 +145,15 @@ function toInvoice(row: InvoiceRow): Invoice {
       deliveryTaxBasisPoints: row.deliveryTaxBasisPoints,
       notes: row.notes,
     },
-    payments: row.payments.map((payment) => ({
-      id: payment.id,
-      amountCents: payment.amountCents,
-      paidDate: payment.paidDate,
-    })),
+    // With the module off, payments stay out of every read so balances, the
+    // PDF and the email all fall back to the invoice's total.
+    payments: paymentsOn
+      ? row.payments.map((payment) => ({
+          id: payment.id,
+          amountCents: payment.amountCents,
+          paidDate: payment.paidDate,
+        }))
+      : [],
   };
 }
 
@@ -183,11 +192,12 @@ async function assertModulesOn(db: typeof database, businessId: string, lineItem
 
 export const invoiceRouter = createTRPCRouter({
   list: businessProcedure.query(async ({ ctx }) => {
+    const modules = await loadModules(ctx.db, ctx.businessId);
     const rows = await ctx.db.query.invoices.findMany({
       where: eq(invoices.businessId, ctx.businessId),
       with: invoiceWith,
     });
-    return rows.map(toInvoice);
+    return rows.map((row) => toInvoice(row, modules.payments));
   }),
 
   get: businessProcedure.input(z.object({ id: z.string() })).query(async ({ ctx, input }) => {
@@ -195,7 +205,9 @@ export const invoiceRouter = createTRPCRouter({
       where: and(eq(invoices.id, input.id), eq(invoices.businessId, ctx.businessId)),
       with: invoiceWith,
     });
-    return row ? toInvoice(row) : null;
+    if (!row) return null;
+    const modules = await loadModules(ctx.db, ctx.businessId);
+    return toInvoice(row, modules.payments);
   }),
 
   create: businessProcedure.input(createInput).mutation(async ({ ctx, input }) => {
@@ -241,7 +253,7 @@ export const invoiceRouter = createTRPCRouter({
     }),
 
   /** Records a payment received against an invoice. */
-  addPayment: businessProcedure
+  addPayment: paymentsProcedure
     .input(
       z.object({
         invoiceId: z.string(),
@@ -260,7 +272,7 @@ export const invoiceRouter = createTRPCRouter({
       return { id: created.id };
     }),
 
-  deletePayment: businessProcedure
+  deletePayment: paymentsProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const payment = await ctx.db.query.payments.findFirst({
@@ -275,7 +287,7 @@ export const invoiceRouter = createTRPCRouter({
     }),
 
   /** Records each invoice's remaining balance as a payment — the bulk "customer paid up" action. */
-  recordFullPayments: businessProcedure
+  recordFullPayments: paymentsProcedure
     .input(z.object({ invoiceIds: z.array(z.string()).min(1).max(500), paidDate: isoDate }))
     .mutation(async ({ ctx, input }) => {
       const rows = await ctx.db.query.invoices.findMany({
@@ -307,7 +319,8 @@ export const invoiceRouter = createTRPCRouter({
       });
       if (!row) throw new TRPCError({ code: "NOT_FOUND" });
 
-      const invoice = toInvoice(row);
+      const modules = await loadModules(ctx.db, ctx.businessId);
+      const invoice = toInvoice(row, modules.payments);
       const to = invoice.draft.customerDetails.email.trim();
       if (to === "") {
         throw new TRPCError({

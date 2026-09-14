@@ -17,6 +17,7 @@ export default async function CustomersPage() {
 
   void api.customer.list.prefetch();
   void api.invoice.list.prefetch();
+  void api.settings.modules.prefetch();
 
   return (
     <HydrateClient>
