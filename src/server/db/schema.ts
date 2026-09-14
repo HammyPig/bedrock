@@ -315,9 +315,8 @@ export const vendors = createTable(
  * snapshot taken at invoice time, so editing a customer never rewrites their
  * old invoices; customerId is a required FK to the customer billed, restricted
  * on delete so invoice history can't be orphaned. Due date, status, and totals
- * stay derived — never stored. The *Cents columns are the exception: every
- * percent on the invoice is banked as the integer cents it worked out to, so
- * the money on a saved invoice never depends on re-running the math.
+ * stay derived — never stored — and so do the cents a rate works out to: the
+ * only discount cents kept are a fixed discount's amount.
  */
 export const invoices = createTable(
   "invoice",
@@ -345,12 +344,10 @@ export const invoices = createTable(
     customDueDate: d.date({ mode: "string" }),
     /** Rates are basis points — hundredths of a percent — so no rate is a float. 10% is 1000. */
     discountBasisPoints: d.integer().notNull(),
-    /** What the discount came to; 0 when none was given. */
+    /** A fixed discount's amount; 0 otherwise — a percent discount's cents come from its rate. */
     discountCents: d.integer().notNull(),
     deliveryCents: d.integer().notNull(),
     deliveryTaxBasisPoints: d.integer().notNull(),
-    /** GST included in the total, worked out once for the whole invoice (ATO total invoice rule). */
-    taxCents: d.integer().notNull(),
     notes: d.text().notNull(),
     createdAt: d
       .timestamp({ withTimezone: true })
@@ -421,7 +418,6 @@ export const invoiceLineItems = createTable(
     unitPriceCents: d.integer().notNull(),
     /** The discount asked for, in basis points; 0 when the line has none. */
     discountBasisPoints: d.integer().notNull(),
-    discountCents: d.integer().notNull(),
     /** The GST rate the price includes, at the business's rate when the line was written. */
     taxBasisPoints: d.integer().notNull(),
     backordered: d.boolean().notNull().default(false),
@@ -492,12 +488,10 @@ export const purchaseOrders = createTable(
     expectedDate: d.date({ mode: "string" }),
     /** Rates are basis points — hundredths of a percent — so no rate is a float. 10% is 1000. */
     discountBasisPoints: d.integer().notNull(),
-    /** What the discount came to; 0 when none was given. */
+    /** A fixed discount's amount; 0 otherwise — a percent discount's cents come from its rate. */
     discountCents: d.integer().notNull(),
     deliveryCents: d.integer().notNull(),
     deliveryTaxBasisPoints: d.integer().notNull(),
-    /** GST included in the total, worked out once for the whole order (ATO total invoice rule). */
-    taxCents: d.integer().notNull(),
     notes: d.text().notNull(),
     createdAt: d
       .timestamp({ withTimezone: true })

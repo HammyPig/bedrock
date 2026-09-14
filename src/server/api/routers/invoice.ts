@@ -5,10 +5,11 @@ import { z } from "zod";
 import { lockingModules } from "~/app/invoices/_lib/invoice";
 import {
   basisPointsSchema,
-  computeBreakdown,
   computeTotals,
   paymentsTotalCents,
   quantityMilliSchema,
+  resolveDiscount,
+  storedDiscountCents,
 } from "~/app/invoices/_lib/money";
 import { type Invoice, type InvoiceDraft, type LineItem } from "~/app/invoices/_lib/types";
 import { centsSchema } from "~/lib/money";
@@ -73,32 +74,25 @@ const draftInput = z.object({
 const createInput = draftInput.omit({ invoiceNumber: true });
 
 /**
- * The rows a draft is stored as. Every cents figure is derived here from the
- * percents the client sent rather than taken from it, so what is banked can
- * never disagree with what it was worked out from.
+ * The rows a draft is stored as: rates and amounts as they were asked for, never
+ * the cents worked out from them, so nothing stored can disagree with the totals.
  */
 function toRows(draft: z.infer<typeof draftInput>) {
-  const breakdown = computeBreakdown(draft);
   const { lineItems, discount, ...columns } = draft;
   return {
     columns: {
       ...columns,
-      discountCents: breakdown.discountCents,
+      discountCents: storedDiscountCents(discount, lineItems),
       discountBasisPoints: discount?.basisPoints ?? 0,
-      taxCents: breakdown.totals.taxCents,
     },
-    lineItems: lineItems.map((line, position) => ({
-      ...line,
-      position,
-      discountCents: breakdown.lines[position]?.discountCents ?? 0,
-    })),
+    lineItems: lineItems.map((line, position) => ({ ...line, position })),
   };
 }
 
 /**
- * The stored discount, or null when none was given. Cents is always written, so
- * a discount exists when it came to something or when a rate was recorded —
- * a discount of exactly nothing is not one worth keeping.
+ * The stored discount, or null when none was given. A percent discount is stored
+ * as its rate and a fixed one as its amount, so a discount exists when either is
+ * set — a discount of exactly nothing is not one worth keeping.
  */
 function rowDiscount(row: { discountCents: number; discountBasisPoints: number }) {
   return row.discountCents > 0 || row.discountBasisPoints > 0
@@ -140,7 +134,8 @@ function toInvoice(row: InvoiceRow, paymentsOn: boolean): Invoice {
         taxBasisPoints: line.taxBasisPoints,
         backordered: line.backordered,
       })),
-      discount: rowDiscount(row),
+      // A percent discount is stored without its cents, so they're filled back in.
+      discount: resolveDiscount(rowDiscount(row), row.lineItems),
       deliveryCents: row.deliveryCents,
       deliveryTaxBasisPoints: row.deliveryTaxBasisPoints,
       notes: row.notes,

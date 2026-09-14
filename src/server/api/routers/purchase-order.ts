@@ -2,7 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { and, asc, eq, ne } from "drizzle-orm";
 import { z } from "zod";
 
-import { basisPointsSchema, computeBreakdown } from "~/app/invoices/_lib/money";
+import { basisPointsSchema, resolveDiscount, storedDiscountCents } from "~/app/invoices/_lib/money";
 import { type PurchaseOrder, type PurchaseOrderDraft } from "~/app/purchase-orders/_lib/types";
 import { centsSchema } from "~/lib/money";
 import { isoDate, lineItemBaseInput } from "~/server/api/routers/invoice";
@@ -37,25 +37,23 @@ const draftInput = z.object({
   notes: z.string(),
 }) satisfies z.ZodType<PurchaseOrderDraft>;
 
-/** Mirrors the invoice router: the cents are derived here, never taken from the client. */
+/** Mirrors the invoice router: what was asked for, never the cents worked out from it. */
 function toRows(draft: z.infer<typeof draftInput>) {
-  const breakdown = computeBreakdown(draft);
   const { lineItems, discount, ...columns } = draft;
   return {
     columns: {
       ...columns,
-      discountCents: breakdown.discountCents,
+      discountCents: storedDiscountCents(discount, lineItems),
       discountBasisPoints: discount?.basisPoints ?? 0,
-      taxCents: breakdown.totals.taxCents,
     },
     lineItems: lineItems.map((line, position) => ({ ...line, position })),
   };
 }
 
 /**
- * The stored discount, or null when none was given. Cents is always written, so
- * a discount exists when it came to something or when a rate was recorded —
- * a discount of exactly nothing is not one worth keeping.
+ * The stored discount, or null when none was given. A percent discount is stored
+ * as its rate and a fixed one as its amount, so a discount exists when either is
+ * set — a discount of exactly nothing is not one worth keeping.
  */
 function rowDiscount(row: { discountCents: number; discountBasisPoints: number }) {
   return row.discountCents > 0 || row.discountBasisPoints > 0
@@ -84,7 +82,8 @@ function toPurchaseOrder(row: PurchaseOrderRow): PurchaseOrder {
         unitPriceCents: line.unitPriceCents,
         taxBasisPoints: line.taxBasisPoints,
       })),
-      discount: rowDiscount(row),
+      // A percent discount is stored without its cents, so they're filled back in.
+      discount: resolveDiscount(rowDiscount(row), row.lineItems),
       deliveryCents: row.deliveryCents,
       deliveryTaxBasisPoints: row.deliveryTaxBasisPoints,
       notes: row.notes,

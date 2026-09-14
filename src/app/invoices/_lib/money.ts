@@ -46,21 +46,6 @@ interface TaxableDocument {
   deliveryTaxBasisPoints: number;
 }
 
-/** The cents a single line contributes, each derived from a percent on the line. */
-export interface LineBreakdown {
-  discountCents: number;
-  subtotalCents: number;
-}
-
-/** Every cents figure a document records, derived from the percents it stores. */
-export interface Breakdown {
-  lines: LineBreakdown[];
-  /** The document-level discount, in cents — for a percent discount and a
-   * fixed one alike, so what was taken off is recorded either way. */
-  discountCents: number;
-  totals: Totals;
-}
-
 /** The lines' combined subtotal, before any document-level discount. */
 export function subtotalCents(lineItems: PricedLine[]): number {
   return lineItems.reduce((sum, item) => sum + lineItemSubtotalCents(item), 0);
@@ -99,18 +84,22 @@ export function resolveDiscount(
   return amountCents === discount.amountCents ? discount : { ...discount, amountCents };
 }
 
+/**
+ * The discount cents a document stores: a fixed discount's amount, and nothing
+ * for a percent one, whose cents are worked out from its rate whenever it's read.
+ */
+export function storedDiscountCents(discount: Discount | null, lineItems: PricedLine[]): number {
+  return discount === null || discountMode(discount) === "percent"
+    ? 0
+    : discountAmountCents(discount, subtotalCents(lineItems));
+}
+
 /** Line subtotal: qty x unit price, less the per-line discount. */
 export function lineItemSubtotalCents(item: PricedLine): number {
   // Divided down to cents before the rate is applied: the product of two
   // integers is exact, and only this last step rounds.
   const grossCents = (item.quantityMilli * item.unitPriceCents) / MILLI_PER_UNIT;
   return Math.round(grossCents * (1 - (item.discountBasisPoints ?? 0) / MAX_BASIS_POINTS));
-}
-
-/** What the per-line discount took off — the gap to the undiscounted line, so the two reconcile exactly. */
-export function lineItemDiscountCents(item: PricedLine): number {
-  const grossCents = Math.round((item.quantityMilli * item.unitPriceCents) / MILLI_PER_UNIT);
-  return grossCents - lineItemSubtotalCents(item);
 }
 
 /** The rate a document is written at; a fresh one with no lines falls back to its delivery rate. */
@@ -131,19 +120,19 @@ function includedTaxCents(amountCents: number, taxBasisPoints: number): number {
 }
 
 /**
- * Resolves a document's percents into the cents it stores. Prices include GST,
+ * Works out a document's totals from the rates it stores. Prices include GST,
  * so the total is the lines less the discount, plus delivery, and GST is the
  * part of that total which is tax. Lines and delivery each keep their own rate,
  * so the document discount is shared out over the lines before their GST is
  * taken; the GST is added up unrounded and rounded once for the whole document,
  * per the ATO's total invoice rule. With every rate at 10%, it is the total ÷ 11.
  */
-export function computeBreakdown(doc: TaxableDocument, paidCents = 0): Breakdown {
+export function computeTotals(doc: TaxableDocument, paidCents = 0): Totals {
   const lineSubtotals = doc.lineItems.map(lineItemSubtotalCents);
   const subtotal = lineSubtotals.reduce((sum, cents) => sum + cents, 0);
 
-  // Re-derived rather than read off the draft, so a client can't bank a
-  // discount that disagrees with the percent it claims to come from.
+  // Re-derived rather than read off the draft, so a percent discount can't come
+  // to cents that disagree with its rate.
   const discountCents = doc.discount === null ? 0 : discountAmountCents(doc.discount, subtotal);
 
   // What is left of each line once the document discount is shared out.
@@ -159,21 +148,10 @@ export function computeBreakdown(doc: TaxableDocument, paidCents = 0): Breakdown
   const totalCents = subtotal - discountCents + doc.deliveryCents;
 
   return {
-    lines: doc.lineItems.map((item, i) => ({
-      discountCents: lineItemDiscountCents(item),
-      subtotalCents: lineSubtotals[i] ?? 0,
-    })),
+    subtotalCents: subtotal,
     discountCents,
-    totals: {
-      subtotalCents: subtotal,
-      discountCents,
-      taxCents,
-      totalCents,
-      balanceCents: totalCents - paidCents,
-    },
+    taxCents,
+    totalCents,
+    balanceCents: totalCents - paidCents,
   };
-}
-
-export function computeTotals(doc: TaxableDocument, paidCents = 0): Totals {
-  return computeBreakdown(doc, paidCents).totals;
 }
