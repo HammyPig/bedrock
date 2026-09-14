@@ -51,6 +51,12 @@ function savedCustomers() {
   });
 }
 
+function savedInvoices() {
+  return testDb.query.invoices.findMany({
+    where: eq(schema.invoices.businessId, TEST_BUSINESS_ID),
+  });
+}
+
 function payableInvoice() {
   return seedInvoice(draft({ invoiceNumber: "INV-0900", lineItems: [line()] }));
 }
@@ -957,11 +963,7 @@ test.describe("the action bar", () => {
 
     await saveInvoice(page).click();
     await expect(saveStatus(page)).toHaveText("Fix 2 fields above");
-    expect(
-      await testDb.query.invoices.findMany({
-        where: eq(schema.invoices.businessId, TEST_BUSINESS_ID),
-      }),
-    ).toEqual([]);
+    expect(await savedInvoices()).toEqual([]);
 
     await fillAndCommit(page.getByLabel("Delivery", { exact: true }), "5");
     await expect(saveStatus(page)).toHaveText("Fix the field above");
@@ -970,6 +972,31 @@ test.describe("the action bar", () => {
 
     await saveNewInvoice(page);
     await expect(page.getByLabel("Line 1 quantity")).toHaveValue("1.5");
+  });
+
+  test("saving is refused if no customer is assigned", async ({ page }) => {
+    await gotoNewInvoice(page);
+    await page.getByLabel("Line 1 name").fill("Callout fee");
+
+    await saveInvoice(page).click();
+    await expect(saveStatus(page)).toHaveText("Fix the field above");
+    await expect(page.getByText("Select a customer to bill.")).toBeVisible();
+    await expect(page).toHaveURL(/\/invoices\/new$/);
+    expect(await savedInvoices()).toEqual([]);
+  });
+
+  test("saving a new invoice creates it and opens it", async ({ page }) => {
+    const customer = await seedCustomer(CUSTOMERS.acme);
+    await gotoNewInvoice(page);
+    await fillMinimalInvoice(page, /Priya Nair/);
+
+    await saveInvoice(page).click();
+    await page.waitForURL(/\/invoices\/[^/]+\/edit$/);
+
+    const invoices = await savedInvoices();
+    expect(invoices).toMatchObject([{ customerId: customer.id }]);
+    expect(page.url()).toMatch(new RegExp(`/invoices/${invoices[0]?.id}/edit$`));
+    await expect(page.getByLabel("Line 1 name")).toHaveValue("Callout fee");
   });
 
   test.describe("exporting the invoice", () => {
