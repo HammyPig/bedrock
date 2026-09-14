@@ -126,30 +126,19 @@ function includedTaxCents(amountCents: number, taxBasisPoints: number): number {
 /**
  * Works out a document's totals from the rates it stores. Prices include GST,
  * so the total is the lines less the discount, plus delivery, and GST is the
- * part of that total which is tax. Lines and delivery each keep their own rate,
- * so the document discount is shared out over the lines before their GST is
- * taken; the GST is added up unrounded and rounded once for the whole document,
- * per the ATO's total invoice rule. With every rate at 10%, it is the total ÷ 11.
+ * part of that total which is tax. A document is taxed at a single rate — 10%
+ * when the business is registered for GST, otherwise nothing — so GST is taken
+ * once from the whole total: the total ÷ 11 at 10%.
  */
 export function computeTotals(doc: TaxableDocument, paidCents = 0): Totals {
-  const lineSubtotals = doc.lineItems.map(lineItemSubtotalCents);
-  const subtotal = lineSubtotals.reduce((sum, cents) => sum + cents, 0);
+  const subtotal = subtotalCents(doc.lineItems);
 
   // Re-derived rather than read off the draft, so a percent discount can't come
   // to cents that disagree with its rate.
   const discountCents = doc.discount === null ? 0 : discountAmountCents(doc.discount, subtotal);
 
-  // What is left of each line once the document discount is shared out.
-  const keptShare = subtotal === 0 ? 0 : (subtotal - discountCents) / subtotal;
-  const lineTax = doc.lineItems.reduce(
-    (sum, item, i) =>
-      sum + includedTaxCents((lineSubtotals[i] ?? 0) * keptShare, item.taxBasisPoints),
-    0,
-  );
-  const taxCents = Math.round(
-    lineTax + includedTaxCents(doc.deliveryCents, doc.deliveryTaxBasisPoints),
-  );
   const totalCents = subtotal - discountCents + doc.deliveryCents;
+  const taxCents = Math.round(includedTaxCents(totalCents, documentTaxBasisPoints(doc)));
 
   return {
     subtotalCents: subtotal,
