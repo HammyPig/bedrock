@@ -910,7 +910,7 @@ test.describe("balance section", verified("2026-09-14"), () => {
   });
 });
 
-test.describe("amount fields", () => {
+test.describe("amount field errors", () => {
   test("the error follows the text as it is corrected", async ({ page }) => {
     await gotoNewInvoice(page);
     const quantity = page.getByLabel("Line 1 quantity");
@@ -940,8 +940,15 @@ test.describe("amount fields", () => {
     await expect(page.getByText(/^Line 2 quantity:/)).toBeHidden();
     await expect(saveStatus(page)).toHaveText("Draft");
   });
+});
 
-  test("the invoice will not save until every one is fixed", async ({ page }) => {
+test.describe("the action bar", () => {
+  test("a new invoice is a draft", async ({ page }) => {
+    await gotoNewInvoice(page);
+    await expect(saveStatus(page)).toHaveText("Draft");
+  });
+
+  test("saving is refused if an error is present", async ({ page }) => {
     await seedCustomer(CUSTOMERS.acme);
     await gotoNewInvoice(page);
     await fillMinimalInvoice(page, /Priya Nair/);
@@ -963,13 +970,6 @@ test.describe("amount fields", () => {
 
     await saveNewInvoice(page);
     await expect(page.getByLabel("Line 1 quantity")).toHaveValue("1.5");
-  });
-});
-
-test.describe("the action bar", () => {
-  test("a new invoice is a draft", async ({ page }) => {
-    await gotoNewInvoice(page);
-    await expect(saveStatus(page)).toHaveText("Draft");
   });
 
   test.describe("exporting the invoice", () => {
