@@ -42,7 +42,11 @@ export function ItemSidebar() {
   }, []);
 
   return (
-    <Sidebar backHref="/items" backLabel="All items">
+    <Sidebar
+      backHref="/items"
+      backLabel="All items"
+      newLink={{ href: "/items/new", label: "New item" }}
+    >
       <div ref={rootRef}>
         <Command shouldFilter={false} className="bg-card border shadow-sm">
           <CommandInput placeholder="Search items..." value={query} onValueChange={setQuery} />
