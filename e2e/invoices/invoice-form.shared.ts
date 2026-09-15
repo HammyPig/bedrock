@@ -158,9 +158,9 @@ export function invoiceFormTests(form: InvoiceFormRoute) {
       });
 
       /**
-       * A customer needs only one of company, name, email or phone, so anywhere one
-       * is shown has to cope with the other three being blank. Named prioritised in
-       * that order
+       * A customer needs only one of name, company, email or phone, so anywhere one
+       * is shown has to cope with the other three being blank. They are named by
+       * the first they have, in that order.
        */
       test("a customer is named by the first identity they have", async ({ page }) => {
         await seedCustomer(CUSTOMERS.acme);

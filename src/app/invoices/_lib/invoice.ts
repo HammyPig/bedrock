@@ -178,7 +178,7 @@ export function customerDetailsHasContent(customerDetails: CustomerDetails): boo
  * other. This is exactly the set the customer picker searches, which is the
  * point: a customer exists if you could find them again. An address cannot.
  */
-export const IDENTITY_FIELDS = ["name", "company", "phone", "email"] as const;
+export const IDENTITY_FIELDS = ["name", "company", "email", "phone"] as const;
 
 type Identity = Pick<Customer, (typeof IDENTITY_FIELDS)[number]>;
 
