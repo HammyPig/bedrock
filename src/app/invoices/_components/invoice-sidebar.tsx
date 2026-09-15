@@ -65,7 +65,11 @@ export function InvoiceSidebar() {
   }, []);
 
   return (
-    <Sidebar backHref="/invoices" backLabel="All invoices">
+    <Sidebar
+      backHref="/invoices"
+      backLabel="All invoices"
+      newLink={{ href: "/invoices/new", label: "New invoice" }}
+    >
       <div ref={rootRef}>
         <Command shouldFilter={false} className="bg-card border shadow-sm">
           <CommandInput placeholder="Search invoices..." value={query} onValueChange={setQuery} />

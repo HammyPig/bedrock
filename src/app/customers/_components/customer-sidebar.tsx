@@ -47,7 +47,11 @@ export function CustomerSidebar() {
   }, []);
 
   return (
-    <Sidebar backHref="/customers" backLabel="All customers">
+    <Sidebar
+      backHref="/customers"
+      backLabel="All customers"
+      newLink={{ href: "/customers/new", label: "New customer" }}
+    >
       <div ref={rootRef}>
         <Command shouldFilter={false} className="bg-card border shadow-sm">
           <CommandInput placeholder="Search customers..." value={query} onValueChange={setQuery} />
