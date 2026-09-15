@@ -308,6 +308,20 @@ test.describe("the action bar", () => {
   });
 });
 
+test.describe("the sidebar", () => {
+  // It only shows at xl (1280px) and up; Desktop Chrome sits exactly on that line.
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test("starts a new invoice", async ({ page }) => {
+    await gotoEditInvoice(page, await loadedInvoice());
+
+    await page.getByRole("link", { name: "New invoice" }).click();
+
+    await expect(page).toHaveURL(/\/invoices\/new$/);
+    await expect(page.getByRole("heading", { name: "New invoice" })).toBeVisible();
+  });
+});
+
 test.describe("exporting the invoice", verified("2026-09-14"), () => {
   async function exportPdf(page: Page) {
     const download = page.waitForEvent("download");
