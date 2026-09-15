@@ -70,7 +70,7 @@ export function savedInvoices() {
 
 /** A $200 line with 25% off and $20 delivery: $170.00 in total, $15.45 of it GST. */
 export async function fillTotalsExample(page: Page) {
-  await page.getByLabel("Line 1 name").fill("Widget");
+  await replaceText(page.getByLabel("Line 1 name"), "Widget");
   await fillAndCommit(page.getByLabel("Line 1 unit price"), "200");
   await totalsPanel(page).getByRole("button", { name: "Add discount" }).click();
   await fillAndCommit(page.getByLabel("Discount percent"), "25");
@@ -258,7 +258,7 @@ export function invoiceFormTests(form: InvoiceFormRoute) {
           const before = await savedCustomers();
           await startNewCustomer(page, "Kelly Brooks");
           await customerDetailsField(page, "Company").fill("Brooks Joinery");
-          await page.getByLabel("Line 1 name").fill("Callout fee");
+          await replaceText(page.getByLabel("Line 1 name"), "Callout fee");
           await fillAndCommit(page.getByLabel("Line 1 unit price"), "150.00");
 
           expect(await customersAddedSince(before)).toEqual([]);
@@ -375,7 +375,7 @@ export function invoiceFormTests(form: InvoiceFormRoute) {
         const before = await savedCustomers();
         await startNewCustomer(page);
 
-        await page.getByLabel("Line 1 name").fill("Callout fee");
+        await replaceText(page.getByLabel("Line 1 name"), "Callout fee");
         await saveInvoice(page).click();
 
         await expect(page.getByText("Select a customer to bill.")).toBeVisible();
@@ -625,7 +625,7 @@ export function invoiceFormTests(form: InvoiceFormRoute) {
         await seedCatalog();
         await form.open(page);
 
-        await page.getByLabel("Line 1 name").fill("Emergency callout, after hours");
+        await replaceText(page.getByLabel("Line 1 name"), "Emergency callout, after hours");
         await fillAndCommit(page.getByLabel("Line 1 quantity"), "2");
         await fillAndCommit(page.getByLabel("Line 1 unit price"), "185");
 
@@ -652,7 +652,7 @@ export function invoiceFormTests(form: InvoiceFormRoute) {
         await seedCatalog();
         await form.open(page);
 
-        await page.getByLabel("Line 1 name").fill("Labour");
+        await replaceText(page.getByLabel("Line 1 name"), "Labour");
         await page.getByRole("button", { name: /Labour \(per hour\)/ }).click();
 
         await expect(page.getByLabel("Line 1 SKU")).toHaveValue("LAB-HR");
@@ -665,7 +665,7 @@ export function invoiceFormTests(form: InvoiceFormRoute) {
 
         await page.getByLabel("Line 1 SKU").fill("LAB-HR");
         await page.getByRole("button", { name: /Labour \(per hour\)/ }).click();
-        await page.getByLabel("Line 1 name").fill("Labour, weekend rate");
+        await replaceText(page.getByLabel("Line 1 name"), "Labour, weekend rate");
         await fillAndCommit(page.getByLabel("Line 1 unit price"), "180");
         await expect(page.getByLabel("Line 1 unit price")).toHaveValue("$180.00");
 
@@ -681,7 +681,7 @@ export function invoiceFormTests(form: InvoiceFormRoute) {
       test("the line subtotal follows quantity and price", async ({ page }) => {
         await form.open(page);
 
-        await page.getByLabel("Line 1 name").fill("Copper pipe");
+        await replaceText(page.getByLabel("Line 1 name"), "Copper pipe");
         await fillAndCommit(page.getByLabel("Line 1 unit price"), "10.50");
         await fillAndCommit(page.getByLabel("Line 1 quantity"), "3");
         await expect(lineSubtotal(page, 1)).toHaveText("$31.50");
@@ -693,7 +693,7 @@ export function invoiceFormTests(form: InvoiceFormRoute) {
       test("the line subtotal is calculated, never typed", async ({ page }) => {
         await form.open(page);
 
-        await page.getByLabel("Line 1 name").fill("Copper pipe");
+        await replaceText(page.getByLabel("Line 1 name"), "Copper pipe");
         await fillAndCommit(page.getByLabel("Line 1 quantity"), "2");
         await fillAndCommit(page.getByLabel("Line 1 unit price"), "60");
 
@@ -758,7 +758,7 @@ export function invoiceFormTests(form: InvoiceFormRoute) {
       test("a line can be removed", async ({ page }) => {
         await form.open(page);
 
-        await page.getByLabel("Line 1 name").fill("First");
+        await replaceText(page.getByLabel("Line 1 name"), "First");
         await page.getByRole("button", { name: "Add item" }).click();
         await page.getByLabel("Line 2 name").fill("Second");
         await page.getByRole("button", { name: "Remove line 1" }).click();
@@ -778,7 +778,7 @@ export function invoiceFormTests(form: InvoiceFormRoute) {
         test.fixme();
         await form.open(page);
 
-        await page.getByLabel("Line 1 name").fill("First");
+        await replaceText(page.getByLabel("Line 1 name"), "First");
         await page.getByRole("button", { name: "Add item" }).click();
         await page.getByLabel("Line 2 name").fill("Second");
 
@@ -799,7 +799,7 @@ export function invoiceFormTests(form: InvoiceFormRoute) {
 
       test("the subtotal is the sum of the line subtotals", async ({ page }) => {
         await form.open(page);
-        await page.getByLabel("Line 1 name").fill("Widget");
+        await replaceText(page.getByLabel("Line 1 name"), "Widget");
         await fillAndCommit(page.getByLabel("Line 1 quantity"), "2");
         await fillAndCommit(page.getByLabel("Line 1 unit price"), "100");
         await page.getByRole("button", { name: "Add item" }).click();
@@ -811,7 +811,7 @@ export function invoiceFormTests(form: InvoiceFormRoute) {
 
       test("a discount can be added", async ({ page }) => {
         await form.open(page);
-        await page.getByLabel("Line 1 name").fill("Widget");
+        await replaceText(page.getByLabel("Line 1 name"), "Widget");
         await fillAndCommit(page.getByLabel("Line 1 unit price"), "200");
         await expect(page.getByLabel("Discount percent")).toBeHidden();
 
@@ -823,7 +823,7 @@ export function invoiceFormTests(form: InvoiceFormRoute) {
 
       test("a discount is a percentage or an amount", async ({ page }) => {
         await form.open(page);
-        await page.getByLabel("Line 1 name").fill("Widget");
+        await replaceText(page.getByLabel("Line 1 name"), "Widget");
         await fillAndCommit(page.getByLabel("Line 1 unit price"), "200");
 
         await totalsPanel(page).getByRole("button", { name: "Add discount" }).click();

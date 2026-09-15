@@ -186,16 +186,19 @@ export function saveStatus(page: Page): Locator {
 /** Picks a customer and fills one line, the least an invoice needs to save. */
 export async function fillMinimalInvoice(page: Page, customerName: string | RegExp) {
   await pickCustomer(page, customerName);
-  await page.getByLabel("Line 1 name").fill("Callout fee");
+  await replaceText(page.getByLabel("Line 1 name"), "Callout fee");
   await fillAndCommit(page.getByLabel("Line 1 unit price"), "150.00");
 }
 
-/** The totals block, identified by the two lines that bracket it. */
+/**
+ * The totals block: the innermost element holding its Subtotal and Total lines.
+ * Not Balance due, which only shows while the Payments module is on.
+ */
 export function totalsPanel(page: Page): Locator {
   return page
     .locator("div")
     .filter({ has: page.getByText("Subtotal", { exact: true }) })
-    .filter({ has: page.getByText("Balance due", { exact: true }) })
+    .filter({ has: page.getByText("Total", { exact: true }) })
     .last();
 }
 
