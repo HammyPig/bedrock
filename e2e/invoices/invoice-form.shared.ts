@@ -11,6 +11,7 @@ import {
   customerDetailsFlash,
   customerDetailsSection,
   deliveryCheckbox,
+  dragLine,
   dueDateText,
   editedMenu,
   fillAndCommit,
@@ -770,19 +771,18 @@ export function invoiceFormTests(form: InvoiceFormRoute) {
         await expect(page.getByRole("button", { name: "Remove line 1" })).toBeEnabled();
       });
 
-      test("a line can be moved up and down", async ({ page }) => {
-        test.fixme();
+      test("a line can be dragged to a new place", async ({ page }) => {
         await form.open(page);
 
         await replaceText(page.getByLabel("Line 1 name"), "First");
         await page.getByRole("button", { name: "Add item" }).click();
         await page.getByLabel("Line 2 name").fill("Second");
 
-        await page.getByRole("button", { name: "Move line 2 up" }).click();
-        expect(await lineNames(page)).toEqual(["Second", "First"]);
+        await dragLine(page, 2, 1);
+        await expect.poll(() => lineNames(page)).toEqual(["Second", "First"]);
 
-        await page.getByRole("button", { name: "Move line 1 down" }).click();
-        expect(await lineNames(page)).toEqual(["First", "Second"]);
+        await dragLine(page, 1, 2);
+        await expect.poll(() => lineNames(page)).toEqual(["First", "Second"]);
       });
     });
 

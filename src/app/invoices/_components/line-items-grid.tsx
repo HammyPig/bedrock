@@ -1,6 +1,21 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import { GripVerticalIcon, PackageIcon, PercentIcon, PlusIcon, Trash2Icon } from "lucide-react";
 
 import { FieldErrors } from "~/components/field-errors";
@@ -50,6 +65,8 @@ interface LineItemsGridProps {
   error?: string;
   /** The rate the document is on; a row added here joins it rather than setting its own. */
   taxBasisPoints: number;
+  /** A locked invoice can't be edited, and that includes reordering its lines. */
+  locked: boolean;
   dispatch: (action: InvoiceAction) => void;
 }
 
@@ -60,6 +77,7 @@ export function LineItemsGrid({
   invalidItemIds,
   error,
   taxBasisPoints,
+  locked,
   dispatch,
 }: LineItemsGridProps) {
   // Names for the unit-price dropdown; harmlessly empty while Tiered pricing is off.
@@ -149,6 +167,19 @@ export function LineItemsGrid({
     if (neighbor) setPendingFocus({ id: neighbor.id, field: "sku" });
   };
 
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+  // Matches between the server and client render, so dnd-kit's accessibility ids hydrate.
+  const dndId = useId();
+
+  const handleDragEnd = ({ active, over }: DragEndEvent) => {
+    if (!over || active.id === over.id) return;
+    const to = items.findIndex((item) => item.id === over.id);
+    dispatch({ type: "moveLineItem", id: String(active.id), to });
+  };
+
   return (
     <section className="space-y-2">
       <div
@@ -167,93 +198,109 @@ export function LineItemsGrid({
         <span />
       </div>
       <FieldErrors>
-        <div className="space-y-2">
-          {items.map((item, index) => {
-            const showInvalid = invalidItemIds.includes(item.id);
-            const patchItem = (patch: Partial<Omit<LineItem, "id">>) =>
-              dispatch({ type: "updateLineItem", id: item.id, patch });
+        <DndContext
+          id={dndId}
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={items.map((item) => item.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="space-y-2">
+              {items.map((item, index) => {
+                const showInvalid = invalidItemIds.includes(item.id);
+                const patchItem = (patch: Partial<Omit<LineItem, "id">>) =>
+                  dispatch({ type: "updateLineItem", id: item.id, patch });
 
-            return (
-              <div key={item.id} className="grid items-center gap-2" style={gridStyle}>
-                {/* TODO: drag-to-reorder (later enhancement) */}
-                <GripVerticalIcon aria-hidden className="text-muted-foreground/40 size-4" />
-                <ItemLookupCell
-                  field="sku"
-                  item={item}
-                  index={index}
-                  savedItems={savedItems}
-                  tierId={tierId}
-                  cellRef={registerCell(item.id, "sku")}
-                  onPatch={patchItem}
-                  onPickSaved={(saved) => handlePickSaved(item.id, saved)}
-                  onKeyDown={(e) => handleCellKeyDown(e, item.id, "sku")}
-                />
-                <ItemLookupCell
-                  field="name"
-                  item={item}
-                  index={index}
-                  savedItems={savedItems}
-                  tierId={tierId}
-                  invalid={showInvalid && item.name.trim() === ""}
-                  cellRef={registerCell(item.id, "name")}
-                  onPatch={patchItem}
-                  onPickSaved={(saved) => handlePickSaved(item.id, saved)}
-                  onKeyDown={(e) => handleCellKeyDown(e, item.id, "name")}
-                />
-                <QuantityInput
-                  ref={registerCell(item.id, "quantity")}
-                  className="px-1.5"
-                  quantityMilli={item.quantityMilli}
-                  aria-label={`Line ${index + 1} quantity`}
-                  aria-invalid={showInvalid && item.quantityMilli <= 0}
-                  onQuantityMilliChange={(quantityMilli) => patchItem({ quantityMilli })}
-                  onKeyDown={(e) => handleCellKeyDown(e, item.id, "quantity")}
-                />
-                <UnitPriceCell
-                  item={item}
-                  index={index}
-                  savedItems={savedItems}
-                  tiers={tiers}
-                  cellRef={registerCell(item.id, "unitPrice")}
-                  onPatch={patchItem}
-                  onKeyDown={(e) => handleCellKeyDown(e, item.id, "unitPrice")}
-                />
-                {showDiscount && (
-                  <PercentInput
-                    ref={registerCell(item.id, "discount")}
-                    className="px-1.5"
-                    basisPoints={item.discountBasisPoints}
-                    aria-label={`Line ${index + 1} discount percent`}
-                    onBasisPointsChange={(discountBasisPoints) =>
-                      patchItem({ discountBasisPoints })
-                    }
-                    onKeyDown={(e) => handleCellKeyDown(e, item.id, "discount")}
-                  />
-                )}
-                <div className="text-muted-foreground text-right text-sm tabular-nums">
-                  {formatCents(lineItemSubtotalCents(item))}
-                </div>
-                {showBackorder && (
-                  <Checkbox
-                    className="justify-self-center"
-                    checked={item.backordered}
-                    aria-label={`Line ${index + 1} backordered`}
-                    onCheckedChange={(checked) => patchItem({ backordered: checked === true })}
-                  />
-                )}
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  disabled={items.length === 1}
-                  aria-label={`Remove line ${index + 1}`}
-                  onClick={() => handleRemove(item.id)}
-                >
-                  <Trash2Icon />
-                </Button>
-              </div>
-            );
-          })}
-        </div>
+                return (
+                  <SortableLineRow
+                    key={item.id}
+                    id={item.id}
+                    index={index}
+                    locked={locked}
+                    style={gridStyle}
+                  >
+                    <ItemLookupCell
+                      field="sku"
+                      item={item}
+                      index={index}
+                      savedItems={savedItems}
+                      tierId={tierId}
+                      cellRef={registerCell(item.id, "sku")}
+                      onPatch={patchItem}
+                      onPickSaved={(saved) => handlePickSaved(item.id, saved)}
+                      onKeyDown={(e) => handleCellKeyDown(e, item.id, "sku")}
+                    />
+                    <ItemLookupCell
+                      field="name"
+                      item={item}
+                      index={index}
+                      savedItems={savedItems}
+                      tierId={tierId}
+                      invalid={showInvalid && item.name.trim() === ""}
+                      cellRef={registerCell(item.id, "name")}
+                      onPatch={patchItem}
+                      onPickSaved={(saved) => handlePickSaved(item.id, saved)}
+                      onKeyDown={(e) => handleCellKeyDown(e, item.id, "name")}
+                    />
+                    <QuantityInput
+                      ref={registerCell(item.id, "quantity")}
+                      className="px-1.5"
+                      quantityMilli={item.quantityMilli}
+                      aria-label={`Line ${index + 1} quantity`}
+                      aria-invalid={showInvalid && item.quantityMilli <= 0}
+                      onQuantityMilliChange={(quantityMilli) => patchItem({ quantityMilli })}
+                      onKeyDown={(e) => handleCellKeyDown(e, item.id, "quantity")}
+                    />
+                    <UnitPriceCell
+                      item={item}
+                      index={index}
+                      savedItems={savedItems}
+                      tiers={tiers}
+                      cellRef={registerCell(item.id, "unitPrice")}
+                      onPatch={patchItem}
+                      onKeyDown={(e) => handleCellKeyDown(e, item.id, "unitPrice")}
+                    />
+                    {showDiscount && (
+                      <PercentInput
+                        ref={registerCell(item.id, "discount")}
+                        className="px-1.5"
+                        basisPoints={item.discountBasisPoints}
+                        aria-label={`Line ${index + 1} discount percent`}
+                        onBasisPointsChange={(discountBasisPoints) =>
+                          patchItem({ discountBasisPoints })
+                        }
+                        onKeyDown={(e) => handleCellKeyDown(e, item.id, "discount")}
+                      />
+                    )}
+                    <div className="text-muted-foreground text-right text-sm tabular-nums">
+                      {formatCents(lineItemSubtotalCents(item))}
+                    </div>
+                    {showBackorder && (
+                      <Checkbox
+                        className="justify-self-center"
+                        checked={item.backordered}
+                        aria-label={`Line ${index + 1} backordered`}
+                        onCheckedChange={(checked) => patchItem({ backordered: checked === true })}
+                      />
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      disabled={items.length === 1}
+                      aria-label={`Remove line ${index + 1}`}
+                      onClick={() => handleRemove(item.id)}
+                    >
+                      <Trash2Icon />
+                    </Button>
+                  </SortableLineRow>
+                );
+              })}
+            </div>
+          </SortableContext>
+        </DndContext>
       </FieldErrors>
       {error && <p className="text-destructive text-sm">{error}</p>}
       <div className="flex items-center justify-between">
@@ -283,6 +330,62 @@ export function LineItemsGrid({
         </div>
       </div>
     </section>
+  );
+}
+
+/**
+ * One row of the grid, dragged by a grip that shows while the row is hovered or
+ * something in it has visible focus. Plain `focus-within` would keep it showing
+ * after a mouse drag, since pressing the grip leaves it focused. Only the grip
+ * starts a drag, so text in the fields stays selectable.
+ */
+function SortableLineRow({
+  id,
+  index,
+  locked,
+  style,
+  children,
+}: {
+  id: string;
+  index: number;
+  locked: boolean;
+  style: React.CSSProperties;
+  children: React.ReactNode;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id, disabled: locked });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className="group relative grid items-center gap-2"
+      style={{
+        ...style,
+        transform: transform ? `translateY(${transform.y}px)` : undefined,
+        transition,
+        zIndex: isDragging ? 1 : undefined,
+      }}
+    >
+      <Button
+        ref={setActivatorNodeRef}
+        variant="ghost"
+        size="icon-xs"
+        className="h-8 w-5 cursor-grab touch-none opacity-0 group-hover:opacity-100 group-has-[:focus-visible]:opacity-100 active:cursor-grabbing"
+        aria-label={`Move line ${index + 1}`}
+        {...attributes}
+        {...listeners}
+      >
+        <GripVerticalIcon />
+      </Button>
+      {children}
+    </div>
   );
 }
 

@@ -102,6 +102,13 @@ function applyAction(draft: InvoiceDraft, action: InvoiceAction): InvoiceDraft {
       return { ...draft, lineItems: [...draft.lineItems, action.item] };
     case "removeLineItem":
       return { ...draft, lineItems: draft.lineItems.filter((item) => item.id !== action.id) };
+    case "moveLineItem": {
+      const moved = draft.lineItems.find((item) => item.id === action.id);
+      if (!moved) return draft;
+      const lineItems = draft.lineItems.filter((item) => item.id !== action.id);
+      lineItems.splice(action.to, 0, moved);
+      return { ...draft, lineItems };
+    }
     case "repriceLineItems":
       return {
         ...draft,
@@ -459,6 +466,7 @@ export function InvoiceForm({
                 invalidItemIds={errors?.invalidLineItemIds ?? []}
                 error={errors?.lineItems}
                 taxBasisPoints={documentTaxBasisPoints(draft)}
+                locked={locked}
                 dispatch={dispatch}
               />
             </fieldset>

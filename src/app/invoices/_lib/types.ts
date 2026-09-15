@@ -122,6 +122,7 @@ export type InvoiceAction =
   | { type: "updateLineItem"; id: string; patch: Partial<Omit<LineItem, "id">> }
   | { type: "appendLineItem"; item: LineItem }
   | { type: "removeLineItem"; id: string }
+  | { type: "moveLineItem"; id: string; to: number }
   | {
       type: "repriceLineItems";
       savedItems: SavedItem[];

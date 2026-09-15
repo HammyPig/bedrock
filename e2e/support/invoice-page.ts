@@ -162,6 +162,25 @@ export async function lineNames(page: Page): Promise<string[]> {
 }
 
 /**
+ * Drags a line by its grip onto another line's place. dnd-kit follows pointer
+ * movement rather than native drag events, so the pointer is walked there in
+ * steps; a single jump would skip the movement it tracks.
+ */
+export async function dragLine(page: Page, from: number, to: number) {
+  const grip = page.getByRole("button", { name: `Move line ${from}`, exact: true });
+  const target = page.getByRole("button", { name: `Move line ${to}`, exact: true });
+  await grip.hover();
+  const start = await grip.boundingBox();
+  const end = await target.boundingBox();
+  if (!start || !end) throw new Error(`No grip for line ${from} or ${to}`);
+
+  await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(end.x + end.width / 2, end.y + end.height / 2, { steps: 10 });
+  await page.mouse.up();
+}
+
+/**
  * The sticky bar at the foot of the form. The save controls sit in a nested
  * group of their own, so the bar is identified as the innermost element holding
  * both those controls and the status line beside them.
