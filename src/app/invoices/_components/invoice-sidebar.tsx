@@ -1,9 +1,10 @@
 "use client";
 
 import { Fragment, useEffect, useRef, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 
 import { Highlight } from "~/components/highlight";
+import { useGuardedPush } from "~/components/leave-guard";
 import { Sidebar, sidebarItemClass } from "~/components/sidebar";
 import {
   Command,
@@ -20,7 +21,7 @@ import { api } from "~/trpc/react";
 /** Floating switcher beside the edit form: every invoice, searchable like the customer picker. */
 export function InvoiceSidebar() {
   const { invoiceId: activeInvoiceId } = useParams<{ invoiceId: string }>();
-  const router = useRouter();
+  const push = useGuardedPush();
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [query, setQuery] = useState("");
   const tokens = tokenize(query);
@@ -92,7 +93,7 @@ export function InvoiceSidebar() {
                       key={invoice.id}
                       value={invoice.id}
                       data-checked={isActive}
-                      onSelect={() => router.push(`/invoices/${invoice.id}/edit`)}
+                      onSelect={() => push(`/invoices/${invoice.id}/edit`)}
                       // The shared look replaces cmdk's filled hover bar and check icon: the
                       // current invoice keeps its fill, other rows only brighten their text.
                       className={cn(
