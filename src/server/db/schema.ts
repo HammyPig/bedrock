@@ -2,7 +2,12 @@ import { relations } from "drizzle-orm";
 import { index, pgTableCreator, primaryKey, uniqueIndex } from "drizzle-orm/pg-core";
 import { type AdapterAccount } from "next-auth/adapters";
 
-import type { Address, CustomerDetails, PaymentTerms } from "~/app/invoices/_lib/types";
+import type {
+  Address,
+  CustomerDetails,
+  PaymentMethod,
+  PaymentTerms,
+} from "~/app/invoices/_lib/types";
 import type { VendorDetails } from "~/app/purchase-orders/_lib/types";
 import {
   DEFAULT_EMAIL_BODY,
@@ -446,6 +451,7 @@ export const payments = createTable(
       .references(() => invoices.id, { onDelete: "cascade" }),
     amountCents: d.integer().notNull(),
     paidDate: d.date({ mode: "string" }).notNull(),
+    method: d.varchar({ length: 16 }).$type<PaymentMethod>().notNull(),
     createdAt: d
       .timestamp({ withTimezone: true })
       .$defaultFn(() => new Date())

@@ -89,12 +89,15 @@ export interface InvoiceDraft {
   notes: string;
 }
 
+export type PaymentMethod = "bank_transfer" | "card" | "cash" | "cheque" | "other";
+
 /** A payment received against an invoice; the invoice's paid total is the sum of these. */
 export interface Payment {
   id: string;
   amountCents: number;
   /** ISO date, YYYY-MM-DD. */
   paidDate: string;
+  method: PaymentMethod;
 }
 
 export interface Totals {

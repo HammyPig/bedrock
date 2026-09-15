@@ -6,12 +6,23 @@ import { useRouter } from "next/navigation";
 import { PencilLineIcon } from "lucide-react";
 
 import { InvoiceStatusBadge } from "~/app/invoices/_components/invoice-status-badge";
-import { customerDisplayName, formatAddressOneLine } from "~/app/invoices/_lib/invoice";
+import {
+  customerDisplayName,
+  formatAddressOneLine,
+  PAYMENT_METHOD_OPTIONS,
+} from "~/app/invoices/_lib/invoice";
 import { balanceCents, listStatus } from "~/app/invoices/_lib/invoices";
-import { type Customer } from "~/app/invoices/_lib/types";
+import { type Customer, type PaymentMethod } from "~/app/invoices/_lib/types";
 import { BackLink } from "~/components/back-link";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select";
 import { formatIsoDate, todayIsoDate } from "~/lib/dates";
 import { formatCents } from "~/lib/money";
 import { cn } from "~/lib/utils";
@@ -35,6 +46,7 @@ export function CustomerProfile({ customer }: CustomerProfileProps) {
   const tiers = api.tier.list.useQuery(undefined, { enabled: modules.tieredPricing });
   const [recording, setRecording] = useState(false);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  const [method, setMethod] = useState<PaymentMethod>("card");
 
   const openInvoices = openInvoicesByCustomer(invoices).get(customer.id) ?? [];
   const owedCents = outstandingCents(openInvoices);
@@ -60,6 +72,7 @@ export function CustomerProfile({ customer }: CustomerProfileProps) {
   const startRecording = () => {
     recordPayments.reset();
     setSelected(new Set());
+    setMethod("card");
     setRecording(true);
   };
 
@@ -250,6 +263,22 @@ export function CustomerProfile({ customer }: CustomerProfileProps) {
             )}
             {recording && (
               <div className="flex items-center gap-3">
+                <Select
+                  value={method}
+                  disabled={recordPayments.isPending}
+                  onValueChange={(value) => setMethod(value as PaymentMethod)}
+                >
+                  <SelectTrigger aria-label="Payment method" className="w-36">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PAYMENT_METHOD_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <Button
                   variant="outline"
                   disabled={recordPayments.isPending}
@@ -263,6 +292,7 @@ export function CustomerProfile({ customer }: CustomerProfileProps) {
                     recordPayments.mutate({
                       invoiceIds: selectedInvoices.map((invoice) => invoice.id),
                       paidDate: today,
+                      method,
                     })
                   }
                 >

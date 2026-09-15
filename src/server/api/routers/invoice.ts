@@ -11,7 +11,12 @@ import {
   resolveDiscount,
   storedDiscountCents,
 } from "~/app/invoices/_lib/money";
-import { type Invoice, type InvoiceDraft, type LineItem } from "~/app/invoices/_lib/types";
+import {
+  type Invoice,
+  type InvoiceDraft,
+  type LineItem,
+  type PaymentMethod,
+} from "~/app/invoices/_lib/types";
 import { centsSchema } from "~/lib/money";
 import { customerDetailsInput } from "~/server/api/routers/customer";
 import {
@@ -72,6 +77,14 @@ const draftInput = z.object({
 
 /** A new invoice is numbered by the business's counter, so it sends no number. */
 const createInput = draftInput.omit({ invoiceNumber: true });
+
+const paymentMethodInput = z.enum([
+  "bank_transfer",
+  "card",
+  "cash",
+  "cheque",
+  "other",
+]) satisfies z.ZodType<PaymentMethod>;
 
 /**
  * The rows a draft is stored as: rates and amounts as they were asked for, plus
@@ -150,6 +163,7 @@ function toInvoice(row: InvoiceRow, paymentsOn: boolean): Invoice {
           id: payment.id,
           amountCents: payment.amountCents,
           paidDate: payment.paidDate,
+          method: payment.method,
         }))
       : [],
   };
@@ -257,6 +271,7 @@ export const invoiceRouter = createTRPCRouter({
         invoiceId: z.string(),
         amountCents: centsSchema.positive(),
         paidDate: isoDate,
+        method: paymentMethodInput,
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -286,7 +301,13 @@ export const invoiceRouter = createTRPCRouter({
 
   /** Records each invoice's remaining balance as a payment — the bulk "customer paid up" action. */
   recordFullPayments: paymentsProcedure
-    .input(z.object({ invoiceIds: z.array(z.string()).min(1).max(500), paidDate: isoDate }))
+    .input(
+      z.object({
+        invoiceIds: z.array(z.string()).min(1).max(500),
+        paidDate: isoDate,
+        method: paymentMethodInput,
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const rows = await ctx.db.query.invoices.findMany({
         where: and(eq(invoices.businessId, ctx.businessId), inArray(invoices.id, input.invoiceIds)),
@@ -297,7 +318,14 @@ export const invoiceRouter = createTRPCRouter({
         if (row.isQuote) return [];
         const balanceCents = row.totalCents - paymentsTotalCents(row.payments);
         return balanceCents > 0
-          ? [{ invoiceId: row.id, amountCents: balanceCents, paidDate: input.paidDate }]
+          ? [
+              {
+                invoiceId: row.id,
+                amountCents: balanceCents,
+                paidDate: input.paidDate,
+                method: input.method,
+              },
+            ]
           : [];
       });
       if (values.length > 0) await ctx.db.insert(payments).values(values);

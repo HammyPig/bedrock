@@ -91,12 +91,13 @@ const INVOICE_EXPORT_FIELDS = [
   "Discount %",
   "Discount",
   "Paid",
+  "Payment methods",
   "Notes",
 ];
 
 /**
  * One row per line item; invoice-level fields repeat on each of its rows.
- * includePaid false = Payments off: the Paid column is omitted entirely.
+ * includePaid false = Payments off: the Paid and Payment methods columns are omitted entirely.
  */
 export function invoicesCsv(invoices: Invoice[], includePaid: boolean): string {
   const sorted = [...invoices].sort(
@@ -125,12 +126,17 @@ export function invoicesCsv(invoices: Invoice[], includePaid: boolean): string {
       formatBasisPoints(draft.deliveryTaxBasisPoints),
       draft.discount === null ? "" : formatBasisPoints(draft.discount.basisPoints),
       draft.discount === null ? "" : dollars(draft.discount.amountCents),
-      ...(includePaid ? [dollars(paymentsTotalCents(payments))] : []),
+      ...(includePaid
+        ? [
+            dollars(paymentsTotalCents(payments)),
+            [...new Set(payments.map((payment) => payment.method))].join("; "),
+          ]
+        : []),
       draft.notes,
     ]),
   );
   const fields = includePaid
     ? INVOICE_EXPORT_FIELDS
-    : INVOICE_EXPORT_FIELDS.filter((field) => field !== "Paid");
+    : INVOICE_EXPORT_FIELDS.filter((field) => field !== "Paid" && field !== "Payment methods");
   return Papa.unparse({ fields, data });
 }

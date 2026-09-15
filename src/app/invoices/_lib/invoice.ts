@@ -10,6 +10,7 @@ import {
   type InvoiceDraft,
   type LineItem,
   type LineItemBase,
+  type PaymentMethod,
   type PaymentTerms,
 } from "./types";
 
@@ -24,6 +25,14 @@ export const PAYMENT_TERMS_OPTIONS: { value: PaymentTerms; label: string }[] = [
   { value: "net_14", label: "Net 14" },
   { value: "net_30", label: "Net 30" },
   { value: "custom", label: "Custom" },
+];
+
+export const PAYMENT_METHOD_OPTIONS: { value: PaymentMethod; label: string }[] = [
+  { value: "bank_transfer", label: "Bank transfer" },
+  { value: "card", label: "Card" },
+  { value: "cash", label: "Cash" },
+  { value: "cheque", label: "Cheque" },
+  { value: "other", label: "Other" },
 ];
 
 const TERM_DAYS: Record<Exclude<PaymentTerms, "custom">, number> = {
