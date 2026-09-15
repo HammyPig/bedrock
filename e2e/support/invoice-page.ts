@@ -11,6 +11,11 @@ export async function gotoNewInvoice(page: Page) {
   await page.getByRole("heading", { name: "New invoice" }).waitFor();
 }
 
+export async function gotoEditInvoice(page: Page, invoice: { id: string; invoiceNumber: string }) {
+  await page.goto(`/invoices/${invoice.id}/edit`);
+  await page.getByRole("heading", { name: `Edit ${invoice.invoiceNumber}` }).waitFor();
+}
+
 /** The bill-to section, anchored on its own label. */
 export function customerDetailsSection(page: Page): Locator {
   return page.locator("section").filter({ has: page.getByText("Bill to", { exact: true }) });
@@ -63,8 +68,7 @@ export function customerDetailsFlash(page: Page): Locator {
 
 /**
  * The prompt shown when an invoice is saved while its customer's details are
- * diverged. Saving is what resolves the divergence, so `saveNewInvoice` cannot
- * be used on that path — it waits for a redirect this dialog is holding up.
+ * diverged. It holds the save up until it is answered.
  */
 export function updateCustomerPrompt(page: Page): Locator {
   return page.getByRole("dialog", { name: "Update customer?" });
@@ -172,16 +176,6 @@ export function actionBar(page: Page): Locator {
 
 export function saveInvoice(page: Page): Locator {
   return actionBar(page).getByRole("button", { name: "Save", exact: true });
-}
-
-/**
- * Saves a brand new invoice and waits for it to land on its own edit page.
- * Without the wait, the next navigation can race the redirect and reload
- * /invoices/new instead.
- */
-export async function saveNewInvoice(page: Page) {
-  await saveInvoice(page).click();
-  await page.waitForURL(/\/invoices\/[^/]+\/edit$/);
 }
 
 /** "Draft", "Saving…", "Saved", or an error, shown at the left of the action bar. */
