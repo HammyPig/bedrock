@@ -274,7 +274,7 @@ test.describe("when the customer's record has changed since the invoice was save
 
   test("saving only asks to update the customer once the details are edited", async ({ page }) => {
     await gotoEditInvoice(page, await outdatedInvoice());
-    await page.getByLabel("Notes").fill("Paid in cash.");
+    await replaceText(page.getByLabel("Notes"), "Paid in cash.");
 
     await saveInvoice(page).click();
     await expect(saveStatus(page)).toHaveText("Saved");
@@ -291,14 +291,14 @@ test.describe("the action bar", () => {
     await gotoEditInvoice(page, await loadedInvoice());
     await expect(saveStatus(page)).toHaveText("Saved");
 
-    await page.getByLabel("Notes").fill("Paid in cash.");
+    await replaceText(page.getByLabel("Notes"), "Paid in cash.");
     await expect(saveStatus(page)).toHaveText("Draft");
   });
 
   test("saving updates the invoice in place", async ({ page }) => {
     const invoice = await loadedInvoice();
     await gotoEditInvoice(page, invoice);
-    await page.getByLabel("Notes").fill("Paid in cash.");
+    await replaceText(page.getByLabel("Notes"), "Paid in cash.");
 
     await saveInvoice(page).click();
 
