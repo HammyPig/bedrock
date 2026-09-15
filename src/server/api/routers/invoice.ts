@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { and, asc, eq, inArray, ne } from "drizzle-orm";
+import { and, asc, eq, inArray, ne, notInArray } from "drizzle-orm";
 import { z } from "zod";
 
 import { lockingModules } from "~/app/invoices/_lib/invoice";
@@ -24,6 +24,7 @@ import {
   loadModules,
   loadSettings,
   paymentsProcedure,
+  type Transaction,
 } from "~/server/api/routers/settings";
 import { businessProcedure, createTRPCRouter } from "~/server/api/trpc";
 import { sendInvoiceEmail } from "~/server/email";
@@ -75,9 +76,6 @@ const draftInput = z.object({
   notes: z.string(),
 }) satisfies z.ZodType<InvoiceDraft>;
 
-/** A new invoice is numbered by the business's counter, so it sends no number. */
-const createInput = draftInput.omit({ invoiceNumber: true });
-
 const paymentMethodInput = z.enum([
   "bank_transfer",
   "card",
@@ -85,6 +83,23 @@ const paymentMethodInput = z.enum([
   "cheque",
   "other",
 ]) satisfies z.ZodType<PaymentMethod>;
+
+const paymentInput = z.object({
+  // Given by the editor, so a later save can tell the payments already stored from new ones.
+  id: z.string().min(1).max(255),
+  amountCents: centsSchema.positive(),
+  paidDate: isoDate,
+  method: paymentMethodInput,
+});
+type PaymentInput = z.infer<typeof paymentInput>;
+
+/**
+ * A new invoice is numbered by the business's counter, so it sends no number.
+ * It brings along the payments recorded on it before its first save.
+ */
+const createInput = draftInput
+  .omit({ invoiceNumber: true })
+  .extend({ payments: z.array(paymentInput) });
 
 /**
  * The rows a draft is stored as: rates and amounts as they were asked for, plus
@@ -202,6 +217,40 @@ async function assertModulesOn(db: typeof database, businessId: string, lineItem
   }
 }
 
+/**
+ * Whether a save writes the payments it was sent. The editor shows none while
+ * Payments is off, so then an empty list leaves the stored ones alone and any
+ * other list is refused.
+ */
+async function writesPayments(db: typeof database, businessId: string, list: PaymentInput[]) {
+  if ((await loadModules(db, businessId)).payments) return true;
+  if (list.length > 0) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Payments are turned off." });
+  }
+  return false;
+}
+
+/**
+ * Makes `list` the invoice's payments. Ones already stored are left as they are,
+ * keeping their place among payments on the same date.
+ */
+async function replacePayments(tx: Transaction, invoiceId: string, list: PaymentInput[]) {
+  const ids = list.map((payment) => payment.id);
+  await tx
+    .delete(payments)
+    .where(
+      and(
+        eq(payments.invoiceId, invoiceId),
+        ids.length > 0 ? notInArray(payments.id, ids) : undefined,
+      ),
+    );
+  if (list.length === 0) return;
+  await tx
+    .insert(payments)
+    .values(list.map((payment) => ({ ...payment, invoiceId })))
+    .onConflictDoNothing({ target: payments.id });
+}
+
 export const invoiceRouter = createTRPCRouter({
   list: businessProcedure.query(async ({ ctx }) => {
     const modules = await loadModules(ctx.db, ctx.businessId);
@@ -224,11 +273,13 @@ export const invoiceRouter = createTRPCRouter({
 
   create: businessProcedure.input(createInput).mutation(async ({ ctx, input }) => {
     const businessId = ctx.businessId;
-    await assertModulesOn(ctx.db, businessId, input.lineItems);
+    const { payments: newPayments, ...draft } = input;
+    await assertModulesOn(ctx.db, businessId, draft.lineItems);
+    const withPayments = await writesPayments(ctx.db, businessId, newPayments);
     return ctx.db.transaction(async (tx) => {
       // Inside the transaction, so a number is only spent by an invoice that saves.
       const invoiceNumber = await assignNextInvoiceNumber(tx, businessId);
-      const { columns, lineItems } = toRows({ ...input, invoiceNumber });
+      const { columns, lineItems } = toRows({ ...draft, invoiceNumber });
       const [created] = await tx
         .insert(invoices)
         .values({ ...columns, businessId })
@@ -237,16 +288,18 @@ export const invoiceRouter = createTRPCRouter({
       await tx
         .insert(invoiceLineItems)
         .values(lineItems.map((line) => ({ ...line, invoiceId: created.id })));
+      if (withPayments) await replacePayments(tx, created.id, newPayments);
       return { id: created.id, invoiceNumber };
     });
   }),
 
   update: businessProcedure
-    .input(z.object({ id: z.string(), draft: draftInput }))
+    .input(z.object({ id: z.string(), draft: draftInput, payments: z.array(paymentInput) }))
     .mutation(async ({ ctx, input }) => {
       const businessId = ctx.businessId;
       await assertInvoiceNumberFree(ctx.db, businessId, input.draft.invoiceNumber, input.id);
       await assertModulesOn(ctx.db, businessId, input.draft.lineItems);
+      const withPayments = await writesPayments(ctx.db, businessId, input.payments);
 
       const { columns, lineItems } = toRows(input.draft);
       await ctx.db.transaction(async (tx) => {
@@ -260,43 +313,21 @@ export const invoiceRouter = createTRPCRouter({
         await tx
           .insert(invoiceLineItems)
           .values(lineItems.map((line) => ({ ...line, invoiceId: input.id })));
+        if (withPayments) await replacePayments(tx, input.id, input.payments);
       });
       return { id: input.id };
     }),
 
-  /** Records a payment received against an invoice. */
-  addPayment: paymentsProcedure
-    .input(
-      z.object({
-        invoiceId: z.string(),
-        amountCents: centsSchema.positive(),
-        paidDate: isoDate,
-        method: paymentMethodInput,
-      }),
-    )
+  /** A locked invoice's save: its payments are all that can still change on it. */
+  savePayments: paymentsProcedure
+    .input(z.object({ invoiceId: z.string(), payments: z.array(paymentInput) }))
     .mutation(async ({ ctx, input }) => {
       const invoice = await ctx.db.query.invoices.findFirst({
         columns: { id: true },
         where: and(eq(invoices.id, input.invoiceId), eq(invoices.businessId, ctx.businessId)),
       });
       if (!invoice) throw new TRPCError({ code: "NOT_FOUND" });
-      const [created] = await ctx.db.insert(payments).values(input).returning({ id: payments.id });
-      if (!created) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-      return { id: created.id };
-    }),
-
-  deletePayment: paymentsProcedure
-    .input(z.object({ id: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      const payment = await ctx.db.query.payments.findFirst({
-        columns: { id: true },
-        where: eq(payments.id, input.id),
-        with: { invoice: { columns: { businessId: true } } },
-      });
-      if (payment?.invoice.businessId !== ctx.businessId) {
-        throw new TRPCError({ code: "NOT_FOUND" });
-      }
-      await ctx.db.delete(payments).where(eq(payments.id, input.id));
+      await ctx.db.transaction((tx) => replacePayments(tx, input.invoiceId, input.payments));
     }),
 
   /** Records each invoice's remaining balance as a payment — the bulk "customer paid up" action. */

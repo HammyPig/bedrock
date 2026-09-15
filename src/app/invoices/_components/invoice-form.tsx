@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { BackLink } from "~/components/back-link";
 import { FieldErrorsContext, useFieldErrors } from "~/components/field-errors";
+import { LeaveGuard } from "~/components/leave-guard";
 import { Button } from "~/components/ui/button";
 import {
   Dialog,
@@ -141,7 +142,7 @@ interface InvoiceFormProps {
   initialDraft?: InvoiceDraft;
   /** Database id of the invoice being edited; omitted on the create page. */
   invoiceId?: string;
-  /** The saved invoice's recorded payments, until the client-side query takes over. */
+  /** The saved invoice's recorded payments; omitted on the create page. */
   initialPayments?: Payment[];
   /** GST rate in basis points a new invoice is written at, from the business's settings. */
   taxBasisPoints?: number;
@@ -184,8 +185,8 @@ export function InvoiceForm({
     invoiceNumber: string;
     message: string;
   } | null>(null);
-  // An existing invoice starts in sync with the database; any edit marks it dirty.
-  const [saved, setSaved] = useState(initialDraft !== undefined);
+  /** Edits since the last save, payments included. Leaving the page with any asks first. */
+  const [dirty, setDirty] = useState(false);
 
   const sendEmail = api.invoice.sendEmail.useMutation();
   const resetSendEmail = sendEmail.reset;
@@ -193,7 +194,7 @@ export function InvoiceForm({
   const tierId = draft.customerDetails.tierId;
   const dispatch = useCallback(
     (action: InvoiceAction) => {
-      setSaved(false);
+      setDirty(true);
       // A stale "Sent to …" confirmation shouldn't outlive the edit it predates.
       resetSendEmail();
       if (action.type === "patchCustomerDetails") setCustomerDetailsTouched(true);
@@ -228,14 +229,14 @@ export function InvoiceForm({
 
   const createInvoice = api.invoice.create.useMutation({
     onSuccess: async ({ id }) => {
-      setSaved(true);
+      setDirty(false);
       await utils.invoice.invalidate();
       router.push(`/invoices/${id}/edit`);
     },
   });
   const updateInvoice = api.invoice.update.useMutation({
     onSuccess: async () => {
-      setSaved(true);
+      setDirty(false);
       await utils.invoice.invalidate();
     },
     onError: (error, { draft: attempted }) => {
@@ -247,28 +248,44 @@ export function InvoiceForm({
   });
 
   const createCustomer = api.customer.create.useMutation();
+  const savePayments = api.invoice.savePayments.useMutation({
+    onSuccess: async () => {
+      setDirty(false);
+      await utils.invoice.invalidate();
+    },
+  });
 
-  const saving = createInvoice.isPending || updateInvoice.isPending || createCustomer.isPending;
+  const saving =
+    createInvoice.isPending ||
+    updateInvoice.isPending ||
+    createCustomer.isPending ||
+    savePayments.isPending;
   // A clashing number is shown on the field, so it never doubles up down here.
   const saveError =
     updateInvoice.error?.data?.code === "CONFLICT"
       ? undefined
-      : (createInvoice.error ?? updateInvoice.error ?? createCustomer.error)?.message;
+      : (createInvoice.error ?? updateInvoice.error ?? createCustomer.error ?? savePayments.error)
+          ?.message;
 
-  // Payments live outside the draft: recording one mutates immediately, and the
-  // query refetch (via invalidation) is what updates this list.
-  const invoiceQuery = api.invoice.get.useQuery(
-    { id: invoiceId ?? "" },
-    { enabled: invoiceId !== undefined },
-  );
-  const payments = invoiceQuery.data?.payments ?? initialPayments ?? [];
+  // Payments sit beside the draft rather than in it, but wait for Save the same
+  // way. If the module is turned off meanwhile they drop out, as from every read,
+  // and a save leaves the stored ones alone.
+  const [recordedPayments, setRecordedPayments] = useState(initialPayments ?? []);
+  const payments = modules.payments ? recordedPayments : [];
   const paidCents = paymentsTotalCents(payments);
+  const changePayments = (next: Payment[]) => {
+    setDirty(true);
+    resetSendEmail();
+    setRecordedPayments(next);
+  };
 
   const totals = computeTotals(draft, paidCents);
   const locking = lockingModules(draft.lineItems, modules);
   const locked = locking.length > 0;
   // Only an edit has a number field, so only an edit can be missing a number.
   const editing = invoiceId !== undefined;
+  // A new invoice has nothing saved until it's created.
+  const saved = !dirty && (editing || createInvoice.isSuccess);
   const errors = showErrors ? validateDraft(draft, editing) : null;
   // Text an input refused to commit, held on its field until it is fixed.
   const [fieldErrors, reportFieldError] = useFieldErrors();
@@ -305,14 +322,17 @@ export function InvoiceForm({
     setShowErrors(false);
     if (invoiceId) {
       updateInvoice.mutate(
-        { id: invoiceId, draft: { ...base, invoiceNumber } },
+        { id: invoiceId, draft: { ...base, invoiceNumber }, payments },
         { onSuccess: ({ id }) => onSaved?.(id, invoiceNumber) },
       );
     } else {
       // A new invoice sends no number: the server assigns one and hands it back.
-      createInvoice.mutate(base, {
-        onSuccess: ({ id, invoiceNumber: assigned }) => onSaved?.(id, assigned),
-      });
+      createInvoice.mutate(
+        { ...base, payments },
+        {
+          onSuccess: ({ id, invoiceNumber: assigned }) => onSaved?.(id, assigned),
+        },
+      );
     }
   };
 
@@ -339,9 +359,13 @@ export function InvoiceForm({
 
   const persist = (onSaved?: SavedHandler) => {
     if (saving) return;
-    // Nothing on a locked invoice can change, so export and email go ahead without a save.
+    // Payments are all that can change on a locked invoice, so they're all its save
+    // sends; with none changed, export and email go straight ahead.
     if (locked) {
-      if (invoiceId) onSaved?.(invoiceId, draft.invoiceNumber);
+      if (!invoiceId) return;
+      const done = () => onSaved?.(invoiceId, draft.invoiceNumber);
+      if (dirty) savePayments.mutate({ invoiceId, payments }, { onSuccess: done });
+      else done();
       return;
     }
     if (validateDraft(draft, editing) || fieldErrors.size > 0) {
@@ -489,9 +513,9 @@ export function InvoiceForm({
                 discount={draft.discount}
                 deliveryCents={draft.deliveryCents}
                 taxBasisPoints={documentTaxBasisPoints(draft)}
-                invoiceId={invoiceId}
                 isQuote={draft.isQuote}
                 payments={payments}
+                onPaymentsChange={changePayments}
                 showPayments={modules.payments}
                 locked={locked}
                 dispatch={dispatch}
@@ -508,7 +532,7 @@ export function InvoiceForm({
           autosaveStatus={saving ? "saving" : saved ? "saved" : "idle"}
           saveError={saveError}
           errorsAbove={errorsAbove}
-          locked={locked}
+          locked={locked && !dirty}
           exporting={exporting}
           sending={sendEmail.isPending}
           sendError={sendEmail.error?.message}
@@ -519,6 +543,7 @@ export function InvoiceForm({
         />
       </div>
 
+      <LeaveGuard when={dirty} />
       <Dialog
         open={pendingSave !== null}
         onOpenChange={(open) => {

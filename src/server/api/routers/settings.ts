@@ -79,7 +79,7 @@ export async function loadSettings(
 }
 
 /** The transaction handle `db.transaction` hands its callback. */
-type Transaction = Parameters<Parameters<typeof database.transaction>[0]>[0];
+export type Transaction = Parameters<Parameters<typeof database.transaction>[0]>[0];
 
 /**
  * Takes the next number off the business's counter and advances it, stepping

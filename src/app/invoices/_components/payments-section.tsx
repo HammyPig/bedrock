@@ -15,68 +15,53 @@ import {
 } from "~/components/ui/select";
 import { formatIsoDate, todayIsoDate } from "~/lib/dates";
 import { formatCents } from "~/lib/money";
-import { api } from "~/trpc/react";
 import { PAYMENT_METHOD_OPTIONS } from "../_lib/invoice";
 import { type Payment, type PaymentMethod } from "../_lib/types";
 
 interface PaymentsSectionProps {
-  /** Undefined on the create page — payments only attach to a saved invoice. */
-  invoiceId?: string;
   isQuote: boolean;
   payments: Payment[];
+  /** Recorded and deleted payments wait, with the invoice's other changes, for its save. */
+  onPaymentsChange: (payments: Payment[]) => void;
   /** Prefills the amount input; paying off the full balance is the common case. */
   balanceCents: number;
 }
 
 /** The recorded payments between the totals and the balance due, with record/delete controls. */
 export function PaymentsSection({
-  invoiceId,
   isQuote,
   payments,
+  onPaymentsChange,
   balanceCents,
 }: PaymentsSectionProps) {
-  const utils = api.useUtils();
   const [adding, setAdding] = useState(false);
   const [amountCents, setAmountCents] = useState(0);
   const [paidDate, setPaidDate] = useState("");
   const [method, setMethod] = useState<PaymentMethod>("card");
 
-  const addPayment = api.invoice.addPayment.useMutation({
-    onSuccess: async () => {
-      setAdding(false);
-      await utils.invoice.invalidate();
-    },
-  });
-  const deletePayment = api.invoice.deletePayment.useMutation({
-    onSuccess: () => utils.invoice.invalidate(),
-  });
-
   const startPartial = () => {
     setAmountCents(0);
     setPaidDate(todayIsoDate());
     setMethod("card");
-    addPayment.reset();
     setAdding(true);
   };
 
+  const record = (payment: Omit<Payment, "id">) => {
+    // In the order a saved invoice lists them, so rows don't shuffle on reload.
+    const added = [...payments, { ...payment, id: crypto.randomUUID() }];
+    onPaymentsChange(added.sort((a, b) => a.paidDate.localeCompare(b.paidDate)));
+    setAdding(false);
+  };
+
   const recordFull = () => {
-    if (invoiceId === undefined || balanceCents <= 0 || addPayment.isPending) return;
-    addPayment.mutate({
-      invoiceId,
-      amountCents: balanceCents,
-      paidDate: todayIsoDate(),
-      method: "card",
-    });
+    if (balanceCents <= 0) return;
+    record({ amountCents: balanceCents, paidDate: todayIsoDate(), method: "card" });
   };
 
   const recordPartial = () => {
-    if (invoiceId === undefined || amountCents <= 0 || paidDate === "" || addPayment.isPending) {
-      return;
-    }
-    addPayment.mutate({ invoiceId, amountCents, paidDate, method });
+    if (amountCents <= 0 || paidDate === "") return;
+    record({ amountCents, paidDate, method });
   };
-
-  const error = addPayment.error ?? deletePayment.error;
 
   return (
     <div className="space-y-2.5">
@@ -91,8 +76,7 @@ export function PaymentsSection({
               variant="ghost"
               size="icon-xs"
               aria-label="Delete payment"
-              disabled={deletePayment.isPending}
-              onClick={() => deletePayment.mutate({ id: payment.id })}
+              onClick={() => onPaymentsChange(payments.filter(({ id }) => id !== payment.id))}
             >
               <XIcon />
             </Button>
@@ -102,8 +86,7 @@ export function PaymentsSection({
       ))}
 
       {/* Quotes aren't payable, and a settled invoice has nothing left to record. */}
-      {invoiceId !== undefined &&
-        !isQuote &&
+      {!isQuote &&
         balanceCents > 0 &&
         (adding ? (
           <div className="space-y-1.5">
@@ -139,7 +122,7 @@ export function PaymentsSection({
                 <Button
                   size="sm"
                   className="h-7"
-                  disabled={amountCents <= 0 || paidDate === "" || addPayment.isPending}
+                  disabled={amountCents <= 0 || paidDate === ""}
                   onClick={recordPartial}
                 >
                   Record
@@ -157,13 +140,7 @@ export function PaymentsSection({
           </div>
         ) : (
           <div className="flex items-center gap-3">
-            <Button
-              variant="link"
-              size="sm"
-              className="h-auto p-0"
-              disabled={addPayment.isPending}
-              onClick={recordFull}
-            >
+            <Button variant="link" size="sm" className="h-auto p-0" onClick={recordFull}>
               Record full payment
             </Button>
             <Button variant="link" size="sm" className="h-auto p-0" onClick={startPartial}>
@@ -171,8 +148,6 @@ export function PaymentsSection({
             </Button>
           </div>
         ))}
-
-      {error && <p className="text-destructive text-xs">{error.message}</p>}
     </div>
   );
 }

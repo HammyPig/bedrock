@@ -17,7 +17,10 @@ interface StickyActionBarProps {
   sendError?: string;
   /** Address the invoice was emailed to, shown as confirmation until the next edit. */
   sentTo?: string;
-  /** The invoice can't be edited, so there's nothing to save — export and email go straight ahead. */
+  /**
+   * Nothing to save: the invoice can't be edited and has no payment changes
+   * waiting, so export and email go straight ahead.
+   */
   locked: boolean;
   onSave: () => void;
   onSaveAndExport: () => void;

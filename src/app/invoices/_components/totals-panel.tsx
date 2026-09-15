@@ -25,13 +25,12 @@ interface TotalsPanelProps {
   deliveryCents: number;
   /** The rate the invoice is written at — shown, never edited. */
   taxBasisPoints: number;
-  /** Undefined on the create page — payments only attach to a saved invoice. */
-  invoiceId?: string;
   isQuote: boolean;
   payments: Payment[];
+  onPaymentsChange: (payments: Payment[]) => void;
   /** Payments module: off hides the payments section and the balance due, leaving the total as the headline figure. */
   showPayments: boolean;
-  /** Locks the discount and delivery, never payments — those are recorded apart from the invoice's save. */
+  /** Locks the discount and delivery, never payments — a locked invoice's save still sends those. */
   locked: boolean;
   dispatch: (action: InvoiceAction) => void;
 }
@@ -41,9 +40,9 @@ export function TotalsPanel({
   discount,
   deliveryCents,
   taxBasisPoints,
-  invoiceId,
   isQuote,
   payments,
+  onPaymentsChange,
   showPayments,
   locked,
   dispatch,
@@ -189,13 +188,13 @@ export function TotalsPanel({
 
       {showPayments && (
         <>
-          {/* A payment is recorded on its own, not by the invoice's save, so its
+          {/* A payment still being typed isn't part of the invoice's save, so its
               half-typed amount mustn't hold that save up. */}
           <FieldErrorsContext value={null}>
             <PaymentsSection
-              invoiceId={invoiceId}
               isQuote={isQuote}
               payments={payments}
+              onPaymentsChange={onPaymentsChange}
               balanceCents={totals.balanceCents}
             />
           </FieldErrorsContext>
