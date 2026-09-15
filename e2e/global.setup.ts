@@ -45,6 +45,10 @@ function pushSchema() {
   try {
     execFileSync("bunx", ["drizzle-kit", "push", "--force"], {
       stdio: "pipe",
+      // A change that could be a rename makes drizzle-kit ask which it was, and
+      // nothing here can answer. Being synchronous, this call also blocks the
+      // setup's own timeout, so without one of its own the run hangs instead of failing.
+      timeout: 60_000,
       env: { ...process.env, DATABASE_URL: TEST_DATABASE_URL, SKIP_ENV_VALIDATION: "1" },
     });
   } catch (error) {
