@@ -21,6 +21,7 @@ import { todayIsoDate } from "~/lib/dates";
 import { cn } from "~/lib/utils";
 import { api } from "~/trpc/react";
 import {
+  addressHasContent,
   customerDetailsMatchesCustomer,
   customerDisplayName,
   DOCUMENT_TYPE_OPTIONS,
@@ -71,10 +72,25 @@ function applyAction(draft: InvoiceDraft, action: InvoiceAction): InvoiceDraft {
       return { ...draft, customerDetails: { ...draft.customerDetails, ...action.patch } };
     case "fillDetailsFromCustomer": {
       const { id, ...customerDetails } = action.customer;
-      return { ...draft, customerDetails, customerId: id };
+      // Refilling the same customer is "Reset to saved", which leaves the
+      // invoice's delivery choice alone; a different customer starts it afresh.
+      if (id === draft.customerId) return { ...draft, customerDetails };
+      return {
+        ...draft,
+        customerDetails,
+        customerId: id,
+        hasDeliveryAddress: false,
+        deliverySameAsBilling: !addressHasContent(customerDetails.deliveryAddress),
+      };
     }
     case "startNewCustomer":
-      return { ...draft, customerDetails: action.customerDetails, customerId: null };
+      return {
+        ...draft,
+        customerDetails: action.customerDetails,
+        customerId: null,
+        hasDeliveryAddress: false,
+        deliverySameAsBilling: true,
+      };
     case "updateLineItem":
       return {
         ...draft,

@@ -386,7 +386,6 @@ export function invoiceFormTests(form: InvoiceFormRoute) {
         test("from a saved or new customer to another saved customer resets every field and fills in their details", async ({
           page,
         }) => {
-          test.fixme();
           await seedCustomer(CUSTOMERS.acme);
           await seedCustomer(CUSTOMERS.cashJob);
           await form.open(page);
@@ -416,7 +415,6 @@ export function invoiceFormTests(form: InvoiceFormRoute) {
         });
 
         test("from a saved customer to a new customer resets every field", async ({ page }) => {
-          test.fixme();
           await seedCustomer(CUSTOMERS.acme);
           await form.open(page);
 
@@ -434,7 +432,6 @@ export function invoiceFormTests(form: InvoiceFormRoute) {
         test("from a new customer to a new customer, and from a saved customer to the same saved customer, does nothing", async ({
           page,
         }) => {
-          test.fixme();
           await seedCustomer(CUSTOMERS.acme);
           await form.open(page);
 
@@ -547,7 +544,6 @@ export function invoiceFormTests(form: InvoiceFormRoute) {
         });
 
         test("defaults to a separate address when the customer has one", async ({ page }) => {
-          test.fixme();
           await seedCustomer(CUSTOMERS.acme);
           await form.open(page);
           await pickCustomer(page, /Priya Nair/);

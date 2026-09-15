@@ -127,6 +127,8 @@ export function CustomerDetailsSection({
   };
 
   const handleCreateNew = (query: string) => {
+    // Already a new customer: starting another would throw away what has been typed.
+    if (creating) return;
     const field = fieldForQuery(query);
     dispatch({
       type: "startNewCustomer",
@@ -136,6 +138,8 @@ export function CustomerDetailsSection({
   };
 
   const handlePickCustomer = (customer: Customer) => {
+    // Picking the customer already chosen would throw away edits made to them here.
+    if (customer.id === customerId) return;
     dispatch({ type: "fillDetailsFromCustomer", customer });
   };
 
@@ -178,7 +182,9 @@ export function CustomerDetailsSection({
                   Update saved customer
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={() => handlePickCustomer(source)}>
+                <DropdownMenuItem
+                  onSelect={() => dispatch({ type: "fillDetailsFromCustomer", customer: source })}
+                >
                   Reset to saved
                 </DropdownMenuItem>
               </DropdownMenuContent>
